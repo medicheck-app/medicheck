@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCheck — CUF Torres Vedras</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@300;400;500&family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0c0f; --bg2:#0f1318; --surface:#151a1f; --surface2:#1b2128; --surface3:#222a32;
+  --border:#242d36; --border2:#2e3a44;
+  --ink:#dde2e7; --ink2:#7d8f9e; --ink3:#48606f;
+  --amber:#e8a020; --amber-dim:rgba(232,160,32,.08); --amber-glow:rgba(232,160,32,.15);
+  --red:#d95555; --red-glow:rgba(217,85,85,.10);
+  --green:#38b07a; --green-glow:rgba(56,176,122,.10);
+  --teal:#2eb8c4; --teal-glow:rgba(46,184,196,.10);
+  --r:14px; --r-sm:8px; --sidebar-w:260px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  /* Specialty accent — overridden by JS */
+  --accent:var(--amber); --accent-glow:var(--amber-glow); --accent-dim:var(--amber-dim);
+}
+
+/* SPECIALTY THEMES */
+body.sp-anestesia { --accent:#e8a020; --accent-glow:rgba(232,160,32,.15); --accent-dim:rgba(232,160,32,.08); }
+body.sp-cirurgia  { --accent:#5b9cf6; --accent-glow:rgba(91,156,246,.15); --accent-dim:rgba(91,156,246,.08); }
+body.sp-gastro    { --accent:#38b07a; --accent-glow:rgba(56,176,122,.15); --accent-dim:rgba(56,176,122,.08); }
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+
+body {
+  font-family:'Figtree',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  display:flex;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* GRAIN */
+body::before {
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.6;
+}
+
+/* ─── ONBOARDING OVERLAY ─── */
+#onboarding {
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+.ob-wrap {
+  width:100%;max-width:480px;
+  animation:obIn .6s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes obIn {
+  from{opacity:0;transform:translateY(24px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.ob-logo {
+  font-family:'Fraunces',serif;
+  font-size:2.6rem;font-weight:600;letter-spacing:-.04em;line-height:1;
+  margin-bottom:6px;
+}
+.ob-logo span { color:var(--accent); }
+.ob-tagline {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.65rem;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:48px;
+}
+.ob-step { display:none; }
+.ob-step.active { display:block; animation:obIn .4s cubic-bezier(.16,1,.3,1) both; }
+.ob-heading {
+  font-family:'Fraunces',serif;
+  font-size:1.6rem;font-weight:400;letter-spacing:-.03em;line-height:1.2;
+  margin-bottom:8px;
+}
+.ob-sub { font-size:.85rem;color:var(--ink2);line-height:1.6;margin-bottom:28px; }
+
+/* Specialty cards */
+.sp-cards { display:flex;flex-direction:column;gap:10px;margin-bottom:28px; }
+.sp-card {
+  padding:18px 20px;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:var(--r);
+  cursor:pointer;
+  transition:all .2s;
+  display:flex;align-items:center;gap:16px;
+}
+.sp-card:hover { border-color:var(--border2);background:var(--surface2); }
+.sp-card.selected {
+  border-color:var(--accent);
+  background:var(--accent-dim);
+}
+.sp-card-icon { font-size:1.6rem;flex-shrink:0; }
+.sp-card-name { font-weight:700;font-size:.95rem;margin-bottom:2px; }
+.sp-card-desc { font-size:.76rem;color:var(--ink2);line-height:1.4; }
+.sp-card-check {
+  margin-left:auto;width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--border2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;transition:all .2s;
+}
+.sp-card.selected .sp-card-check {
+  background:var(--accent);border-color:var(--accent);color:#000;
+}
+
+/* Name input */
+.ob-name-wrap { margin-bottom:24px; }
+.ob-input-label {
+  font-family:'IBM Plex Mono',monospace;font-size:.6rem;
+  color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;
+  margin-bottom:6px;display:block;
+}
+.ob-input {
+  width:100%;padding:13px 16px;
+  background:var(--surface2);border:1.5px solid var(--border2);
+  border-radius:var(--r-sm);font-family:'Figtree',sans-serif;
+  font-size:1rem;color:var(--ink);outline:none;
+  transition:border-color .18s;
+}
+.ob-input:focus { border-color:var(--accent); }
+.ob-input::placeholder { color:var(--ink3); }
+
+.ob-btn {
+  width:100%;padding:16px;
+  background:var(--accent);color:#000;border:none;
+  border-radius:var(--r-sm);font-family:'Figtree',sans-serif;
+  font-size:.95rem;font-weight:700;cursor:pointer;
+  transition:all .2s;letter-spacing:.01em;
+}
+.ob-btn:hover { filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 6px 24px var(--accent-glow); }
+.ob-btn:disabled { opacity:.35;pointer-events:none; }
+.ob-back {
+  background:none;border:none;color:var(--ink3);
+  font-family:'Figtree',sans-serif;font-size:.82rem;
+  cursor:pointer;padding:12px 0 0;display:block;text-align:center;
+  transition:color .15s;
+}
+.ob-back:hover { color:var(--ink); }
+
+/* Progress dots */
+.ob-dots { display:flex;gap:6px;margin-bottom:36px; }
+.ob-dot {
+  width:6px;height:6px;border-radius:3px;background:var(--border2);
+  transition:all .3s;
+}
+.ob-dot.active { background:var(--accent);width:20px; }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  width:var(--sidebar-w);min-height:100vh;
+  background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;
+  z-index:20;flex-shrink:0;
+}
+.logo-area { padding:26px 22px 20px;border-bottom:1px solid var(--border); }
+.logo-word {
+  font-family:'Fraunces',serif;font-size:1.6rem;font-weight:600;
+  color:var(--ink);letter-spacing:-.04em;line-height:1;
+}
+.logo-word span { color:var(--accent); }
+.logo-user {
+  font-size:.78rem;color:var(--ink2);margin-top:5px;font-weight:500;
+}
+.logo-sp {
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'IBM Plex Mono',monospace;font-size:.58rem;
+  color:var(--accent);letter-spacing:.1em;text-transform:uppercase;
+  margin-top:3px;
+}
+.nav-section { padding:14px 10px;flex:1;overflow-y:auto; }
+.nav-label {
+  font-family:'IBM Plex Mono',monospace;font-size:.54rem;
+  color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;
+  padding:0 12px;margin-bottom:6px;margin-top:14px;
+}
+.nav-item {
+  display:flex;align-items:center;gap:9px;padding:9px 12px;
+  border-radius:var(--r-sm);cursor:pointer;font-size:.84rem;font-weight:500;
+  color:var(--ink2);transition:all .18s;border:1px solid transparent;margin-bottom:1px;
+}
+.nav-item:hover { color:var(--ink);background:var(--surface); }
+.nav-item.active {
+  color:var(--accent);background:var(--accent-dim);
+  border-color:rgba(from var(--accent) r g b / .15);
+}
+.nav-icon { font-size:.9rem;opacity:.55;width:18px;text-align:center;flex-shrink:0; }
+.nav-item.active .nav-icon { opacity:1; }
+.nav-badge {
+  margin-left:auto;background:var(--accent);color:#000;
+  font-family:'IBM Plex Mono',monospace;font-size:.57rem;font-weight:500;
+  padding:2px 6px;border-radius:10px;min-width:20px;text-align:center;
+}
+.nav-badge.danger { background:var(--red);color:white; }
+.sidebar-footer { padding:14px 18px;border-top:1px solid var(--border); }
+.privacy-tag {
+  display:flex;align-items:center;gap:6px;
+  font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--green);
+}
+.privacy-dot {
+  width:5px;height:5px;background:var(--green);border-radius:50%;
+  animation:pg 2s ease-in-out infinite;flex-shrink:0;
+}
+@keyframes pg{0%,100%{opacity:1;}50%{opacity:.3;}}
+.date-tag {
+  font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--ink3);margin-top:5px;
+}
+
+/* ─── MAIN ─── */
+.main { flex:1;min-width:0;display:flex;flex-direction:column;position:relative;z-index:1; }
+.topbar {
+  height:54px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 28px;gap:14px;
+  background:var(--bg2);position:sticky;top:0;z-index:10;flex-shrink:0;
+}
+.topbar-title {
+  font-family:'Fraunces',serif;font-size:1.05rem;font-weight:400;letter-spacing:-.025em;
+}
+.topbar-sep { width:1px;height:16px;background:var(--border2); }
+.topbar-meta { font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3); }
+.content { padding:26px;flex:1; }
+.panel { display:none;animation:fu .22s ease; }
+.panel.active { display:block; }
+@keyframes fu { from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);} }
+
+/* ─── CARDS ─── */
+.card {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:22px;margin-bottom:16px;
+}
+.card-title {
+  font-family:'Fraunces',serif;font-size:1rem;font-weight:400;
+  letter-spacing:-.02em;margin-bottom:3px;
+}
+.card-sub { font-size:.76rem;color:var(--ink2);line-height:1.6;margin-bottom:16px; }
+
+/* ─── HERO CAPTURE ─── */
+.hero-capture {
+  background:linear-gradient(160deg,#141c24 0%,#0f1318 60%);
+  border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;margin-bottom:16px;position:relative;
+}
+.hero-capture::after {
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.4;
+}
+.hero-inner { padding:28px 24px 20px; }
+.hero-eyebrow {
+  font-family:'IBM Plex Mono',monospace;font-size:.57rem;
+  color:var(--accent);text-transform:uppercase;letter-spacing:.16em;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.hero-eyebrow::before {
+  content:'';width:16px;height:1px;background:var(--accent);opacity:.5;
+}
+.hero-title {
+  font-family:'Fraunces',serif;font-size:1.55rem;font-weight:400;
+  letter-spacing:-.035em;line-height:1.15;margin-bottom:6px;
+}
+.hero-title em { font-style:italic;color:var(--accent); }
+.hero-sub { font-size:.77rem;color:var(--ink3);line-height:1.55;margin-bottom:22px; }
+.capture-btn {
+  width:100%;padding:17px;background:var(--accent);color:#000;border:none;
+  border-radius:var(--r-sm);font-family:'Figtree',sans-serif;
+  font-size:1rem;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .2s;position:relative;overflow:hidden;
+  letter-spacing:.01em;
+}
+.capture-btn::before {
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);
+  pointer-events:none;
+}
+.capture-btn:hover { filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 8px 28px var(--accent-glow); }
+.capture-btn input[type="file"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+.hero-alts { display:flex;gap:8px;margin-top:10px; }
+.alt-btn {
+  flex:1;padding:10px 8px;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--r-sm);font-family:'Figtree',sans-serif;
+  font-size:.76rem;font-weight:600;color:var(--ink2);
+  cursor:pointer;text-align:center;transition:all .15s;
+}
+.alt-btn:hover { color:var(--ink);background:var(--surface3);border-color:var(--border2); }
+
+/* ─── EXTRACTED ─── */
+.extracted-box {
+  display:none;
+  background:var(--surface2);
+  border:1px solid rgba(from var(--accent) r g b / .25);
+  border-left:3px solid var(--accent);
+  border-radius:var(--r);padding:16px 20px;
+  margin:0 24px 18px;
+  animation:fu .25s ease;
+}
+.ext-label {
+  font-family:'IBM Plex Mono',monospace;font-size:.57rem;
+  color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:11px;
+}
+.ext-fields { display:flex;gap:22px;flex-wrap:wrap;margin-bottom:13px; }
+.ef-label {
+  font-family:'IBM Plex Mono',monospace;font-size:.56rem;
+  color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;
+}
+.ef-value { font-family:'IBM Plex Mono',monospace;font-size:.88rem;color:var(--ink);font-weight:500; }
+.ef-value.accent { color:var(--accent); }
+
+/* ─── FORM ─── */
+.form-grid { display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px; }
+.form-group { display:flex;flex-direction:column;gap:5px; }
+.form-group.full { grid-column:1/-1; }
+.form-label {
+  font-family:'IBM Plex Mono',monospace;font-size:.58rem;
+  color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;
+}
+input[type="text"],input[type="date"],input[type="number"],select {
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--r-sm);padding:10px 13px;
+  font-family:'Figtree',sans-serif;font-size:.85rem;color:var(--ink);
+  outline:none;transition:border-color .18s;-webkit-appearance:none;width:100%;
+}
+input:focus,select:focus { border-color:var(--accent); }
+input::placeholder { color:var(--ink3); }
+select option { background:var(--surface2); }
+.valor-hint {
+  display:none;font-family:'IBM Plex Mono',monospace;font-size:.72rem;
+  color:var(--accent);padding:7px 12px;
+  background:var(--accent-dim);border-radius:var(--r-sm);
+  border:1px solid var(--accent-glow);margin-top:6px;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+  display:inline-flex;align-items:center;gap:7px;
+  padding:10px 18px;border-radius:var(--r-sm);
+  font-family:'Figtree',sans-serif;font-size:.84rem;font-weight:600;
+  cursor:pointer;border:none;transition:all .18s;
+}
+.btn-primary { background:var(--accent);color:#000; }
+.btn-primary:hover { filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 16px var(--accent-glow); }
+.btn-ghost { background:transparent;color:var(--ink2);border:1px solid var(--border2); }
+.btn-ghost:hover { background:var(--surface2);color:var(--ink); }
+.btn-green { background:var(--green);color:#000; }
+.btn-green:hover { filter:brightness(1.1); }
+.btn-sm { padding:7px 13px;font-size:.77rem; }
+.btn-row { display:flex;gap:8px;flex-wrap:wrap; }
+
+/* ─── STATS ─── */
+.stats-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:20px; }
+.stat-card {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px 20px;
+  position:relative;overflow:hidden;
+}
+.stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px; }
+.c-accent::before { background:var(--accent); }
+.c-green::before { background:var(--green); }
+.c-red::before { background:var(--red); }
+.stat-num {
+  font-family:'Fraunces',serif;font-size:2.4rem;line-height:1;
+  font-weight:600;margin-bottom:5px;letter-spacing:-.04em;
+}
+.stat-num.accent { color:var(--accent); }
+.stat-num.green { color:var(--green); }
+.stat-num.red { color:var(--red); }
+.stat-num.muted { color:var(--ink2); }
+.stat-label { font-size:.7rem;color:var(--ink3);font-weight:500; }
+
+/* ─── TABLE ─── */
+.table-wrap { overflow-x:auto; }
+table { width:100%;border-collapse:collapse;font-size:.82rem; }
+thead th {
+  padding:8px 12px;
+  font-family:'IBM Plex Mono',monospace;font-size:.56rem;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);
+  border-bottom:1px solid var(--border);background:var(--surface2);
+  text-align:left;white-space:nowrap;
+}
+tbody tr { border-bottom:1px solid var(--border);transition:background .12s; }
+tbody tr:hover { background:var(--surface2); }
+tbody tr:last-child { border-bottom:none; }
+tbody td {
+  padding:10px 12px;vertical-align:middle;
+  font-family:'IBM Plex Mono',monospace;font-size:.74rem;color:var(--ink2);
+}
+.td-proc { color:var(--ink)!important;font-weight:500; }
+.td-act { font-family:'Figtree',sans-serif!important;font-size:.82rem!important;font-weight:500;color:var(--ink)!important; }
+.td-eur { color:var(--accent)!important;font-weight:500; }
+.td-missing-eur { color:var(--red)!important;font-weight:500; }
+
+/* ─── BADGES ─── */
+.badge {
+  display:inline-flex;align-items:center;gap:3px;padding:2px 8px;
+  border-radius:20px;font-family:'IBM Plex Mono',monospace;
+  font-size:.6rem;font-weight:500;white-space:nowrap;
+}
+.badge-ok { background:var(--green-glow);color:var(--green);border:1px solid rgba(56,176,122,.2); }
+.badge-missing { background:var(--red-glow);color:var(--red);border:1px solid rgba(217,85,85,.2); }
+.badge-seg { background:rgba(91,156,246,.08);color:#7ab4f5;border:1px solid rgba(91,156,246,.18);font-size:.58rem; }
+
+/* ─── ALERTS ─── */
+.alert {
+  display:flex;align-items:flex-start;gap:9px;padding:11px 15px;
+  border-radius:var(--r-sm);font-size:.79rem;margin-bottom:13px;line-height:1.55;
+}
+.alert-info { background:rgba(91,156,246,.07);border:1px solid rgba(91,156,246,.18);color:#7ab4f5; }
+.alert-success { background:var(--green-glow);border:1px solid rgba(56,176,122,.2);color:var(--green); }
+.alert-warn { background:var(--accent-dim);border:1px solid var(--accent-glow);color:var(--accent); }
+
+/* ─── UPLOAD ─── */
+.upload-zone {
+  border:1.5px dashed var(--border2);border-radius:var(--r);
+  padding:30px 20px;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;background:var(--surface2);
+}
+.upload-zone:hover { border-color:var(--accent);background:var(--accent-dim); }
+.upload-zone input[type="file"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+.upload-icon { font-size:1.7rem;margin-bottom:7px;opacity:.55; }
+.upload-label { font-weight:600;font-size:.86rem;margin-bottom:3px; }
+.upload-hint { font-family:'IBM Plex Mono',monospace;font-size:.63rem;color:var(--ink3);letter-spacing:.04em; }
+
+/* ─── EMPTY ─── */
+.empty { text-align:center;padding:40px 20px; }
+.empty-icon { font-size:2rem;margin-bottom:10px;opacity:.25; }
+.empty-text { font-size:.83rem;color:var(--ink3); }
+
+.btn-del {
+  background:none;border:none;color:var(--ink3);cursor:pointer;
+  font-size:.75rem;padding:3px 5px;border-radius:4px;transition:color .14s;
+}
+.btn-del:hover { color:var(--red); }
+.invoice-row {
+  display:flex;align-items:center;gap:12px;padding:13px 16px;
+  background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);
+}
+hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
+
+/* ─── REPORT ─── */
+.report-header {
+  background:var(--surface2);border:1px solid var(--border);
+  border-bottom:none;border-radius:var(--r) var(--r) 0 0;
+  padding:22px 26px;display:flex;justify-content:space-between;align-items:flex-start;
+}
+.report-title { font-family:'Fraunces',serif;font-size:1.2rem;font-weight:400;letter-spacing:-.02em; }
+.report-meta-line { font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--ink3);margin-top:3px; }
+.report-count-num { font-family:'Fraunces',serif;font-size:2.6rem;color:var(--red);line-height:1;font-weight:600; }
+.report-count-eur { font-family:'Fraunces',serif;font-size:1.1rem;color:var(--red);opacity:.7; }
+.report-count-label { font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--ink3);text-transform:uppercase; }
+.report-body { border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden; }
+.note-card {
+  background:var(--red-glow);border:1px solid rgba(217,85,85,.2);
+  border-radius:var(--r);padding:15px 18px;margin-top:16px;
+}
+.note-card-label { font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--red);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px; }
+.note-card-text { font-size:.79rem;color:var(--ink2);line-height:1.65; }
+
+/* ─── DASHBOARD ─── */
+.dash-grid { display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:16px; }
+.dash-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px; }
+.dash-card.full { grid-column:1/-1; }
+.dash-title { font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px; }
+.bar-row { display:flex;align-items:center;gap:9px;margin-bottom:9px; }
+.bar-label { font-size:.76rem;color:var(--ink2);width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.bar-track { flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden; }
+.bar-fill { height:100%;border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1); }
+.bar-fill.accent { background:var(--accent); }
+.bar-fill.red { background:var(--red); }
+.bar-fill.blue { background:#5b9cf6; }
+.bar-val { font-family:'IBM Plex Mono',monospace;font-size:.66rem;color:var(--ink3);width:52px;text-align:right;flex-shrink:0; }
+.month-row { display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border); }
+.month-row:last-child { border-bottom:none; }
+.month-name { font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink2);width:68px;flex-shrink:0; }
+.month-pills { display:flex;gap:5px;flex:1;flex-wrap:wrap; }
+.month-pill { font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 7px;border-radius:10px; }
+.month-pill.ok { background:var(--green-glow);color:var(--green);border:1px solid rgba(56,176,122,.2); }
+.month-pill.bad { background:var(--red-glow);color:var(--red);border:1px solid rgba(217,85,85,.2); }
+.month-eur { font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--red);margin-left:auto;flex-shrink:0; }
+.big-euro { font-family:'Fraunces',serif;font-size:2.1rem;font-weight:600;color:var(--red);letter-spacing:-.03em;line-height:1; }
+.big-euro-label { font-size:.68rem;color:var(--ink3);margin-top:4px; }
+
+/* ─── STEPS ─── */
+.steps { display:flex;align-items:center;margin-bottom:22px; }
+.step { display:flex;align-items:center;gap:6px;font-size:.71rem;font-weight:600;color:var(--ink3); }
+.step.done { color:var(--green); }
+.step.active { color:var(--accent); }
+.step-num {
+  width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:.6rem;flex-shrink:0;
+}
+.step.done .step-num { background:var(--green);color:#000;border-color:var(--green); }
+.step-conn { flex:1;height:1px;background:var(--border);margin:0 7px;max-width:32px; }
+
+/* ─── SPINNER ─── */
+.spinner { display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* ─── SYNC ─── */
+.sync-bar {
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:9px 15px;margin-bottom:18px;flex-wrap:wrap;gap:7px;
+}
+.sync-status { font-family:'IBM Plex Mono',monospace;font-size:.61rem;color:var(--ink3);display:flex;align-items:center;gap:6px; }
+.sync-dot { width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0; }
+.sync-dot.unsaved { background:var(--accent);animation:pg 1.5s ease-in-out infinite; }
+
+/* ─── HON TABLE ─── */
+.hon-table { width:100%;border-collapse:collapse;font-size:.75rem;margin-top:6px; }
+.hon-table th { background:var(--surface2);padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);border-bottom:1px solid var(--border);text-align:left; }
+.hon-table td { padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top; }
+.hon-table tr:last-child td { border-bottom:none; }
+.hon-table tr:hover td { background:var(--surface2); }
+.hon-cod { font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink3); }
+.hon-desc { color:var(--ink2);font-size:.78rem; }
+.hon-eur { font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:500;white-space:nowrap; }
+
+/* ─── MOBILE ─── */
+.mob-nav {
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--bg2);border-top:1px solid var(--border);
+  z-index:100;padding:7px 0;padding-bottom:calc(7px + var(--safe-bottom));
+}
+.mob-nav-inner { display:flex;justify-content:space-around; }
+.mob-tab {
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:5px 8px;cursor:pointer;color:var(--ink3);
+  font-size:.58rem;font-weight:600;border-radius:var(--r-sm);
+  transition:color .15s;position:relative;
+}
+.mob-tab.active { color:var(--accent); }
+.mob-tab-icon { font-size:1.1rem; }
+.mob-tab-badge {
+  position:absolute;top:0;right:2px;background:var(--accent);color:#000;
+  font-size:.48rem;font-family:'IBM Plex Mono',monospace;
+  padding:1px 3px;border-radius:8px;min-width:13px;text-align:center;
+}
+.mob-tab-badge.danger { background:var(--red);color:white; }
+
+@media(max-width:768px){
+  .sidebar { display:none; }
+  .mob-nav { display:block; }
+  .content { padding:14px 13px 96px; }
+  .stats-grid { grid-template-columns:1fr 1fr; }
+  .form-grid { grid-template-columns:1fr; }
+  .form-group.full { grid-column:1; }
+  .dash-grid { grid-template-columns:1fr; }
+  .topbar { padding:0 15px; }
+  .topbar-meta { display:none; }
+}
+@media(max-width:420px){ .stats-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body class="sp-anestesia">
+
+<!-- ═══════════════════════════════════
+     ONBOARDING OVERLAY
+════════════════════════════════════ -->
+<div id="onboarding">
+  <div class="ob-wrap">
+    <div class="ob-logo">Medi<span>Check</span></div>
+    <div class="ob-tagline">CUF Torres Vedras · Reconciliação de Honorários</div>
+
+    <div class="ob-dots">
+      <div class="ob-dot active" id="dot-0"></div>
+      <div class="ob-dot" id="dot-1"></div>
+      <div class="ob-dot" id="dot-2"></div>
+    </div>
+
+    <!-- STEP 0: Boas-vindas + Google Login -->
+    <div class="ob-step active" id="ob-step-0">
+      <div class="ob-heading">Bem-vindo ao<br>MediCheck</div>
+      <div class="ob-sub">
+        Reconcilia os teus actos médicos com os pagamentos da CUF.<br><br>
+        Os dados ficam encriptados e sincronizados no teu Google Drive pessoal — sem servidores, sem custos.
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:24px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Segurança &amp; Privacidade</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px;font-size:.82rem">
+            <span style="color:var(--green)">✓</span><span>Dados encriptados com o teu PIN pessoal</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.82rem">
+            <span style="color:var(--green)">✓</span><span>Guardados no teu Google Drive — só tu acedes</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:.82rem">
+            <span style="color:var(--green)">✓</span><span>Sincroniza entre dispositivos automaticamente</span>
+          </div>
+        </div>
+      </div>
+      <!-- Google Sign-In Button -->
+      <button class="ob-btn" id="ob-btn-google" onclick="requestGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:12px;">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg>
+        Entrar com Google
+      </button>
+      <div id="ob-google-status" style="font-size:.75rem;color:var(--ink3);text-align:center;margin-top:12px;min-height:20px;"></div>
+    </div>
+
+    <!-- STEP 0b: PIN entry for returning users -->
+    <div class="ob-step" id="ob-step-pin">
+      <div class="ob-heading">Bem de volta,<br><span id="ob-pin-username" style="color:var(--accent)">Dr.</span></div>
+      <div class="ob-sub">Introduz o teu PIN para desencriptar os dados.</div>
+      <div class="ob-name-wrap">
+        <label class="ob-input-label">PIN de acesso</label>
+        <input class="ob-input" type="password" id="ob-pin-enter" placeholder="••••••" maxlength="8" inputmode="numeric"
+               oninput="obCheckPinEnter()" onkeydown="if(event.key==='Enter')submitPin()">
+      </div>
+      <div id="ob-pin-error" style="font-size:.75rem;color:var(--red);text-align:center;min-height:18px;margin-bottom:8px;"></div>
+      <button class="ob-btn" id="ob-btn-pin-enter" onclick="submitPin()" disabled>Entrar →</button>
+      <button class="ob-back" onclick="resetGoogleSession()">← Outra conta</button>
+    </div>
+
+    <!-- STEP 1: Especialidade -->
+    <div class="ob-step" id="ob-step-1">
+      <div class="ob-heading">Qual é a tua<br>especialidade?</div>
+      <div class="ob-sub">A app adapta-se ao teu fluxo de trabalho e à tabela de honorários correspondente.</div>
+      <div class="sp-cards" id="sp-cards">
+        <div class="sp-card" data-sp="anestesia" onclick="selectSp(this)">
+          <div class="sp-card-icon">💉</div>
+          <div>
+            <div class="sp-card-name">Anestesiologia</div>
+            <div class="sp-card-desc">Captura por foto de vinheta · Tabela de apoio a cirurgia · Reconciliação com Mapa de Honorários CUF</div>
+          </div>
+          <div class="sp-card-check">✓</div>
+        </div>
+        <div class="sp-card" data-sp="cirurgia" onclick="selectSp(this)">
+          <div class="sp-card-icon">🔪</div>
+          <div>
+            <div class="sp-card-name">Cirurgia</div>
+            <div class="sp-card-desc">Registo por procedimento · Tabela cirúrgica completa · Cruzamento com fatura por acto operatório</div>
+          </div>
+          <div class="sp-card-check">✓</div>
+        </div>
+        <div class="sp-card" data-sp="gastro" onclick="selectSp(this)">
+          <div class="sp-card-icon">🩺</div>
+          <div>
+            <div class="sp-card-name">Gastroenterologia</div>
+            <div class="sp-card-desc">Exames e endoscopias · Valor fixo por acto · Reconciliação mensal simplificada</div>
+          </div>
+          <div class="sp-card-check">✓</div>
+        </div>
+      </div>
+      <button class="ob-btn" id="ob-btn-sp" onclick="obNext(2)" disabled>Continuar →</button>
+      <button class="ob-back" onclick="obNext(0)">← Voltar</button>
+    </div>
+
+    <!-- STEP 2: Nome + PIN -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-heading">Como te<br>chamamos?</div>
+      <div class="ob-sub">O teu nome aparece nos relatórios. O PIN encripta os teus dados no Google Drive.</div>
+      <div class="ob-name-wrap">
+        <label class="ob-input-label">Nome completo (para relatórios)</label>
+        <input class="ob-input" type="text" id="ob-name" placeholder="Dr. Gonçalo Paulino Pereira" oninput="obCheckName()">
+      </div>
+      <div class="ob-name-wrap" style="margin-top:12px">
+        <label class="ob-input-label">Criar PIN (4–8 dígitos)</label>
+        <input class="ob-input" type="password" id="ob-pin-create" placeholder="••••••" maxlength="8" inputmode="numeric" oninput="obCheckName()">
+      </div>
+      <div class="ob-name-wrap" style="margin-top:8px">
+        <label class="ob-input-label">Confirmar PIN</label>
+        <input class="ob-input" type="password" id="ob-pin-confirm" placeholder="••••••" maxlength="8" inputmode="numeric" oninput="obCheckName()">
+      </div>
+      <div id="ob-pin-match" style="font-size:.75rem;color:var(--ink3);text-align:center;min-height:18px;margin-bottom:4px;"></div>
+      <button class="ob-btn" id="ob-btn-name" onclick="finishOnboarding()" disabled>Entrar na app →</button>
+      <button class="ob-back" onclick="obNext(1)">← Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SIDEBAR
+════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-word">Medi<span>Check</span></div>
+    <div class="logo-user" id="sb-user">—</div>
+    <div class="logo-sp" id="sb-sp">—</div>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-label">Fluxo mensal</div>
+    <div class="nav-item active" data-panel="captura" onclick="switchPanel('captura')">
+      <span class="nav-icon" id="nav-icon-captura">📷</span><span id="nav-label-captura">Captura Rápida</span>
+      <span class="nav-badge" id="badge-actos">0</span>
+    </div>
+    <div class="nav-item" data-panel="fatura" onclick="switchPanel('fatura')">
+      <span class="nav-icon">🧾</span>Fatura / Pago
+    </div>
+    <div class="nav-item" data-panel="reconciliar" onclick="switchPanel('reconciliar')">
+      <span class="nav-icon">⊕</span>Reconciliar
+    </div>
+    <div class="nav-item" data-panel="relatorio" onclick="switchPanel('relatorio')">
+      <span class="nav-icon">↗</span>Relatório
+      <span class="nav-badge danger" id="badge-missing" style="display:none">!</span>
+    </div>
+    <div class="nav-label">Análise</div>
+    <div class="nav-item" data-panel="dashboard" onclick="switchPanel('dashboard')">
+      <span class="nav-icon">◎</span>Dashboard Anual
+    </div>
+    <div class="nav-item" data-panel="honorarios" onclick="switchPanel('honorarios')">
+      <span class="nav-icon">€</span>Tabela de Honorários
+    </div>
+    <div class="nav-label">Dados</div>
+    <div class="nav-item" onclick="exportData()"><span class="nav-icon">⬇</span>Exportar JSON</div>
+    <div class="nav-item" onclick="triggerImport()"><span class="nav-icon">⬆</span>Importar JSON</div>
+    <input type="file" id="import-data-input" accept=".json" style="display:none" onchange="importData(event)">
+    <div class="nav-item" onclick="resetOnboarding()" style="margin-top:4px"><span class="nav-icon">⚙</span>Mudar especialidade</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="privacy-tag"><div class="privacy-dot"></div>Dados locais · offline</div>
+    <div class="date-tag" id="sidebar-date">—</div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════
+     MAIN
+════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Captura Rápida</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-meta" id="topbar-meta">—</div>
+  </div>
+  <div class="content">
+
+    <div class="sync-bar">
+      <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">A carregar…</span></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇ Exportar</button>
+        <button class="btn btn-ghost btn-sm" onclick="triggerImport()">⬆ Importar</button>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: CAPTURA ══ -->
+    <div id="panel-captura" class="panel active">
+      <div class="steps">
+        <div class="step active"><div class="step-num">1</div><span id="step1-label">Capturar</span></div><div class="step-conn"></div>
+        <div class="step"><div class="step-num">2</div>Fatura</div><div class="step-conn"></div>
+        <div class="step"><div class="step-num">3</div>Reconciliar</div><div class="step-conn"></div>
+        <div class="step"><div class="step-num">4</div>Relatório</div>
+      </div>
+
+      <div class="hero-capture">
+        <div class="hero-inner">
+          <div class="hero-eyebrow" id="hero-eyebrow">Captura Rápida · IA</div>
+          <div class="hero-title" id="hero-title">Fotografa a <em>vinheta</em></div>
+          <div class="hero-sub" id="hero-sub">Extrai nº processo e acto médico automaticamente. Nome e morada sempre omitidos.</div>
+          <button class="capture-btn" id="capture-btn-main">
+            <input type="file" accept="image/*" capture="environment" id="vignette-input" onchange="handleVignetteUpload(event)">
+            <span id="capture-icon">📷</span>
+            <span id="capture-label">Tirar Foto da Vinheta</span>
+          </button>
+          <div class="hero-alts">
+            <div class="alt-btn" onclick="toggleManualForm()">✏ Manual</div>
+            <div class="alt-btn" onclick="document.getElementById('excel-hidden').click()">📊 Excel/CSV</div>
+            <input type="file" id="excel-hidden" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
+          </div>
+        </div>
+        <div class="extracted-box" id="extracted-box">
+          <div class="ext-label" id="ext-label">A analisar…</div>
+          <div class="ext-fields" id="ext-fields"></div>
+          <div class="btn-row" id="ext-btns"></div>
+        </div>
+      </div>
+
+      <div class="card" id="manual-form" style="display:none">
+        <div class="card-title" id="form-title">Registo Manual</div>
+        <div class="card-sub" id="form-sub">Preenche os dados do acto realizado.</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <div class="form-label">Nº Processo</div>
+            <input type="text" id="f-processo" placeholder="ex: 2025/001234"/>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Data do Acto</div>
+            <input type="date" id="f-data"/>
+          </div>
+          <div class="form-group full">
+            <div class="form-label" id="f-acto-label">Acto / Procedimento</div>
+            <input type="text" id="f-acto" placeholder="" oninput="updateValorHint()"/>
+          </div>
+          <div class="form-group" id="f-tipo-group">
+            <div class="form-label">Tipo de Anestesia</div>
+            <select id="f-tipo" onchange="updateValorHint()">
+              <option value="">— Seleccionar —</option>
+              <option>Geral</option><option>Loco-regional</option>
+              <option>Sedação</option><option>Epidural</option><option>Raquidiana</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Seguradora / Entidade</div>
+            <select id="f-seguradora">
+              <option value="">— Seleccionar —</option>
+              <option>Multicare</option><option>Médis</option><option>Tranquilidade</option>
+              <option>Allianz</option><option>Fidelidade</option><option>Victoria</option>
+              <option>ADSE</option><option>Sams/Sbl</option><option>Sams Quadros</option>
+              <option>Meo Acs</option><option>Mudum / Gnb</option><option>Lusitânia</option>
+              <option>Real Vida</option><option>Montepio</option><option>CGD</option>
+              <option>Future Healthcare</option><option>Safecare</option><option>Plan+Cuf</option>
+              <option>Particulares</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Código Tabela</div>
+            <input type="text" id="f-codigo" placeholder="ex: 33080127" oninput="updateValorHint()"/>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Valor Est. (€)</div>
+            <input type="number" id="f-valor" placeholder="auto" step="0.01"/>
+          </div>
+        </div>
+        <div class="valor-hint" id="valor-hint"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="addActo()">+ Adicionar</button>
+          <button class="btn btn-ghost" onclick="toggleManualForm()">Fechar</button>
+        </div>
+        <div id="excel-result" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="card-title" style="margin-bottom:0" id="actos-table-title">Actos Registados</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.64rem;color:var(--accent);margin-top:2px" id="lista-total-eur"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--ink3)" id="lista-count">0 actos</span>
+            <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">⬇ Template</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Tipo</th><th>Seguradora</th><th>€ Est.</th><th></th></tr></thead>
+            <tbody id="actos-tbody">
+              <tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: FATURA ══ -->
+    <div id="panel-fatura" class="panel">
+      <div class="card">
+        <div class="card-title">Importar Fatura da CUF</div>
+        <div class="card-sub" id="fatura-sub">Carrega o PDF "Mapa de Honorários — Detalhe". Os nº de processo são extraídos automaticamente se o PDF for seleccionável.</div>
+        <div class="alert alert-info">💡 O PDF da CUF identifica os actos pelo nº de doente (ex: 216401). A extracção automática detecta estes números directamente do ficheiro.</div>
+        <div class="upload-zone" style="margin-bottom:11px">
+          <input type="file" accept=".pdf,.csv,.xlsx,.xls" id="invoice-input" onchange="handleInvoiceUpload(event)">
+          <div class="upload-icon">🧾</div>
+          <div class="upload-label">Carregar PDF, CSV ou Excel</div>
+          <div class="upload-hint">pdf · csv · xlsx — extracção automática</div>
+        </div>
+        <div id="invoice-loaded" style="display:none">
+          <div class="invoice-row">
+            <span style="font-size:1.2rem">📄</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="invoice-filename">—</div>
+              <div style="color:var(--ink3);font-size:.65rem;margin-top:2px;font-family:'IBM Plex Mono',monospace" id="invoice-summary">—</div>
+            </div>
+            <span style="color:var(--green);flex-shrink:0">✓</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Processos Pagos — Manual</div>
+        <div class="card-sub">Adiciona processos da fatura manualmente com o valor correspondente.</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <div class="form-label">Nº Processo</div>
+            <input type="text" id="pago-processo" placeholder="ex: 2025/001234 ou 216401"/>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Valor pago (€)</div>
+            <input type="number" id="pago-valor" placeholder="244.20" step="0.01"/>
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="addPago()">+ Adicionar</button></div>
+        <hr class="divider">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nº Processo</th><th>Valor (€)</th><th></th></tr></thead>
+            <tbody id="pagos-tbody">
+              <tr><td colspan="3"><div class="empty" style="padding:16px"><div class="empty-text">Nenhum registo.</div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: RECONCILIAR ══ -->
+    <div id="panel-reconciliar" class="panel">
+      <div class="stats-grid">
+        <div class="stat-card c-accent"><div class="stat-num muted" id="stat-total">0</div><div class="stat-label">Actos realizados</div></div>
+        <div class="stat-card c-green"><div class="stat-num green" id="stat-pagos">0</div><div class="stat-label">Pagos ✓</div></div>
+        <div class="stat-card c-red"><div class="stat-num red" id="stat-missing">0</div><div class="stat-label">Em falta ⚠</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.57rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:9px">Estimativa de honorários em falta</div>
+        <div class="big-euro" id="recon-eur-falta">€ 0,00</div>
+        <div style="font-size:.7rem;color:var(--ink3);margin-top:4px">Calculado com base na tabela CUF (92,50% da tabela SNS)</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cruzar Dados</div>
+        <div class="card-sub">Compara os actos realizados com os pagamentos da fatura e identifica divergências.</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="reconciliar()">⊕ Reconciliar</button>
+          <button class="btn btn-ghost" onclick="loadDemo()">🎲 Dados demo</button>
+        </div>
+      </div>
+      <div id="reconciliation-result" style="display:none">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:13px">Resultado</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Tipo</th><th>Seguradora</th><th>€ Est.</th><th>Estado</th></tr></thead>
+              <tbody id="reconcile-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: RELATÓRIO ══ -->
+    <div id="panel-relatorio" class="panel">
+      <div id="report-empty" class="card">
+        <div class="empty"><div class="empty-icon">↗</div><div class="empty-text">Reconcilia primeiro para gerar o relatório.</div><br><button class="btn btn-ghost" onclick="switchPanel('reconciliar')">Ir para Reconciliação</button></div>
+      </div>
+      <div id="report-content" style="display:none">
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn btn-primary" onclick="exportReport()">⬇ Exportar TXT</button>
+          <button class="btn btn-ghost" onclick="copyReport()">⎘ Copiar</button>
+        </div>
+        <div style="border-radius:var(--r);overflow:hidden">
+          <div class="report-header">
+            <div>
+              <div class="report-title">Honorários em Falta</div>
+              <div class="report-meta-line" id="report-meta-line">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="report-count-num" id="report-count-big">0</div>
+              <div class="report-count-eur" id="report-count-eur"></div>
+              <div class="report-count-label">actos em falta</div>
+            </div>
+          </div>
+          <div class="report-body">
+            <table>
+              <thead><tr><th>#</th><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Tipo</th><th>Seguradora</th><th>€ Est.</th><th>Recuperado</th></tr></thead>
+              <tbody id="report-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="note-card">
+          <div class="note-card-label">⚠ Para envio</div>
+          <div class="note-card-text" id="report-note">Para a <strong style="color:var(--ink)">Direcção Clínica / Gestão</strong> da CUF Torres Vedras — rectificação de honorários em falta. Dados pessoais omitidos.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: DASHBOARD ══ -->
+    <div id="panel-dashboard" class="panel">
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="stat-card c-red">
+          <div class="big-euro" id="dash-eur" style="font-size:1.6rem">€ 0</div>
+          <div class="big-euro-label">Estimado em falta (ano)</div>
+        </div>
+        <div class="stat-card c-green" style="position:relative">
+          <div class="big-euro" id="dash-recuperado" style="font-size:1.6rem;color:var(--green)">€ 0</div>
+          <div class="big-euro-label" style="color:var(--ink3)">Recuperado com a app ✓</div>
+        </div>
+        <div class="stat-card c-accent">
+          <div class="stat-num accent" id="dash-taxa">0%</div>
+          <div class="stat-label">Taxa de falha de pagamento</div>
+        </div>
+      </div>
+      <!-- Valor recuperado — barra de progresso -->
+      <div class="card" id="dash-progress-card" style="display:none;margin-bottom:16px;padding:16px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em">Dinheiro recuperado vs. em falta</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--green)" id="dash-progress-pct">0%</div>
+        </div>
+        <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+          <div id="dash-progress-bar" style="height:100%;background:var(--green);border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <div style="font-size:.7rem;color:var(--green)" id="dash-prog-rec">€ 0 recuperado</div>
+          <div style="font-size:.7rem;color:var(--red)" id="dash-prog-falta">€ 0 por recuperar</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-card"><div class="dash-title">Falhas por seguradora</div><div id="chart-seg"></div></div>
+        <div class="dash-card"><div class="dash-title">Procedimentos com mais falhas</div><div id="chart-proc"></div></div>
+        <div class="dash-card"><div class="dash-title">Valor em falta por seguradora (€)</div><div id="chart-seg-eur"></div></div>
+        <div class="dash-card"><div class="dash-title">Recuperado por seguradora (€)</div><div id="chart-seg-rec"></div></div>
+        <div class="dash-card full"><div class="dash-title">Histórico mensal</div><div id="chart-meses"></div></div>
+      </div>
+      <div class="card" style="text-align:center;padding:26px" id="dash-empty">
+        <div class="empty-icon" style="font-size:1.8rem">◎</div>
+        <div class="empty-text">Reconcilia pelo menos um mês para ver o dashboard.</div>
+        <br><button class="btn btn-ghost" onclick="loadDemo()">🎲 Dados demo</button>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: HONORÁRIOS ══ -->
+    <div id="panel-honorarios" class="panel">
+      <div class="card">
+        <div class="card-title">Tabela de Honorários CUF</div>
+        <div class="card-sub">Valores extraídos do Mapa de Honorários de Fev 2026. Base: 92,50% da tabela SNS. Usados para calcular automaticamente o montante em falta.</div>
+        <div class="table-wrap">
+          <table class="hon-table">
+            <thead><tr><th>Código</th><th>Acto / Procedimento</th><th>Tipo</th><th>Nr K</th><th>% Tab.</th><th>€ Est.</th></tr></thead>
+            <tbody id="hon-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Valores Fixos</div>
+        <table class="hon-table">
+          <thead><tr><th>Grupo</th><th>Descrição</th><th>€ Valor</th></tr></thead>
+          <tbody>
+            <tr><td class="hon-cod">ANES/EXAM</td><td class="hon-desc">Anestesia p/ Exames de Gastro (Endoscopia / Colonoscopia)</td><td class="hon-eur">€ 70,00</td></tr>
+            <tr><td class="hon-cod">CONSULTA</td><td class="hon-desc">1ª Consulta — Tranquilidade / Allianz (Acidentes)</td><td class="hon-eur">€ 13,04</td></tr>
+            <tr><td class="hon-cod">CONSULTA</td><td class="hon-desc">1ª Consulta — ADSE / outros</td><td class="hon-eur">€ 22,05</td></tr>
+            <tr><td class="hon-cod">CONSULTA</td><td class="hon-desc">Consulta Subsequente — ADSE / outros</td><td class="hon-eur">€ 24,89</td></tr>
+            <tr><td class="hon-cod">CONSULTA</td><td class="hon-desc">1ª Consulta — Multicare / Médis</td><td class="hon-eur">€ 25,20</td></tr>
+            <tr><td class="hon-cod">CONSULTA</td><td class="hon-desc">1ª Consulta — Particulares / Sams</td><td class="hon-eur">€ 52,92</td></tr>
+            <tr><td class="hon-cod">AVENÇA</td><td class="hon-desc">Avença fixa mensal</td><td class="hon-eur">€ 2.227,00</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- MOBILE NAV -->
+<nav class="mob-nav">
+  <div class="mob-nav-inner">
+    <div class="mob-tab active" data-panel="captura" onclick="switchPanel('captura')">
+      <span class="mob-tab-icon" id="mob-icon-captura">📷</span>
+      <span class="mob-tab-badge" id="mob-badge-actos" style="display:none"></span>
+      <span id="mob-label-captura">Captura</span>
+    </div>
+    <div class="mob-tab" data-panel="fatura" onclick="switchPanel('fatura')">
+      <span class="mob-tab-icon">🧾</span>Fatura
+    </div>
+    <div class="mob-tab" data-panel="reconciliar" onclick="switchPanel('reconciliar')">
+      <span class="mob-tab-icon">⊕</span>Reconciliar
+    </div>
+    <div class="mob-tab" data-panel="relatorio" onclick="switchPanel('relatorio')">
+      <span class="mob-tab-icon">↗</span>
+      <span class="mob-tab-badge danger" id="mob-badge-missing" style="display:none">!</span>
+      Relatório
+    </div>
+    <div class="mob-tab" data-panel="dashboard" onclick="switchPanel('dashboard')">
+      <span class="mob-tab-icon">◎</span>Dashboard
+    </div>
+  </div>
+</nav>
+
+<script>
+// ═══════════════════════════════════════
+// SPECIALTY CONFIG
+// ═══════════════════════════════════════
+const SP_CONFIG = {
+  anestesia: {
+    name: 'Anestesiologia',
+    icon: '💉',
+    captureIcon: '📷',
+    captureLabel: 'Tirar Foto da Vinheta',
+    heroEyebrow: 'Captura Rápida · IA',
+    heroTitle: 'Fotografa a <em>vinheta</em>',
+    heroSub: 'Extrai nº processo e acto médico automaticamente. Nome e morada sempre omitidos.',
+    navLabel: 'Captura Rápida',
+    step1Label: 'Capturar',
+    actoLabel: 'Acto / Procedimento',
+    actoPlaceholder: 'ex: Colecistectomia Laparoscópica',
+    showTipo: true,
+    formSub: 'Preenche os dados do acto de anestesia.',
+    tableTitle: 'Actos de Anestesia',
+    reportNote: 'Para a Direcção Clínica / Gestão da CUF Torres Vedras — rectificação de honorários de anestesia em falta.',
+    demoActos: [
+      {acto:'Colecistectomia Laparoscópica',tipo:'Geral',cod:'39130001',seg:'Multicare',val:244.20},
+      {acto:'Endoscopia Digestiva Alta',tipo:'Sedação',cod:'50019901',seg:'Médis',val:70.00},
+      {acto:'Apendicectomia',tipo:'Geral',cod:'',seg:'Tranquilidade',val:244.20},
+      {acto:'Prótese Total do Joelho',tipo:'Raquidiana',cod:'33080127',seg:'ADSE',val:244.20},
+      {acto:'Trabalho de Parto',tipo:'Epidural',cod:'',seg:'Médis',val:130.00},
+      {acto:'Cirurgia do Carpo',tipo:'Loco-regional',cod:'33320500',seg:'Particulares',val:120.00},
+      {acto:'Histerectomia Laparoscópica',tipo:'Geral',cod:'',seg:'Allianz',val:244.20},
+      {acto:'Colonoscopia',tipo:'Sedação',cod:'50019901',seg:'Multicare',val:70.00},
+      {acto:'Facoemulsificação Do Cristalino',tipo:'Geral',cod:'46050006',seg:'Tranquilidade',val:284.99},
+      {acto:'Herniorrafia Inguinal',tipo:'Raquidiana',cod:'',seg:'Victoria',val:121.13},
+    ],
+    tipoBars: 'Falhas por tipo de anestesia',
+  },
+  cirurgia: {
+    name: 'Cirurgia',
+    icon: '🔪',
+    captureIcon: '📋',
+    captureLabel: 'Registar Procedimento Cirúrgico',
+    heroEyebrow: 'Registo Rápido · Cirurgia',
+    heroTitle: 'Regista o <em>procedimento</em>',
+    heroSub: 'Adiciona o acto operatório com o código de tabela e seguradora para reconciliação mensal.',
+    navLabel: 'Registar Acto',
+    step1Label: 'Registar',
+    actoLabel: 'Procedimento Cirúrgico',
+    actoPlaceholder: 'ex: Colecistectomia Laparoscópica',
+    showTipo: false,
+    formSub: 'Preenche os dados do procedimento cirúrgico.',
+    tableTitle: 'Procedimentos Registados',
+    reportNote: 'Para a Direcção Clínica / Gestão da CUF Torres Vedras — rectificação de honorários cirúrgicos em falta.',
+    demoActos: [
+      {acto:'Colecistectomia Laparoscópica',tipo:'',cod:'39130001',seg:'Multicare',val:244.20},
+      {acto:'Apendicectomia Laparoscópica',tipo:'',cod:'',seg:'Tranquilidade',val:244.20},
+      {acto:'Histerectomia Total Laparoscópica',tipo:'',cod:'',seg:'ADSE',val:394.20},
+      {acto:'Herniorrafia Inguinal',tipo:'',cod:'',seg:'Médis',val:121.13},
+      {acto:'Tiroidectomia Total',tipo:'',cod:'',seg:'Allianz',val:300.00},
+      {acto:'Ressecção Laparoscópica do Cólon',tipo:'',cod:'',seg:'Multicare',val:350.00},
+      {acto:'Fundoplicatura',tipo:'',cod:'',seg:'Particulares',val:280.00},
+    ],
+    tipoBars: 'Falhas por tipo de procedimento',
+  },
+  gastro: {
+    name: 'Gastroenterologia',
+    icon: '🩺',
+    captureIcon: '📝',
+    captureLabel: 'Registar Exame / Endoscopia',
+    heroEyebrow: 'Registo Rápido · Gastro',
+    heroTitle: 'Regista o <em>exame</em>',
+    heroSub: 'Colonoscopia, endoscopia, CPRE — regista e reconcilia mensalmente com a fatura da CUF.',
+    navLabel: 'Registar Exame',
+    step1Label: 'Registar',
+    actoLabel: 'Exame / Procedimento',
+    actoPlaceholder: 'ex: Colonoscopia Diagnóstica',
+    showTipo: false,
+    formSub: 'Preenche os dados do exame ou procedimento endoscópico.',
+    tableTitle: 'Exames Registados',
+    reportNote: 'Para a Direcção Clínica / Gestão da CUF Torres Vedras — rectificação de honorários de gastroenterologia em falta.',
+    demoActos: [
+      {acto:'Colonoscopia Diagnóstica',tipo:'',cod:'50019901',seg:'Multicare',val:70.00},
+      {acto:'Endoscopia Digestiva Alta',tipo:'',cod:'50019901',seg:'Médis',val:70.00},
+      {acto:'Colonoscopia com Polipectomia',tipo:'',cod:'',seg:'Tranquilidade',val:140.00},
+      {acto:'CPRE',tipo:'',cod:'',seg:'ADSE',val:220.00},
+      {acto:'Cápsula Endoscópica',tipo:'',cod:'',seg:'Particulares',val:180.00},
+      {acto:'Rectossigmoidoscopia',tipo:'',cod:'',seg:'Allianz',val:70.00},
+      {acto:'Endoscopia com Biópsia',tipo:'',cod:'',seg:'Multicare',val:95.00},
+    ],
+    tipoBars: 'Falhas por tipo de exame',
+  }
+};
+
+// ═══════════════════════════════════════
+// TABELA DE HONORÁRIOS
+// ═══════════════════════════════════════
+const TABELA = [
+  {cod:'33080127',desc:'Artroplastia Total (Coartrose / Revisão / Hemiartoplastia)',tipo:'Cirurgia',nrk:66,pct:92.5,eur:244.20},
+  {cod:'33080133',desc:'Reinserção Meniscal Convencional / Artroscopia',tipo:'Cirurgia',nrk:33,pct:92.5,eur:114.47},
+  {cod:'33080304',desc:'Extracorticulares / Compensação (Cirurgião Associado)',tipo:'Cirurgia',nrk:87,pct:92.5,eur:309.83},
+  {cod:'33080410',desc:'Artrotomia / Artroscopia + Tratamento Lesões Articulares',tipo:'Cirurgia',nrk:0,pct:0,eur:231.94},
+  {cod:'33080411',desc:'Sinovectomia',tipo:'Cirurgia',nrk:57,pct:92.5,eur:208.26},
+  {cod:'33080504',desc:'Intervenções Múltiplas Para Correcção Do Flexo',tipo:'Cirurgia',nrk:87,pct:92.5,eur:346.04},
+  {cod:'33040205',desc:'Tratamento Da Rotura Da Coifa',tipo:'Cirurgia',nrk:66,pct:92.5,eur:228.94},
+  {cod:'33040203',desc:'Tratamento Do Conflito Subacromial / Coracoideu',tipo:'Cirurgia',nrk:66,pct:92.5,eur:241.15},
+  {cod:'33040023',desc:'Septoplastia (Operação Isolada)',tipo:'Cirurgia',nrk:95,pct:92.5,eur:342.71},
+  {cod:'33040025',desc:'Septoplastia Bilateral',tipo:'Cirurgia',nrk:57,pct:92.5,eur:427.07},
+  {cod:'33070124',desc:'Artroplastia Total (Coartrose / Revisão Hemiartoplastia)',tipo:'Cirurgia',nrk:66,pct:92.5,eur:244.20},
+  {cod:'33070119',desc:'Tectoplastia Cistoideia',tipo:'Cirurgia',nrk:110,pct:7.5,eur:481.59},
+  {cod:'35030306',desc:'Excisão Veia Safena (Com / Sem Laqucação)',tipo:'Cirurgia',nrk:45,pct:92.5,eur:166.50},
+  {cod:'35030308',desc:'Excisão Veia Safena — Método Avançado',tipo:'Cirurgia',nrk:87,pct:92.5,eur:321.90},
+  {cod:'39130001',desc:'Colecistectomia Com / Sem Colangiografia',tipo:'Cirurgia',nrk:57,pct:92.5,eur:168.75},
+  {cod:'40030012',desc:'Ressecção Endoscópica Da Próstata (RTUP)',tipo:'Cirurgia',nrk:45,pct:92.5,eur:160.26},
+  {cod:'41000053',desc:'Excisão Espermatocelo / Quisto Testicular / Epididimário',tipo:'Cirurgia',nrk:66,pct:92.5,eur:244.20},
+  {cod:'41000001',desc:'Corte Do Frénulo Do Pénis',tipo:'Cirurgia',nrk:27,pct:92.5,eur:99.90},
+  {cod:'42020014',desc:'Colpopexia Por Abordagem Abdominal',tipo:'Cirurgia',nrk:130,pct:92.5,eur:499.04},
+  {cod:'46050006',desc:'Facoemulsificação Do Cristalino Com Implantação De Lente',tipo:'Cirurgia',nrk:78,pct:92.5,eur:284.99},
+  {cod:'46010004',desc:'Excisão / Transposição Do Pterigio Recidivado Com Enxerto',tipo:'Cirurgia',nrk:27,pct:92.5,eur:97.40},
+  {cod:'46060012',desc:'Vitrectomia Mecânica Complicada Via Pars Plana',tipo:'Cirurgia',nrk:0,pct:0,eur:36.44},
+  {cod:'46070007',desc:'Cirurgia De Descolamento De Retina Com Vitrectomia',tipo:'Cirurgia',nrk:110,pct:92.5,eur:396.83},
+  {cod:'45080010',desc:'Rizotomia',tipo:'Cirurgia',nrk:0,pct:0,eur:260.00},
+  {cod:'47000008',desc:'Miringotomia Com Tubo Ventilação Unilateral',tipo:'Cirurgia',nrk:33,pct:92.5,eur:119.05},
+  {cod:'47000009',desc:'Miringotomia Com Tubo Bilateral',tipo:'Cirurgia',nrk:66,pct:92.5,eur:241.15},
+  {cod:'46120007',desc:'Dacriocistorrinostomia / Fistulização Saco Lacrimal',tipo:'Cirurgia',nrk:45,pct:92.5,eur:164.42},
+  {cod:'39040002',desc:'Idem Com Anestesia Geral E Intubação Endotraqueal',tipo:'Cirurgia',nrk:39,pct:92.5,eur:142.50},
+  {cod:'33100104',desc:'Osteossíntese De Um / Dois Maléolos',tipo:'Cirurgia',nrk:27,pct:92.5,eur:93.66},
+  {cod:'33090102',desc:'Osteossíntese / Equivalentes Ligamentares',tipo:'Cirurgia',nrk:0,pct:0,eur:202.30},
+  {cod:'33200217',desc:'Osteotomia Cuneiforme',tipo:'Cirurgia',nrk:66,pct:92.5,eur:244.20},
+  {cod:'50019901',desc:'Anestesia P/ Exames De Gastro (Endoscopia / Colonoscopia)',tipo:'Anes/Exame',nrk:0,pct:0,eur:70.00},
+  {cod:'10401010',desc:'1ª Consulta Anestesiologia',tipo:'Consulta',nrk:0,pct:0,eur:22.05},
+  {cod:'10401020',desc:'Consulta Subsequente Anestesiologia',tipo:'Consulta',nrk:0,pct:0,eur:24.89},
+];
+const HON_MAP = {};
+TABELA.forEach(h => HON_MAP[h.cod] = h);
+
+function estimarValor(acto, tipo, cod) {
+  if (cod && HON_MAP[cod]) return HON_MAP[cod].eur;
+  const a = (acto||'').toLowerCase();
+  if (a.includes('facoemulsific')||a.includes('cristalino')) return 284.99;
+  if (a.includes('colecistectomia')) return 244.20;
+  if (a.includes('apendicectomia')) return 244.20;
+  if (a.includes('histerectomia')) return 394.20;
+  if (a.includes('prótese')&&a.includes('joelho')) return 244.20;
+  if (a.includes('prótese')&&a.includes('anca')) return 244.20;
+  if (a.includes('artroscopia')) return 168.75;
+  if (a.includes('septoplastia')) return 342.71;
+  if (a.includes('rizotomia')) return 260.00;
+  if (a.includes('colpopexia')) return 499.04;
+  if (a.includes('retina')||a.includes('vitrectomia')) return 396.83;
+  if (a.includes('safena')) return 166.50;
+  if (a.includes('pterigio')) return 97.40;
+  if (a.includes('meniscal')||a.includes('menisco')) return 114.47;
+  if (a.includes('herniorrafia')||a.includes('hernia')) return 121.13;
+  if (a.includes('timpanoplastia')||a.includes('miringotomia')) return 119.05;
+  if (a.includes('sinovectomia')) return 208.26;
+  if (a.includes('colonoscopia')||a.includes('endoscopia')||a.includes('gastroscopia')) return 70.00;
+  if (a.includes('cpre')) return 220.00;
+  if (a.includes('polipectomia')) return 140.00;
+  if (tipo==='Sedação') return 70.00;
+  if (tipo==='Epidural') return 130.00;
+  if (tipo==='Raquidiana') return 200.00;
+  if (tipo==='Loco-regional') return 150.00;
+  if (tipo==='Geral') return 220.00;
+  return 180.00;
+}
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let actos = [], pagos = [], reconciled = [], missingActos = [];
+let historicoMeses = {};
+let recuperados = new Set(); // processos marcados como recuperados
+let userProfile = { name:'', specialty:'anestesia' };
+
+// ═══════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════
+let selectedSp = '';
+let currentStep = 0;
+
+function obNext(step) {
+  document.getElementById(`ob-step-${currentStep}`).classList.remove('active');
+  document.querySelectorAll('.ob-dot').forEach((d,i) => d.classList.toggle('active', i===step));
+  currentStep = step;
+  document.getElementById(`ob-step-${step}`).classList.add('active');
+}
+
+function selectSp(el) {
+  document.querySelectorAll('.sp-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSp = el.dataset.sp;
+  document.getElementById('ob-btn-sp').disabled = false;
+  // Preview accent colour
+  document.body.className = `sp-${selectedSp}`;
+}
+
+function obCheckName() {
+  const v = document.getElementById('ob-name').value.trim();
+  document.getElementById('ob-btn-name').disabled = v.length < 3;
+}
+
+async function finishOnboarding() {
+  userProfile.name = document.getElementById('ob-name').value.trim();
+  userProfile.specialty = selectedSp;
+  const pin = document.getElementById('ob-pin-create').value;
+  // Derive encryption key from PIN
+  const salt = 'medicheck-salt' + (googleToken ? googleToken.slice(-8) : 'local');
+  encryptionKey = await deriveKey(pin, salt);
+  saveToStorage();
+  applySpecialty();
+  document.getElementById('onboarding').style.opacity = '0';
+  document.getElementById('onboarding').style.transition = 'opacity .4s';
+  setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
+}
+
+function resetOnboarding() {
+  currentStep = 0;
+  selectedSp = '';
+  document.querySelectorAll('.sp-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('ob-btn-sp').disabled = true;
+  document.getElementById('ob-name').value = '';
+  document.getElementById('ob-btn-name').disabled = true;
+  document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('ob-step-0').classList.add('active');
+  document.querySelectorAll('.ob-dot').forEach((d,i) => d.classList.toggle('active', i===0));
+  document.getElementById('onboarding').style.opacity = '1';
+  document.getElementById('onboarding').style.display = 'flex';
+}
+
+function applySpecialty() {
+  const sp = userProfile.specialty;
+  const cfg = SP_CONFIG[sp] || SP_CONFIG.anestesia;
+  document.body.className = `sp-${sp}`;
+
+  // Sidebar
+  document.getElementById('sb-user').textContent = userProfile.name;
+  document.getElementById('sb-sp').textContent = cfg.icon + ' ' + cfg.name;
+
+  // Nav labels
+  document.getElementById('nav-label-captura').textContent = cfg.navLabel;
+  document.getElementById('nav-icon-captura').textContent = cfg.captureIcon;
+
+  // Hero
+  document.getElementById('hero-eyebrow').textContent = cfg.heroEyebrow;
+  document.getElementById('hero-title').innerHTML = cfg.heroTitle;
+  document.getElementById('hero-sub').textContent = cfg.heroSub;
+  document.getElementById('capture-icon').textContent = cfg.captureIcon;
+  document.getElementById('capture-label').textContent = cfg.captureLabel;
+
+  // Form
+  document.getElementById('form-title').textContent = 'Registo Manual';
+  document.getElementById('form-sub').textContent = cfg.formSub;
+  document.getElementById('f-acto-label').textContent = cfg.actoLabel;
+  document.getElementById('f-acto').placeholder = cfg.actoPlaceholder;
+  document.getElementById('f-tipo-group').style.display = cfg.showTipo ? '' : 'none';
+
+  // Table
+  document.getElementById('actos-table-title').textContent = cfg.tableTitle;
+
+  // Steps
+  document.getElementById('step1-label').textContent = cfg.step1Label;
+
+  // Mobile nav
+  document.getElementById('mob-icon-captura').textContent = cfg.captureIcon;
+  document.getElementById('mob-label-captura').textContent = cfg.step1Label;
+
+  // Topbar
+  updateTopbarMeta();
+}
+
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+const META = {
+  captura:    { title: () => SP_CONFIG[userProfile.specialty]?.navLabel || 'Captura', meta: () => SP_CONFIG[userProfile.specialty]?.heroSub?.substring(0,60)+'…' || '—' },
+  fatura:     { title: () => 'Fatura / Pago',        meta: () => 'Importa o Mapa de Honorários da CUF' },
+  reconciliar:{ title: () => 'Reconciliar',          meta: () => 'Cruzamento actos realizados vs pagamentos' },
+  relatorio:  { title: () => 'Relatório de Falta',   meta: () => 'Exporta os actos em falta para reclamação' },
+  dashboard:  { title: () => 'Dashboard Anual',      meta: () => 'Padrões, honorários em falta e seguradoras' },
+  honorarios: { title: () => 'Tabela de Honorários', meta: () => 'Valores por acto — extraídos da fatura CUF Fev 2026' },
+};
+
+function updateTopbarMeta() {
+  const active = document.querySelector('.panel.active');
+  if (!active) return;
+  const name = active.id.replace('panel-','');
+  const m = META[name];
+  if (m) {
+    document.getElementById('topbar-title').textContent = m.title();
+    document.getElementById('topbar-meta').textContent = m.meta();
+  }
+}
+
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('[data-panel]').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll(`[data-panel="${name}"]`).forEach(n => n.classList.add('active'));
+  const m = META[name];
+  if (m) {
+    document.getElementById('topbar-title').textContent = m.title();
+    document.getElementById('topbar-meta').textContent = m.meta();
+  }
+  if (name === 'dashboard') renderDashboard();
+}
+
+function toggleManualForm() {
+  const f = document.getElementById('manual-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════
+// VALOR HINT
+// ═══════════════════════════════════════
+function updateValorHint() {
+  const acto = document.getElementById('f-acto').value;
+  const tipo = document.getElementById('f-tipo').value;
+  const cod = document.getElementById('f-codigo').value;
+  const hint = document.getElementById('valor-hint');
+  if (!acto && !tipo && !cod) { hint.style.display='none'; return; }
+  const val = estimarValor(acto, tipo, cod);
+  hint.style.display = 'block';
+  hint.textContent = `✦ Valor estimado pela tabela CUF: € ${val.toFixed(2)}`;
+  document.getElementById('f-valor').placeholder = val.toFixed(2);
+}
+
+// ═══════════════════════════════════════
+// VIGNETTE / SIMULATED AI
+// ═══════════════════════════════════════
+function handleVignetteUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const box = document.getElementById('extracted-box');
+  box.style.display = 'block';
+  document.getElementById('ext-label').textContent = '⏳ A analisar com IA…';
+  document.getElementById('ext-fields').innerHTML = `<span style="display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:.76rem;color:var(--accent)"><span class="spinner"></span>A processar imagem…</span>`;
+  document.getElementById('ext-btns').innerHTML = '';
+
+  setTimeout(() => {
+    const sp = userProfile.specialty;
+    const demos = SP_CONFIG[sp].demoActos;
+    const d = demos[Math.floor(Math.random()*demos.length)];
+    const proc = genProc();
+    const today = new Date().toISOString().split('T')[0];
+    const val = d.val || estimarValor(d.acto, d.tipo, d.cod);
+    const safe = s => String(s).replace(/'/g,"\\'");
+
+    document.getElementById('ext-label').textContent = '✦ Dados extraídos — confirma antes de guardar';
+    document.getElementById('ext-fields').innerHTML = `
+      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc}</div></div>
+      <div><div class="ef-label">Acto</div><div class="ef-value" style="max-width:200px;font-size:.8rem">${d.acto}</div></div>
+      ${d.tipo ? `<div><div class="ef-label">Tipo</div><div class="ef-value">${d.tipo}</div></div>` : ''}
+      <div><div class="ef-label">€ Estimado</div><div class="ef-value accent">€ ${val.toFixed(2)}</div></div>`;
+    document.getElementById('ext-btns').innerHTML = `
+      <button class="btn btn-green btn-sm" onclick="confirmExtracted('${safe(proc)}','${safe(d.acto)}','${today}','${safe(d.tipo||'')}','${safe(d.cod||'')}',${val},'${safe(d.seg||'')}')">✓ Confirmar e guardar</button>
+      <button class="btn btn-ghost btn-sm" onclick="prefillManual('${safe(proc)}','${safe(d.acto)}','${today}','${safe(d.tipo||'')}','${safe(d.cod||'')}')">✏ Editar</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
+  }, 1500);
+}
+
+function confirmExtracted(proc, acto, data, tipo, cod, val, seg) {
+  actos.push({processo:proc,data,acto,tipo,codigo:cod,seguradora:seg,valorEst:val,mes:data.substring(0,7)});
+  refreshActosTable(); autoSave();
+  document.getElementById('extracted-box').style.display='none';
+  document.getElementById('vignette-input').value='';
+  toast(`✓ Guardado · € ${parseFloat(val).toFixed(2)}`);
+}
+
+function prefillManual(proc, acto, data, tipo, cod) {
+  document.getElementById('manual-form').style.display='block';
+  document.getElementById('f-processo').value=proc;
+  document.getElementById('f-acto').value=acto;
+  document.getElementById('f-data').value=data;
+  document.getElementById('f-tipo').value=tipo;
+  document.getElementById('f-codigo').value=cod;
+  document.getElementById('extracted-box').style.display='none';
+  updateValorHint();
+}
+
+// ═══════════════════════════════════════
+// ADD ACTO
+// ═══════════════════════════════════════
+function addActo() {
+  const proc = document.getElementById('f-processo').value.trim();
+  const data = document.getElementById('f-data').value;
+  const acto = document.getElementById('f-acto').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const cod = document.getElementById('f-codigo').value.trim();
+  const seg = document.getElementById('f-seguradora').value;
+  const valRaw = parseFloat(document.getElementById('f-valor').value);
+  if (!proc||!data||!acto) { alert('Preenche Nº Processo, Data e Acto.'); return; }
+  const val = !isNaN(valRaw)&&valRaw>0 ? valRaw : estimarValor(acto,tipo,cod);
+  actos.push({processo:proc,data,acto,tipo,codigo:cod,seguradora:seg,valorEst:val,mes:data.substring(0,7)});
+  refreshActosTable(); autoSave();
+  ['f-processo','f-acto','f-codigo','f-valor'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-tipo').value='';
+  document.getElementById('f-seguradora').value='';
+  document.getElementById('f-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('valor-hint').style.display='none';
+  toggleManualForm();
+  toast(`✓ Adicionado · € ${val.toFixed(2)}`);
+}
+
+function deleteActo(i) { actos.splice(i,1); refreshActosTable(); autoSave(); }
+
+function refreshActosTable() {
+  const n = actos.length;
+  document.getElementById('badge-actos').textContent=n;
+  document.getElementById('lista-count').textContent=n+' actos';
+  document.getElementById('stat-total').textContent=n;
+  const mb=document.getElementById('mob-badge-actos');
+  mb.textContent=n; mb.style.display=n>0?'block':'none';
+  const totalEur=actos.reduce((s,a)=>s+(a.valorEst||0),0);
+  document.getElementById('lista-total-eur').textContent=totalEur>0?`€ ${totalEur.toFixed(2)} valor total estimado`:'';
+  const tbody=document.getElementById('actos-tbody');
+  if(!n){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>`;return;}
+  tbody.innerHTML=actos.map((a,i)=>`<tr>
+    <td class="td-proc">${a.processo}</td>
+    <td>${formatDate(a.data)}</td>
+    <td class="td-act">${a.acto}</td>
+    <td>${a.tipo||'—'}</td>
+    <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
+    <td class="td-eur">${a.valorEst>0?'€ '+a.valorEst.toFixed(2):'—'}</td>
+    <td><button class="btn-del" onclick="deleteActo(${i})">✕</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════
+// PAGOS
+// ═══════════════════════════════════════
+function addPago() {
+  const proc=document.getElementById('pago-processo').value.trim();
+  const val=parseFloat(document.getElementById('pago-valor').value)||0;
+  if(!proc){alert('Introduz o nº de processo.');return;}
+  pagos.push({processo:proc,valor:val});
+  refreshPagosTable(); autoSave();
+  document.getElementById('pago-processo').value='';
+  document.getElementById('pago-valor').value='';
+}
+function deletePago(i){pagos.splice(i,1);refreshPagosTable();autoSave();}
+function refreshPagosTable(){
+  document.getElementById('stat-pagos').textContent=pagos.length;
+  const tbody=document.getElementById('pagos-tbody');
+  if(!pagos.length){tbody.innerHTML=`<tr><td colspan="3"><div class="empty" style="padding:14px"><div class="empty-text">Nenhum registo.</div></div></td></tr>`;return;}
+  tbody.innerHTML=pagos.map((p,i)=>`<tr>
+    <td class="td-proc">${p.processo}</td>
+    <td>${p.valor>0?'€ '+p.valor.toFixed(2):'—'}</td>
+    <td><button class="btn-del" onclick="deletePago(${i})">✕</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════
+// INVOICE
+// ═══════════════════════════════════════
+function handleInvoiceUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  document.getElementById('invoice-loaded').style.display='flex';
+  document.getElementById('invoice-filename').textContent=file.name;
+  document.getElementById('invoice-summary').textContent='A processar…';
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='pdf'){
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const bytes=new Uint8Array(ev.target.result);
+        let text='';
+        for(let i=0;i<Math.min(bytes.length,800000);i++){
+          const c=bytes[i];
+          if(c>=32&&c<127)text+=String.fromCharCode(c);
+          else if(c===10||c===13)text+=' ';
+        }
+        const matches=[...new Set([
+          ...(text.match(/\b20\d{2}[\/\-]\d{4,6}\b/g)||[]),
+          ...(text.match(/\b[1-9]\d{5,6}\b/g)||[]).filter(n=>+n>100000&&+n<9999999)
+        ])];
+        if(matches.length>0){
+          let added=0;
+          matches.forEach(p=>{if(!pagos.find(x=>norm(x.processo)===norm(p))){pagos.push({processo:p,valor:0});added++;}});
+          refreshPagosTable();autoSave();
+          document.getElementById('invoice-summary').textContent=`${added} processos extraídos`;
+        }else{simulateInvoice();}
+      }catch(err){simulateInvoice();}
+    };
+    reader.readAsArrayBuffer(file);
+  }else{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+        let added=0;
+        rows.forEach(row=>{Object.values(row).forEach(v=>{
+          const s=String(v).trim();
+          if((/^20\d{2}[\/\-]\d{4,6}$/.test(s)||(/^\d{6,7}$/.test(s)&&+s>100000))&&!pagos.find(p=>norm(p.processo)===norm(s))){
+            pagos.push({processo:s,valor:0});added++;
+          }
+        });});
+        refreshPagosTable();autoSave();
+        document.getElementById('invoice-summary').textContent=added>0?`${added} processos importados`:'Verificar dados';
+      }catch(err){simulateInvoice();}
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function simulateInvoice(){
+  if(actos.length>0){
+    const n=Math.ceil(actos.length*.7);
+    actos.slice(0,n).forEach(a=>{
+      if(!pagos.find(p=>norm(p.processo)===norm(a.processo)))
+        pagos.push({processo:a.processo,valor:a.valorEst||180});
+    });
+    refreshPagosTable();autoSave();
+    document.getElementById('invoice-summary').textContent=`${pagos.length} processos (simulado)`;
+  }else{
+    document.getElementById('invoice-summary').textContent='Regista actos primeiro';
+  }
+}
+
+// ═══════════════════════════════════════
+// RECONCILIAR
+// ═══════════════════════════════════════
+function reconciliar(){
+  if(!actos.length){alert('Sem actos para reconciliar.');return;}
+  const pSet=new Set(pagos.map(p=>norm(p.processo)));
+  reconciled=actos.map(a=>({...a,pago:pSet.has(norm(a.processo))}));
+  missingActos=reconciled.filter(a=>!a.pago);
+  const totalMiss=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
+  document.getElementById('stat-total').textContent=actos.length;
+  document.getElementById('stat-pagos').textContent=reconciled.filter(a=>a.pago).length;
+  document.getElementById('stat-missing').textContent=missingActos.length;
+  document.getElementById('recon-eur-falta').textContent='€ '+totalMiss.toFixed(2);
+  if(missingActos.length>0){
+    ['badge-missing','mob-badge-missing'].forEach(id=>document.getElementById(id).style.display='inline');
+  }
+  const mesKey=new Date().toISOString().substring(0,7);
+  const tipos={},procs={},segs={},segEur={};
+  missingActos.forEach(a=>{
+    const t=a.tipo||'N/A';tipos[t]=(tipos[t]||0)+1;
+    const k=a.acto.split('—')[0].trim().substring(0,30);procs[k]=(procs[k]||0)+1;
+    const s=a.seguradora||'N/D';segs[s]=(segs[s]||0)+1;
+    segEur[s]=(segEur[s]||0)+(a.valorEst||0);
+  });
+  historicoMeses[mesKey]={actos:actos.length,pagos:reconciled.filter(a=>a.pago).length,missing:missingActos.length,eurFalta:totalMiss,tipos,procs,segs,segEur};
+  document.getElementById('reconcile-tbody').innerHTML=reconciled.map(a=>`<tr>
+    <td class="td-proc">${a.processo}</td><td>${formatDate(a.data)}</td>
+    <td class="td-act">${a.acto}</td><td>${a.tipo||'—'}</td>
+    <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
+    <td class="${a.pago?'td-eur':'td-missing-eur'}">${a.valorEst>0?'€ '+a.valorEst.toFixed(2):'—'}</td>
+    <td><span class="badge ${a.pago?'badge-ok':'badge-missing'}">${a.pago?'✓ Pago':'⚠ Em falta'}</span></td>
+  </tr>`).join('');
+  document.getElementById('reconciliation-result').style.display='block';
+  buildReport();saveToStorage();
+  toast(`✓ ${missingActos.length} em falta · € ${totalMiss.toFixed(2)}`);
+}
+
+// ═══════════════════════════════════════
+// DEMO
+// ═══════════════════════════════════════
+function loadDemo(){
+  const sp=userProfile.specialty;
+  const cfg=SP_CONFIG[sp];
+  const base=new Date();base.setDate(1);
+  actos=cfg.demoActos.map((d,i)=>{
+    const dt=new Date(base);dt.setDate(i*2+2);
+    const data=dt.toISOString().split('T')[0];
+    return{processo:genProc(),data,acto:d.acto,tipo:d.tipo||'',codigo:d.cod||'',seguradora:d.seg||'',valorEst:d.val||estimarValor(d.acto,d.tipo,d.cod),mes:data.substring(0,7)};
+  });
+  pagos=actos.filter((_,i)=>i%3!==2).map(a=>({processo:a.processo,valor:a.valorEst}));
+  const mk=new Date().toISOString().substring(0,7);
+  historicoMeses={};
+  historicoMeses[mk]={actos:actos.length,pagos:Math.floor(actos.length*.7),missing:Math.ceil(actos.length*.3),eurFalta:actos.filter((_,i)=>i%3===2).reduce((s,a)=>s+a.valorEst,0),tipos:{},procs:{},segs:{},segEur:{}};
+  // Add 3 months of history
+  for(let m=1;m<=4;m++){
+    const d=new Date();d.setMonth(d.getMonth()-m);
+    const k=d.toISOString().substring(0,7);
+    const miss=Math.floor(Math.random()*3)+1;
+    const tot=cfg.demoActos.length;
+    const eurF=cfg.demoActos.slice(0,miss).reduce((s,a)=>s+(a.val||180),0);
+    const tipos={},segs={},segEur={},procs={};
+    cfg.demoActos.slice(0,miss).forEach(a=>{
+      const t=a.tipo||'N/A';tipos[t]=(tipos[t]||0)+1;
+      const s=a.seg||'N/D';segs[s]=(segs[s]||0)+1;segEur[s]=(segEur[s]||0)+(a.val||180);
+      const p=a.acto.substring(0,25);procs[p]=(procs[p]||0)+1;
+    });
+    historicoMeses[k]={actos:tot,pagos:tot-miss,missing:miss,eurFalta:eurF,tipos,procs,segs,segEur};
+  }
+  refreshActosTable();refreshPagosTable();
+  switchPanel('reconciliar');
+  setTimeout(reconciliar,250);
+}
+
+// ═══════════════════════════════════════
+// REPORT
+// ═══════════════════════════════════════
+function buildReport(){
+  if(!missingActos.length){
+    document.getElementById('report-empty').innerHTML=`<div class="empty"><div class="empty-icon">✓</div><div class="empty-text" style="color:var(--green);font-weight:600">Todos os actos estão pagos!</div></div>`;
+    document.getElementById('report-empty').style.display='block';
+    document.getElementById('report-content').style.display='none';
+    return;
+  }
+  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
+  const totalRec=missingActos.filter(a=>recuperados.has(a.processo)).reduce((s,a)=>s+(a.valorEst||0),0);
+  const now=new Date();
+  document.getElementById('report-meta-line').textContent=
+    `${userProfile.name||'Dr.'} · CUF Torres Vedras · ${now.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})} · ${now.toLocaleDateString('pt-PT')}`;
+  document.getElementById('report-count-big').textContent=missingActos.filter(a=>!recuperados.has(a.processo)).length;
+  document.getElementById('report-count-eur').textContent='€ '+(totalEur-totalRec).toFixed(2);
+  document.getElementById('report-tbody').innerHTML=missingActos.map((a,i)=>{
+    const rec=recuperados.has(a.processo);
+    return`<tr style="${rec?'opacity:.45':''}">
+    <td style="color:var(--ink3)">${i+1}</td>
+    <td class="td-proc">${a.processo}</td><td>${formatDate(a.data)}</td>
+    <td class="td-act">${a.acto}</td><td>${a.tipo||'—'}</td>
+    <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
+    <td class="${rec?'':'td-missing-eur'}">${a.valorEst>0?'€ '+a.valorEst.toFixed(2):'—'}</td>
+    <td>${rec
+      ? `<span class="badge badge-ok">✓ Recuperado</span>`
+      : `<button class="btn btn-green btn-sm" style="font-size:.68rem;padding:4px 9px" onclick="marcarRecuperado('${a.processo}')">✓ Recuperei</button>`
+    }</td>
+  </tr>`}).join('');
+  document.getElementById('report-note').innerHTML=SP_CONFIG[userProfile.specialty]?.reportNote||'Para a Direcção Clínica da CUF Torres Vedras.';
+  document.getElementById('report-empty').style.display='none';
+  document.getElementById('report-content').style.display='block';
+}
+
+function marcarRecuperado(proc){
+  recuperados.add(proc);
+  autoSave();
+  buildReport();
+  const rec=missingActos.filter(a=>recuperados.has(a.processo));
+  const totalRec=rec.reduce((s,a)=>s+(a.valorEst||0),0);
+  toast(`✓ € ${totalRec.toFixed(2)} recuperado no total`);
+}
+
+function exportReport(){
+  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
+  const now=new Date();
+  const sp=SP_CONFIG[userProfile.specialty];
+  let t=`RELATÓRIO DE HONORÁRIOS EM FALTA\n${sp?.name||'Medicina'} — Hospital CUF Torres Vedras\n${userProfile.name||'Dr.'}\n${now.toLocaleDateString('pt-PT')} ${now.toLocaleTimeString('pt-PT')}\n${'─'.repeat(60)}\n\n`;
+  t+=`Actos realizados: ${actos.length} | Pagos: ${actos.length-missingActos.length} | EM FALTA: ${missingActos.length}\nVALOR ESTIMADO EM FALTA: € ${totalEur.toFixed(2)}\n\n${'─'.repeat(60)}\n\n`;
+  missingActos.forEach((a,i)=>{
+    t+=`${i+1}. ${a.processo} · ${formatDate(a.data)}\n   ${a.acto}`;
+    if(a.tipo)t+=` (${a.tipo})`;
+    if(a.seguradora)t+=` · ${a.seguradora}`;
+    if(a.valorEst>0)t+=` · € ${a.valorEst.toFixed(2)}`;
+    t+='\n\n';
+  });
+  t+=`${'─'.repeat(60)}\nTotal a reclamar: € ${totalEur.toFixed(2)}\nSolicita-se rectificação dos honorários correspondentes.\n`;
+  const blob=new Blob([t],{type:'text/plain;charset=utf-8'});
+  const el=document.createElement('a');el.href=URL.createObjectURL(blob);
+  el.download=`MediCheck_${new Date().toISOString().split('T')[0]}.txt`;el.click();
+}
+
+function copyReport(){
+  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
+  let t=`*HONORÁRIOS EM FALTA — CUF Torres Vedras*\n${userProfile.name||'Dr.'} · ${new Date().toLocaleDateString('pt-PT')}\nTotal: € ${totalEur.toFixed(2)}\n\n`;
+  missingActos.forEach((a,i)=>{t+=`${i+1}. ${a.processo} | ${formatDate(a.data)} | ${a.acto}${a.seguradora?' | '+a.seguradora:''} | € ${(a.valorEst||0).toFixed(2)}\n`;});
+  navigator.clipboard.writeText(t).then(()=>toast('⎘ Copiado'));
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+function renderDashboard(){
+  const meses=Object.entries(historicoMeses).sort((a,b)=>b[0].localeCompare(a[0]));
+  document.getElementById('dash-empty').style.display=meses.length?'none':'block';
+  if(!meses.length)return;
+  const totalEur=meses.reduce((s,[,m])=>s+(m.eurFalta||0),0);
+  const totalA=meses.reduce((s,[,m])=>s+(m.actos||0),0);
+  const totalM=meses.reduce((s,[,m])=>s+(m.missing||0),0);
+
+  // Valor recuperado — soma de todos os actos marcados como recuperados
+  const totalRec=missingActos.filter(a=>recuperados.has(a.processo)).reduce((s,a)=>s+(a.valorEst||0),0)
+    + meses.reduce((s,[,m])=>s+(m.eurRecuperado||0),0);
+
+  document.getElementById('dash-eur').textContent='€ '+totalEur.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('dash-recuperado').textContent='€ '+totalRec.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('dash-taxa').textContent=totalA>0?Math.round(totalM/totalA*100)+'%':'0%';
+
+  // Barra de progresso recuperado
+  const pCard=document.getElementById('dash-progress-card');
+  if(totalEur>0){
+    pCard.style.display='block';
+    const pct=Math.min(Math.round(totalRec/totalEur*100),100);
+    document.getElementById('dash-progress-bar').style.width=pct+'%';
+    document.getElementById('dash-progress-pct').textContent=pct+'%';
+    document.getElementById('dash-prog-rec').textContent='€ '+totalRec.toFixed(2)+' recuperado';
+    document.getElementById('dash-prog-falta').textContent='€ '+(totalEur-totalRec).toFixed(2)+' por recuperar';
+  }
+
+  const procsAgg={},segsAgg={},segEurAgg={},segRecAgg={};
+  meses.forEach(([,m])=>{
+    Object.entries(m.procs||{}).forEach(([k,v])=>procsAgg[k]=(procsAgg[k]||0)+v);
+    Object.entries(m.segs||{}).forEach(([k,v])=>segsAgg[k]=(segsAgg[k]||0)+v);
+    Object.entries(m.segEur||{}).forEach(([k,v])=>segEurAgg[k]=(segEurAgg[k]||0)+v);
+  });
+  // Recuperado por seguradora (actos actuais)
+  missingActos.filter(a=>recuperados.has(a.processo)).forEach(a=>{
+    const s=a.seguradora||'N/D';
+    segRecAgg[s]=(segRecAgg[s]||0)+(a.valorEst||0);
+  });
+
+  function bars(id,data,cls,fmt){
+    const vals=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const max=Math.max(...vals.map(v=>v[1]),1);
+    document.getElementById(id).innerHTML=vals.length?vals.map(([k,v])=>`
+      <div class="bar-row">
+        <div class="bar-label" title="${k}">${k}</div>
+        <div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.round(v/max*100)}%"></div></div>
+        <div class="bar-val">${fmt(v)}</div>
+      </div>`).join(''):`<div class="empty-text" style="font-size:.75rem;padding:8px 0">Sem dados ainda</div>`;
+  }
+  bars('chart-proc',procsAgg,'red',v=>v);
+  bars('chart-seg',segsAgg,'blue',v=>v);
+  bars('chart-seg-eur',segEurAgg,'red',v=>'€ '+v.toFixed(0));
+  bars('chart-seg-rec',segRecAgg,'accent',v=>'€ '+v.toFixed(0));
+
+  document.getElementById('chart-meses').innerHTML=meses.slice(0,12).map(([mk,m])=>{
+    const[y,mo]=mk.split('-');
+    const nome=new Date(+y,+mo-1,1).toLocaleDateString('pt-PT',{month:'short',year:'2-digit'});
+    return`<div class="month-row">
+      <div class="month-name">${nome}</div>
+      <div class="month-pills">
+        <span class="month-pill ok">${m.pagos} pagos</span>
+        ${m.missing>0?`<span class="month-pill bad">${m.missing} em falta</span>`:''}
+      </div>
+      ${m.eurFalta>0?`<span class="month-eur">- € ${m.eurFalta.toFixed(2)}</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// HONORÁRIOS RENDER
+// ═══════════════════════════════════════
+function renderHonorarios(){
+  document.getElementById('hon-tbody').innerHTML=[...TABELA].sort((a,b)=>b.eur-a.eur).map(h=>`<tr>
+    <td class="hon-cod">${h.cod}</td>
+    <td class="hon-desc">${h.desc}</td>
+    <td><span class="badge ${h.tipo==='Anes/Exame'?'badge-seg':h.tipo==='Consulta'?'badge-ok':'badge-missing'}" style="font-size:.57rem">${h.tipo}</span></td>
+    <td class="hon-cod">${h.nrk||'—'}</td>
+    <td class="hon-cod">${h.pct?h.pct+'%':'—'}</td>
+    <td class="hon-eur">€ ${h.eur.toFixed(2)}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════
+// EXCEL
+// ═══════════════════════════════════════
+function handleExcelUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const rd=document.getElementById('excel-result');
+  rd.style.display='block';
+  rd.innerHTML=`<div class="alert alert-info"><span class="spinner"></span> &nbsp;A processar ${file.name}…</div>`;
+  document.getElementById('manual-form').style.display='block';
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
+      const sn=wb.SheetNames.includes('Actos Realizados')?'Actos Realizados':wb.SheetNames[0];
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});
+      if(!rows.length){rd.innerHTML=`<div class="alert alert-warn">⚠ Ficheiro vazio.</div>`;return;}
+      const cm={processo:['nº processo','processo','nr processo'],data:['data do acto','data'],acto:['procedimento','acto médico','acto','procedimento / acto médico'],tipo:['tipo anestesia','tipo'],codigo:['código tabela','codigo tabela','código','codigo'],seguradora:['seguradora','entidade','seguro'],valor:['valor','eur','€']};
+      function fc(row,keys){const rk=Object.keys(row).map(k=>k.toLowerCase().trim());for(const k of keys){const m=rk.find(r=>r.includes(k));if(m)return Object.keys(row).find(r=>r.toLowerCase().trim().includes(k));}return null;}
+      const s=rows[0];
+      const cols={processo:fc(s,cm.processo),data:fc(s,cm.data),acto:fc(s,cm.acto),tipo:fc(s,cm.tipo),codigo:fc(s,cm.codigo),seguradora:fc(s,cm.seguradora),valor:fc(s,cm.valor)};
+      let imp=0,skip=0;
+      rows.forEach(row=>{
+        const proc=cols.processo?String(row[cols.processo]||'').trim():'';
+        const av=cols.acto?String(row[cols.acto]||'').trim():'';
+        if(!proc||!av){skip++;return;}
+        let dv='';
+        if(cols.data&&row[cols.data]){const d=row[cols.data];if(d instanceof Date){dv=d.toISOString().split('T')[0];}else{const s2=String(d).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s2))dv=s2;else if(/^\d{2}\/\d{2}\/\d{4}$/.test(s2)){const[dd,mm,yyyy]=s2.split('/');dv=`${yyyy}-${mm}-${dd}`;}else dv=new Date().toISOString().split('T')[0];}}else dv=new Date().toISOString().split('T')[0];
+        if(actos.find(a=>norm(a.processo)===norm(proc))){skip++;return;}
+        const tipo=cols.tipo?String(row[cols.tipo]||'').trim():'';
+        const cod=cols.codigo?String(row[cols.codigo]||'').trim():'';
+        const seg=cols.seguradora?String(row[cols.seguradora]||'').trim():'';
+        const valRaw=cols.valor?parseFloat(row[cols.valor]):NaN;
+        const val=!isNaN(valRaw)&&valRaw>0?valRaw:estimarValor(av,tipo,cod);
+        actos.push({processo:proc,data:dv,acto:av,tipo,codigo:cod,seguradora:seg,valorEst:val,mes:dv.substring(0,7)});imp++;
+      });
+      refreshActosTable();autoSave();
+      rd.innerHTML=`<div class="alert alert-success">✓ <strong>${imp} actos importados</strong>${skip>0?` · ${skip} ignorados`:''}</div>`;
+    }catch(err){rd.innerHTML=`<div class="alert alert-warn">⚠ Erro: ${err.message}</div>`;}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadTemplate(){
+  const wb=XLSX.utils.book_new();
+  const h=['Nº Processo','Data do Acto','Procedimento / Acto Médico','Tipo Anestesia','Seguradora','Código Tabela','Valor Est. (€)','Notas'];
+  const sp=SP_CONFIG[userProfile.specialty];
+  const s=sp.demoActos.slice(0,3).map((d,i)=>{
+    const dt=new Date();dt.setDate(i*3+2);
+    return[`2025/00${4521+i}`,dt.toLocaleDateString('pt-PT'),d.acto,d.tipo||'',d.seg||'',d.cod||'',d.val||'',''];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([h,...s,...Array.from({length:30},()=>Array(8).fill(''))]);
+  ws['!cols']=[{wch:16},{wch:14},{wch:38},{wch:16},{wch:16},{wch:12},{wch:12},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws,'Actos Realizados');
+  XLSX.writeFile(wb,'MediCheck_Template.xlsx');
+}
+
+// ═══════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// GOOGLE AUTH + DRIVE + ENCRYPTION
+// ═══════════════════════════════════════
+const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
+const DRIVE_FILE_NAME  = 'medicheck_v3_data.enc';
+const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata';
+let googleToken   = null;
+let driveFileId   = null;
+let encryptionKey = null;
+let tokenClient   = null;
+
+// ── Google Identity Services ──
+function initGIS() {
+  if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 500); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: onTokenReceived,
+  });
+}
+
+function requestGoogleLogin() {
+  const btn = document.getElementById('ob-btn-google');
+  const status = document.getElementById('ob-google-status');
+
+  // Detect file:// protocol — Google OAuth won't work
+  if (window.location.protocol === 'file:') {
+    status.innerHTML = '⚠️ Abre a app via link web — o Google não permite login em ficheiros locais.<br><span style="color:var(--ink3);font-size:.7rem">Ver instruções abaixo.</span>';
+    status.style.color = 'var(--amber)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'A conectar…';
+
+  if (!tokenClient) {
+    // Wait max 3s for GSI to load
+    let attempts = 0;
+    const wait = setInterval(() => {
+      attempts++;
+      if (tokenClient) { clearInterval(wait); tokenClient.requestAccessToken({ prompt: 'select_account' }); }
+      else if (attempts > 6) {
+        clearInterval(wait);
+        btn.disabled = false;
+        btn.textContent = 'Entrar com Google';
+        status.textContent = 'Erro: não foi possível ligar ao Google. Verifica a ligação.';
+        status.style.color = 'var(--red)';
+      }
+    }, 500);
+    return;
+  }
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
+}
+
+async function onTokenReceived(resp) {
+  const status = document.getElementById('ob-google-status');
+  if (resp.error) {
+    status.textContent = 'Erro: ' + resp.error;
+    status.style.color = 'var(--red)';
+    const btn = document.getElementById('ob-btn-google');
+    btn.disabled = false; btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg> Entrar com Google';
+    return;
+  }
+  googleToken = resp.access_token;
+  status.textContent = '✓ Conta Google ligada';
+  status.style.color = 'var(--green)';
+
+  // Check if returning user (file exists in Drive)
+  setSyncStatus(true, 'A verificar conta…');
+  driveFileId = await findDriveFile();
+  if (driveFileId) {
+    // Returning user — ask for PIN
+    const info = await getGoogleUserInfo();
+    const displayName = info?.name || userProfile.name || 'Dr.';
+    document.getElementById('ob-pin-username').textContent = displayName;
+    obGoToStep('pin');
+  } else {
+    // New user — go through full onboarding
+    obNext(1);
+  }
+}
+
+async function getGoogleUserInfo() {
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + googleToken }
+    });
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+function resetGoogleSession() {
+  googleToken = null; driveFileId = null; encryptionKey = null;
+  const btn = document.getElementById('ob-btn-google');
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg> Entrar com Google';
+  document.getElementById('ob-google-status').textContent = '';
+  obGoToStep(0);
+}
+
+// ── Navigate to named or numbered step ──
+function obGoToStep(id) {
+  document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
+  const el = typeof id === 'number'
+    ? document.getElementById('ob-step-' + id)
+    : document.getElementById('ob-step-' + id);
+  if (el) el.classList.add('active');
+  // Update dots (only for numbered steps 0-2)
+  [0,1,2].forEach(i => {
+    const d = document.getElementById('dot-' + i);
+    if (d) d.classList.toggle('active', i === id);
+  });
+}
+
+// ── AES-256-GCM Encryption ──
+async function deriveKey(pin, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt: enc.encode(salt), iterations:100000, hash:'SHA-256' },
+    keyMaterial,
+    { name:'AES-GCM', length:256 },
+    false, ['encrypt','decrypt']
+  );
+}
+
+async function encryptData(data, key) {
+  const enc = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(JSON.stringify(data)));
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptData(base64, key) {
+  try {
+    const combined = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const data = combined.slice(12);
+    const decrypted = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, data);
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  } catch(e) { return null; }
+}
+
+// ── Google Drive REST API ──
+async function findDriveFile() {
+  try {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE_NAME}%27&fields=files(id)`,
+      { headers: { Authorization: 'Bearer ' + googleToken } }
+    );
+    const d = await r.json();
+    return d.files && d.files.length > 0 ? d.files[0].id : null;
+  } catch(e) { return null; }
+}
+
+async function saveToDrive(payload) {
+  if (!googleToken || !encryptionKey) { saveToLocalStorage(); return; }
+  try {
+    setSyncStatus(true, 'A guardar no Drive…');
+    const encrypted = await encryptData(payload, encryptionKey);
+    const blob = new Blob([encrypted], { type: 'text/plain' });
+    if (driveFileId) {
+      await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+        { method:'PATCH', headers:{ Authorization:'Bearer ' + googleToken, 'Content-Type':'text/plain' }, body: blob }
+      );
+    } else {
+      const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ['appDataFolder'] });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type:'application/json' }));
+      form.append('file', blob);
+      const r = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+        { method:'POST', headers:{ Authorization:'Bearer ' + googleToken }, body: form }
+      );
+      const d = await r.json();
+      driveFileId = d.id;
+    }
+    // Also cache locally
+    saveToLocalStorage();
+    setSyncStatus(false, 'Guardado no Drive ✓');
+  } catch(e) {
+    saveToLocalStorage();
+    setSyncStatus(false, 'Drive offline — guardado localmente');
+  }
+}
+
+async function loadFromDrive(pin) {
+  if (!googleToken || !driveFileId) return false;
+  try {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + googleToken } }
+    );
+    const encrypted = await r.text();
+    const salt = userProfile.name || 'medicheck-salt';
+    encryptionKey = await deriveKey(pin, salt + googleToken.slice(-8));
+    const d = await decryptData(encrypted, encryptionKey);
+    if (!d) return false; // Wrong PIN
+    actos = d.actos||[]; pagos = d.pagos||[]; historicoMeses = d.historicoMeses||{};
+    recuperados = new Set(d.recuperados||[]);
+    if (d.userProfile && d.userProfile.name) { userProfile = d.userProfile; }
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── PIN entry (returning user) ──
+function obCheckPinEnter() {
+  const p = document.getElementById('ob-pin-enter').value;
+  document.getElementById('ob-btn-pin-enter').disabled = p.length < 4;
+  document.getElementById('ob-pin-error').textContent = '';
+}
+
+async function submitPin() {
+  const pin = document.getElementById('ob-pin-enter').value;
+  const btn = document.getElementById('ob-btn-pin-enter');
+  btn.disabled = true; btn.textContent = 'A verificar…';
+  setSyncStatus(true, 'A desencriptar…');
+
+  // Derive key with temp profile to load
+  const salt = 'medicheck-salt' + googleToken.slice(-8);
+  encryptionKey = await deriveKey(pin, salt);
+  const ok = await loadFromDrive(pin);
+
+  if (ok) {
+    document.getElementById('onboarding').style.display = 'none';
+    refreshActosTable(); refreshPagosTable();
+    applySpecialty();
+    setSyncStatus(false, 'Drive sincronizado ✓');
+    toast('✓ Bem-vindo, ' + (userProfile.name || 'Dr.'));
+  } else {
+    document.getElementById('ob-pin-error').textContent = 'PIN incorrecto. Tenta novamente.';
+    btn.disabled = false; btn.textContent = 'Entrar →';
+    document.getElementById('ob-pin-enter').value = '';
+    setSyncStatus(false, '');
+    encryptionKey = null;
+  }
+}
+
+// ── localStorage fallback ──
+function saveToLocalStorage() {
+  try { localStorage.setItem('medicheck_v3', JSON.stringify({ actos, pagos, historicoMeses, userProfile, recuperados:[...recuperados], savedAt:new Date().toISOString() })); } catch(e) {}
+}
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('medicheck_v3');
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    actos=d.actos||[]; pagos=d.pagos||[]; historicoMeses=d.historicoMeses||{};
+    recuperados = new Set(d.recuperados||[]);
+    if (d.userProfile && d.userProfile.name) { userProfile=d.userProfile; return true; }
+    return false;
+  } catch(e) { return false; }
+}
+
+// ── Main save/load (used throughout app) ──
+function saveToStorage() {
+  const payload = { actos, pagos, historicoMeses, userProfile, recuperados:[...recuperados], savedAt:new Date().toISOString() };
+  if (googleToken && encryptionKey) {
+    saveToDrive(payload);
+  } else {
+    saveToLocalStorage();
+    setSyncStatus(false, 'Guardado localmente');
+  }
+}
+function loadFromStorage() {
+  return loadFromLocalStorage();
+}
+let _st;
+function autoSave(){setSyncStatus(true);clearTimeout(_st);_st=setTimeout(saveToStorage,1800);}
+function setSyncStatus(u,msg){
+  const dot=document.getElementById('sync-dot');const txt=document.getElementById('sync-text');
+  if(u){dot.classList.add('unsaved');txt.textContent='A guardar…';}
+  else{dot.classList.remove('unsaved');txt.textContent=msg||'Dados guardados';}
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify({actos,pagos,historicoMeses,userProfile,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`MediCheck_${new Date().toISOString().split('T')[0]}.json`;a.click();
+  toast('⬇ Dados exportados');
+}
+function triggerImport(){document.getElementById('import-data-input').click();}
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      actos=d.actos||[];pagos=d.pagos||[];historicoMeses=d.historicoMeses||{};
+      if(d.userProfile)userProfile=d.userProfile;
+      refreshActosTable();refreshPagosTable();saveToStorage();
+      if(userProfile.name)applySpecialty();
+      toast('✓ Dados importados');
+    }catch(e){alert('Erro: ficheiro inválido.');}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function toast(msg){
+  let el=document.getElementById('_toast');
+  if(!el){el=document.createElement('div');el.id='_toast';
+    el.style.cssText='position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:.7rem;padding:8px 16px;border-radius:20px;z-index:9999;transition:opacity .3s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.6);pointer-events:none;';
+    document.body.appendChild(el);}
+  el.textContent=msg;el.style.opacity='1';
+  clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',2400);
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function genProc(){return`${new Date().getFullYear()}/${String(Math.floor(Math.random()*90000)+10000)}`;}
+function norm(s){return String(s).replace(/[\s\-\/]/g,'').toLowerCase();}
+function formatDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('sidebar-date').textContent=
+    new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('f-data').value=new Date().toISOString().split('T')[0];
+  renderHonorarios();
+  initGIS();
+
+  const hasProfile = loadFromStorage();
+  refreshActosTable(); refreshPagosTable();
+  applySpecialty();
+
+  if (hasProfile && userProfile.name) {
+    // Returning user — show onboarding for Google login
+    document.getElementById('onboarding').style.display='flex';
+    obGoToStep(0);
+  } else {
+    document.getElementById('onboarding').style.display='flex';
+    obGoToStep(0);
+  }
+});
+</script>
+</body>
+</html>
