@@ -1392,7 +1392,7 @@ function updateValorHint() {
 // ═══════════════════════════════════════
 // VIGNETTE / SIMULATED AI
 // ═══════════════════════════════════════
-function handleVignetteUpload(e) {
+async function handleVignetteUpload(e) {
   const file = e.target.files[0]; if (!file) return;
   const box = document.getElementById('extracted-box');
   box.style.display = 'block';
@@ -1400,26 +1400,67 @@ function handleVignetteUpload(e) {
   document.getElementById('ext-fields').innerHTML = `<span style="display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:.76rem;color:var(--accent)"><span class="spinner"></span>A processar imagem…</span>`;
   document.getElementById('ext-btns').innerHTML = '';
 
-  setTimeout(() => {
-    const sp = userProfile.specialty;
-    const demos = SP_CONFIG[sp].demoActos;
-    const d = demos[Math.floor(Math.random()*demos.length)];
-    const proc = genProc();
-    const today = new Date().toISOString().split('T')[0];
-    const val = d.val || estimarValor(d.acto, d.tipo, d.cod);
-    const safe = s => String(s).replace(/'/g,"\\'");
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
-    document.getElementById('ext-label').textContent = '✦ Dados extraídos — confirma antes de guardar';
+    const mediaType = file.type || 'image/jpeg';
+    const today = new Date().toISOString().split('T')[0];
+
+    const prompt = `Es um sistema de OCR especializado em vinhetas medicas portuguesas. Analisa esta imagem de uma vinheta medica e extrai APENAS os dados que consegues ler claramente. NAO inventes dados. Se nao conseguires ler um campo, devolve null para esse campo. Campos: numero_processo (ex: 12345), data (YYYY-MM-DD), acto (nome do procedimento), tipo (tipo de anestesia/procedimento), codigo (codigo do acto), seguradora. Responde APENAS com JSON valido sem texto adicional: {"numero_processo":null,"data":null,"acto":null,"tipo":null,"codigo":null,"seguradora":null}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: prompt }
+        ]}]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    let extracted = {};
+    try { extracted = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch { throw new Error('parse error'); }
+
+    const proc = extracted.numero_processo || '';
+    const acto = extracted.acto || '';
+    const dataActo = extracted.data || today;
+    const tipo = extracted.tipo || '';
+    const cod = extracted.codigo || '';
+    const seg = extracted.seguradora || '';
+    const val = acto ? estimarValor(acto, tipo, cod) : 0;
+    const safe = s => String(s||'').replace(/'/g,"\'");
+    const temDados = proc || acto;
+
+    document.getElementById('ext-label').textContent = temDados ? '✦ Dados extraídos — confirma antes de guardar' : '⚠ Não foi possível ler a vinheta — preenche manualmente';
     document.getElementById('ext-fields').innerHTML = `
-      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc}</div></div>
-      <div><div class="ef-label">Acto</div><div class="ef-value" style="max-width:200px;font-size:.8rem">${d.acto}</div></div>
-      ${d.tipo ? `<div><div class="ef-label">Tipo</div><div class="ef-value">${d.tipo}</div></div>` : ''}
-      <div><div class="ef-label">€ Estimado</div><div class="ef-value accent">€ ${val.toFixed(2)}</div></div>`;
+      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc || '<span style="color:var(--ink2);font-style:italic">não detectado</span>'}</div></div>
+      ${acto ? `<div><div class="ef-label">Acto</div><div class="ef-value" style="max-width:200px;font-size:.8rem">${acto}</div></div>` : ''}
+      ${tipo ? `<div><div class="ef-label">Tipo</div><div class="ef-value">${tipo}</div></div>` : ''}
+      ${seg ? `<div><div class="ef-label">Seguradora</div><div class="ef-value">${seg}</div></div>` : ''}
+      ${val > 0 ? `<div><div class="ef-label">€ Estimado</div><div class="ef-value accent">€ ${val.toFixed(2)}</div></div>` : ''}`;
     document.getElementById('ext-btns').innerHTML = `
-      <button class="btn btn-green btn-sm" onclick="confirmExtracted('${safe(proc)}','${safe(d.acto)}','${today}','${safe(d.tipo||'')}','${safe(d.cod||'')}',${val},'${safe(d.seg||'')}')">✓ Confirmar e guardar</button>
-      <button class="btn btn-ghost btn-sm" onclick="prefillManual('${safe(proc)}','${safe(d.acto)}','${today}','${safe(d.tipo||'')}','${safe(d.cod||'')}')">✏ Editar</button>
+      ${temDados ? `<button class="btn btn-green btn-sm" onclick="confirmExtracted('${safe(proc)}','${safe(acto)}','${dataActo}','${safe(tipo)}','${safe(cod)}',${val},'${safe(seg)}')">✓ Confirmar e guardar</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="prefillManual('${safe(proc)}','${safe(acto)}','${dataActo}','${safe(tipo)}','${safe(cod)}')">✏ ${temDados ? 'Editar' : 'Preencher manualmente'}</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
-  }, 1500);
+
+  } catch(err) {
+    console.error('OCR error:', err);
+    document.getElementById('ext-label').textContent = '⚠ Erro ao processar imagem';
+    document.getElementById('ext-fields').innerHTML = `<span style="color:var(--red);font-size:.85rem">Não foi possível analisar a imagem. Tenta novamente ou preenche manualmente.</span>`;
+    document.getElementById('ext-btns').innerHTML = `
+      <button class="btn btn-ghost btn-sm" onclick="prefillManual('','','${new Date().toISOString().split('T')[0]}','','')">✏ Preencher manualmente</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
+  }
 }
 
 function confirmExtracted(proc, acto, data, tipo, cod, val, seg) {
