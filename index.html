@@ -1529,7 +1529,7 @@ async function handleVignetteUpload(e) {
   } catch(err) {
     console.error('OCR error:', err);
     document.getElementById('ext-label').textContent = '⚠ Erro ao processar imagem';
-    document.getElementById('ext-fields').innerHTML = `<span style="color:var(--red);font-size:.85rem">Não foi possível analisar a imagem. Tenta novamente ou preenche manualmente.</span>`;
+    document.getElementById('ext-fields').innerHTML = `<span style="color:var(--red);font-size:.85rem">Erro: ${err.message || String(err)}</span>`;
     document.getElementById('ext-btns').innerHTML = `
       <button class="btn btn-ghost btn-sm" onclick="prefillManual('','','${new Date().toISOString().split('T')[0]}','','')">✏ Preencher manualmente</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
