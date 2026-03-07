@@ -1500,7 +1500,17 @@ async function handleVignetteUpload(e) {
     const data = await response.json();
     const text = data.content?.[0]?.text || '';
     let extracted = {};
-    try { extracted = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch { throw new Error('parse error'); }
+    try {
+      // Try to extract JSON from response even if wrapped in text
+      let jsonStr = text.replace(/```json|```/g,'').trim();
+      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonStr = jsonMatch[0];
+      extracted = JSON.parse(jsonStr);
+    } catch {
+      // If API returned an error object, surface it
+      const errMsg = data.error?.message || data.content?.[0]?.text || 'parse error';
+      throw new Error(errMsg.substring(0, 100));
+    }
 
     const proc = extracted.numero_processo || '';
     const acto = extracted.acto || '';
