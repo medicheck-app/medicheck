@@ -1269,7 +1269,7 @@ async function finishOnboarding() {
   userProfile.specialty = selectedSp;
   const pin = document.getElementById('ob-pin-create').value;
   // Derive encryption key from PIN
-  const salt = 'medicheck-salt' + (googleToken ? googleToken.slice(-8) : 'local');
+  const salt = 'medicheck-v3-salt';
   encryptionKey = await deriveKey(pin, salt);
   saveToStorage();
   applySpecialty();
@@ -2109,7 +2109,7 @@ async function loadFromDrive(pin) {
       { headers: { Authorization: 'Bearer ' + googleToken } }
     );
     const encrypted = await r.text();
-    const salt = 'medicheck-salt' + googleToken.slice(-8);
+    const salt = 'medicheck-v3-salt';
     encryptionKey = await deriveKey(pin, salt);
     const d = await decryptData(encrypted, encryptionKey);
     if (!d) return false; // Wrong PIN
@@ -2133,8 +2133,8 @@ async function submitPin() {
   btn.disabled = true; btn.textContent = 'A verificar…';
   setSyncStatus(true, 'A desencriptar…');
 
-  // Derive key with temp profile to load
-  const salt = 'medicheck-salt' + googleToken.slice(-8);
+  // Derive key with stable salt
+  const salt = 'medicheck-v3-salt';
   encryptionKey = await deriveKey(pin, salt);
   const ok = await loadFromDrive(pin);
 
