@@ -712,6 +712,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
     <div class="nav-item" onclick="triggerImport()"><span class="nav-icon">⬆</span>Importar JSON</div>
     <input type="file" id="import-data-input" accept=".json" style="display:none" onchange="importData(event)">
     <div class="nav-item" onclick="resetOnboarding()" style="margin-top:4px"><span class="nav-icon">⚙</span>Mudar especialidade</div>
+    <div class="nav-item" data-panel="definicoes" onclick="switchPanel('definicoes')"><span class="nav-icon">🔑</span>Definições</div>
   </nav>
   <div class="sidebar-footer">
     <div class="privacy-tag"><div class="privacy-dot"></div>Dados locais · offline</div>
@@ -1037,6 +1038,32 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       </div>
     </div>
 
+    <!-- ══ PANEL: DEFINIÇÕES ══ -->
+    <div id="panel-definicoes" class="panel">
+      <div class="card">
+        <div class="card-title">🔑 API Key — Claude (Anthropic)</div>
+        <div class="card-sub">Necessária para o OCR de vinhetas por IA. Fica guardada apenas neste dispositivo, nunca enviada para servidores.</div>
+        <div class="alert alert-info" style="margin-bottom:16px">💡 Obtém a tua key em <strong>platform.claude.com/settings/keys</strong> → Create Key</div>
+        <div class="form-group" style="margin-bottom:14px">
+          <div class="form-label">API Key</div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="settings-apikey" placeholder="sk-ant-api03-…" style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:.78rem"/>
+            <button class="btn btn-ghost btn-sm" onclick="toggleApiKeyVisibility()" id="btn-toggle-key" style="flex-shrink:0">👁</button>
+          </div>
+        </div>
+        <div id="apikey-status" style="font-size:.75rem;min-height:18px;margin-bottom:14px"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveApiKey()">✓ Guardar</button>
+          <button class="btn btn-ghost" onclick="clearApiKey()">✕ Remover</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Custo estimado</div>
+        <div class="card-sub">Cada foto de vinheta analisada custa aproximadamente <strong style="color:var(--accent)">€ 0,01</strong>. Para 100 fotos por mês são menos de €1.</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3);margin-top:8px">Modelo: claude-sonnet-4-20250514 · Vision API</div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -1343,6 +1370,7 @@ const META = {
   relatorio:  { title: () => 'Relatório de Falta',   meta: () => 'Exporta os actos em falta para reclamação' },
   dashboard:  { title: () => 'Dashboard Anual',      meta: () => 'Padrões, honorários em falta e seguradoras' },
   honorarios: { title: () => 'Tabela de Honorários', meta: () => 'Valores por acto — extraídos da fatura CUF Fev 2026' },
+  definicoes: { title: () => 'Definições', meta: () => 'API Key e configurações' },
 };
 
 function updateTopbarMeta() {
@@ -1367,6 +1395,7 @@ function switchPanel(name) {
     document.getElementById('topbar-meta').textContent = m.meta();
   }
   if (name === 'dashboard') renderDashboard();
+  if (name === 'definicoes') loadApiKeyToSettings();
 }
 
 function toggleManualForm() {
@@ -1400,6 +1429,17 @@ async function handleVignetteUpload(e) {
   document.getElementById('ext-fields').innerHTML = `<span style="display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:.76rem;color:var(--accent)"><span class="spinner"></span>A processar imagem…</span>`;
   document.getElementById('ext-btns').innerHTML = '';
 
+  // Check API key
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    document.getElementById('ext-label').textContent = '⚠ API Key não configurada';
+    document.getElementById('ext-fields').innerHTML = `<span style="color:var(--amber);font-size:.85rem">Configura a tua API Key em <strong>Definições</strong> para usar o OCR por IA.</span>`;
+    document.getElementById('ext-btns').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="switchPanel('definicoes');document.getElementById('extracted-box').style.display='none'">🔑 Ir para Definições</button>
+      <button class="btn btn-ghost btn-sm" onclick="prefillManual('','','${new Date().toISOString().split('T')[0]}','','')">✏ Manual</button>`;
+    return;
+  }
+
   try {
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1415,7 +1455,7 @@ async function handleVignetteUpload(e) {
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 500,
@@ -1912,6 +1952,11 @@ function downloadTemplate(){
 // ═══════════════════════════════════════
 // GOOGLE AUTH + DRIVE + ENCRYPTION
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// API KEY — SUBSTITUIR ANTES DE PUBLICAR
+// ═══════════════════════════════════════
+const ANTHROPIC_API_KEY = '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';
+
 const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
 const DRIVE_FILE_NAME  = 'medicheck_v3_data.enc';
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata';
@@ -2210,6 +2255,39 @@ function importData(e){
     }catch(e){alert('Erro: ficheiro inválido.');}
   };
   reader.readAsText(file);e.target.value='';
+}
+
+// ═══════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════
+function getApiKey() {
+  return localStorage.getItem('medicheck_apikey') || ANTHROPIC_API_KEY || '';
+}
+function saveApiKey() {
+  const key = document.getElementById('settings-apikey').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    document.getElementById('apikey-status').innerHTML = '<span style="color:var(--red)">⚠ Key inválida — deve começar por sk-ant-</span>';
+    return;
+  }
+  localStorage.setItem('medicheck_apikey', key);
+  document.getElementById('apikey-status').innerHTML = '<span style="color:var(--green)">✓ API Key guardada neste dispositivo</span>';
+  toast('✓ API Key guardada');
+}
+function clearApiKey() {
+  localStorage.removeItem('medicheck_apikey');
+  document.getElementById('settings-apikey').value = '';
+  document.getElementById('apikey-status').innerHTML = '<span style="color:var(--ink3)">API Key removida</span>';
+}
+function toggleApiKeyVisibility() {
+  const input = document.getElementById('settings-apikey');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+function loadApiKeyToSettings() {
+  const key = getApiKey();
+  if (key) {
+    document.getElementById('settings-apikey').value = key;
+    document.getElementById('apikey-status').innerHTML = '<span style="color:var(--green)">✓ API Key configurada</span>';
+  }
 }
 
 // ═══════════════════════════════════════
