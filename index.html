@@ -1288,7 +1288,22 @@ function selectSp(el) {
 
 function obCheckName() {
   const v = document.getElementById('ob-name').value.trim();
-  document.getElementById('ob-btn-name').disabled = v.length < 3;
+  const pin1 = document.getElementById('ob-pin-create').value;
+  const pin2 = document.getElementById('ob-pin-confirm').value;
+  const matchEl = document.getElementById('ob-pin-match');
+  const ok = v.length >= 3 && pin1.length >= 4;
+  if (pin1.length >= 4 && pin2.length >= 1) {
+    if (pin1 === pin2) {
+      matchEl.style.color = 'var(--green)';
+      matchEl.textContent = '✓ PIN coincide';
+    } else {
+      matchEl.style.color = 'var(--red)';
+      matchEl.textContent = 'PIN não coincide';
+    }
+  } else {
+    matchEl.textContent = '';
+  }
+  document.getElementById('ob-btn-name').disabled = !(ok && pin1 === pin2 && pin2.length >= 4);
 }
 
 async function finishOnboarding() {
@@ -1955,7 +1970,7 @@ function downloadTemplate(){
 // ═══════════════════════════════════════
 // API KEY — SUBSTITUIR ANTES DE PUBLICAR
 // ═══════════════════════════════════════
-const ANTHROPIC_API_KEY = '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';
+const ANTHROPIC_API_KEY = '';
 
 const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
 const DRIVE_FILE_NAME  = 'medicheck_v3_data.enc';
