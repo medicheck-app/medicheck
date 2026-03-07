@@ -754,7 +754,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           <div class="hero-title" id="hero-title">Fotografa a <em>vinheta</em></div>
           <div class="hero-sub" id="hero-sub">Extrai nº processo e acto médico automaticamente. Nome e morada sempre omitidos.</div>
           <button class="capture-btn" id="capture-btn-main">
-            <input type="file" accept="image/*" capture="environment" id="vignette-input" onchange="handleVignetteUpload(event)">
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" id="vignette-input" onchange="handleVignetteUpload(event)">
             <span id="capture-icon">📷</span>
             <span id="capture-label">Tirar Foto da Vinheta</span>
           </button>
@@ -1456,32 +1456,15 @@ async function handleVignetteUpload(e) {
   }
 
   try {
-    // Convert image to JPEG via canvas (fixes HEIC and other formats)
+    // Read image as base64 (iOS converts HEIC to JPEG automatically when accept is set)
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          // Limit size to max 1600px to keep API cost low
-          const maxDim = 1600;
-          let w = img.width, h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-            else { w = Math.round(w * maxDim / h); h = maxDim; }
-          }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
-        };
-        img.onerror = reject;
-        img.src = e.target.result;
-      };
+      reader.onload = () => resolve(reader.result.split(',')[1]);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
 
-    const mediaType = 'image/jpeg';
+    const mediaType = file.type && file.type !== 'image/heic' ? file.type : 'image/jpeg';
     const today = new Date().toISOString().split('T')[0];
 
     const prompt = `Es um sistema de OCR especializado em vinhetas medicas portuguesas. Analisa esta imagem de uma vinheta medica e extrai APENAS os dados que consegues ler claramente. NAO inventes dados. Se nao conseguires ler um campo, devolve null para esse campo. Campos: numero_processo (ex: 12345), data (YYYY-MM-DD), acto (nome do procedimento), tipo (tipo de anestesia/procedimento), codigo (codigo do acto), seguradora. Responde APENAS com JSON valido sem texto adicional: {"numero_processo":null,"data":null,"acto":null,"tipo":null,"codigo":null,"seguradora":null}`;
