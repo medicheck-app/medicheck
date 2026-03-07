@@ -2109,8 +2109,8 @@ async function loadFromDrive(pin) {
       { headers: { Authorization: 'Bearer ' + googleToken } }
     );
     const encrypted = await r.text();
-    const salt = userProfile.name || 'medicheck-salt';
-    encryptionKey = await deriveKey(pin, salt + googleToken.slice(-8));
+    const salt = 'medicheck-salt' + googleToken.slice(-8);
+    encryptionKey = await deriveKey(pin, salt);
     const d = await decryptData(encrypted, encryptionKey);
     if (!d) return false; // Wrong PIN
     actos = d.actos||[]; pagos = d.pagos||[]; historicoMeses = d.historicoMeses||{};
