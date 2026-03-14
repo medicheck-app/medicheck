@@ -609,6 +609,9 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
         Entrar com Google
       </button>
       <div id="ob-google-status" style="font-size:.75rem;color:var(--ink3);text-align:center;margin-top:12px;min-height:20px;"></div>
+      <button id="ob-btn-test" onclick="enterTestMode()" style="display:none;margin-top:8px;width:100%;padding:12px;background:var(--surface);border:1px dashed var(--amber);border-radius:var(--r);color:var(--amber);font-size:.82rem;cursor:pointer;">
+        🧪 Modo Teste (apenas rede local)
+      </button>
     </div>
 
     <!-- STEP 0b: PIN entry for returning users -->
@@ -1316,6 +1319,18 @@ async function finishOnboarding() {
   document.getElementById('onboarding').style.opacity = '0';
   document.getElementById('onboarding').style.transition = 'opacity .4s';
   setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
+}
+
+async function enterTestMode() {
+  userProfile.name = 'Teste';
+  userProfile.specialty = 'anestesia';
+  const salt = 'medicheck-v3-salt';
+  encryptionKey = await deriveKey('0000', salt);
+  applySpecialty();
+  document.getElementById('onboarding').style.transition = 'opacity .4s';
+  document.getElementById('onboarding').style.opacity = '0';
+  setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
+  toast('🧪 Modo Teste activo — dados não são guardados');
 }
 
 function resetOnboarding() {
@@ -2415,6 +2430,13 @@ function formatDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${da
 // INIT
 // ═══════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
+  // Mostrar botão Modo Teste apenas em rede local
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || /^192\.168\./.test(h) || /^10\./.test(h)) {
+    const btn = document.getElementById('ob-btn-test');
+    if (btn) btn.style.display = 'block';
+  }
+
   document.getElementById('sidebar-date').textContent=
     new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('f-data').value=new Date().toISOString().split('T')[0];
