@@ -1309,6 +1309,7 @@ function obCheckName() {
 
 async function finishOnboarding() {
   userProfile.name = document.getElementById('ob-name').value.trim();
+  localStorage.setItem('mc_display_name', userProfile.name);
   userProfile.specialty = selectedSp;
   const pin = document.getElementById('ob-pin-create').value;
   // Derive encryption key from PIN
@@ -2132,7 +2133,7 @@ async function onTokenReceived(resp) {
   if (driveFileId) {
     // Returning user — ask for PIN
     const info = await getGoogleUserInfo();
-    const displayName = info?.name || userProfile.name || 'Dr.';
+    const displayName = info?.name || localStorage.getItem('mc_display_name') || userProfile.name || 'Dr.';
     document.getElementById('ob-pin-username').textContent = displayName;
     obGoToStep('pin');
   } else {
@@ -2265,7 +2266,7 @@ async function loadFromDrive(pin) {
     if (!d) return false; // Wrong PIN
     actos = d.actos||[]; pagos = d.pagos||[]; historicoMeses = d.historicoMeses||{};
     recuperados = new Set(d.recuperados||[]);
-    if (d.userProfile && d.userProfile.name) { userProfile = d.userProfile; }
+    if (d.userProfile && d.userProfile.name) { userProfile = d.userProfile; localStorage.setItem('mc_display_name', userProfile.name); }
     return true;
   } catch(e) { return false; }
 }
