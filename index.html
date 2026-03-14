@@ -8,7 +8,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=IBM+Plex+Mono:wght@300;400;500&family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
+:root {h
   --bg:#0a0c0f; --bg2:#0f1318; --surface:#151a1f; --surface2:#1b2128; --surface3:#222a32;
   --border:#242d36; --border2:#2e3a44;
   --ink:#dde2e7; --ink2:#7d8f9e; --ink3:#48606f;
@@ -1472,7 +1472,7 @@ async function handleVignetteUpload(e) {
 
     const prompt = `Es um sistema de OCR especializado em vinhetas medicas do Hospital CUF Torres Vedras. Analisa esta imagem e foca-te APENAS no texto IMPRESSO da etiqueta/vinheta. Ignora completamente: texto manuscrito, rabiscos, assinaturas, texto de fundo fora da vinheta. Extrai APENAS estes 3 campos impressos: 1) numero_processo: formato CCTV/NNNNNN na vinheta - extrai APENAS os digitos (ex: CCTV/107953 -> "107953"); 2) data: data impressa na vinheta formato YYYY-MM-DD; 3) seguradora: campo "Resp:" da vinheta (ex: "Multicare", "ADSE", "Medis"). Os campos acto, tipo e codigo sao sempre null (nao existem na vinheta). Responde APENAS com JSON valido: {"numero_processo":null,"data":null,"acto":null,"tipo":null,"codigo":null,"seguradora":null}`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://medicheck-proxy.goncalo-paulino-pereira.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
