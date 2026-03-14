@@ -312,6 +312,12 @@ body::before {
 }
 .ef-value { font-family:'IBM Plex Mono',monospace;font-size:.88rem;color:var(--ink);font-weight:500; }
 .ef-value.accent { color:var(--accent); }
+.vinheta-confirm { display:flex;gap:14px;align-items:flex-start;margin-bottom:10px; }
+.vinheta-thumb { width:110px;height:auto;max-height:140px;border-radius:6px;object-fit:contain;border:1px solid var(--border);flex-shrink:0; }
+.proc-confirm { flex:1;min-width:0; }
+.proc-big { font-family:'IBM Plex Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--ink);letter-spacing:.04em;line-height:1.2;word-break:break-all; }
+.proc-edit-inp { font-family:'IBM Plex Mono',monospace;font-size:1.3rem;font-weight:700;width:100%;background:var(--surface);border:2px solid var(--amber);border-radius:6px;padding:4px 8px;color:var(--ink);display:none;box-sizing:border-box; }
+.proc-corrigir { font-size:.72rem;color:var(--ink3);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;margin-top:5px;display:block;font-family:'IBM Plex Mono',monospace; }
 
 /* ─── FORM ─── */
 .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px; }
@@ -1251,6 +1257,7 @@ let actos = [], pagos = [], reconciled = [], missingActos = [];
 let historicoMeses = {};
 let recuperados = new Set(); // processos marcados como recuperados
 let userProfile = { name:'', specialty:'anestesia' };
+let lastVignetteUrl = null;
 
 // ═══════════════════════════════════════
 // ONBOARDING
@@ -1426,6 +1433,8 @@ function updateValorHint() {
 // ═══════════════════════════════════════
 async function handleVignetteUpload(e) {
   const file = e.target.files[0]; if (!file) return;
+  if (lastVignetteUrl) { URL.revokeObjectURL(lastVignetteUrl); }
+  lastVignetteUrl = URL.createObjectURL(file);
   const box = document.getElementById('extracted-box');
   box.style.display = 'block';
   document.getElementById('ext-label').textContent = '⏳ A analisar com IA…';
@@ -1501,13 +1510,22 @@ async function handleVignetteUpload(e) {
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const temDados = proc;
 
-    document.getElementById('ext-label').textContent = temDados ? '✦ Dados extraídos — confirma antes de guardar' : '⚠ Não foi possível ler a vinheta — preenche manualmente';
+    document.getElementById('ext-label').textContent = temDados ? '✦ Confirma o Nº Processo antes de continuar' : '⚠ Não foi possível ler a vinheta — preenche manualmente';
     document.getElementById('ext-fields').innerHTML = `
-      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc ? esc(proc) : '<span style="color:var(--ink2);font-style:italic">não detectado</span>'}</div></div>
+      ${proc && lastVignetteUrl ? `
+      <div class="vinheta-confirm">
+        <img src="${lastVignetteUrl}" class="vinheta-thumb" alt="Vinheta">
+        <div class="proc-confirm">
+          <div class="ef-label">Nº Processo</div>
+          <div class="proc-big" id="proc-display">${esc(proc)}</div>
+          <input type="text" id="proc-input" class="proc-edit-inp" value="${esc(proc)}" inputmode="numeric">
+          <button class="proc-corrigir" id="proc-corrigir-btn" onclick="toggleProcEdit()">✏ corrigir</button>
+        </div>
+      </div>` : `<div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc ? esc(proc) : '<span style="color:var(--ink2);font-style:italic">não detectado</span>'}</div></div>`}
       ${seg ? `<div><div class="ef-label">Seguradora</div><div class="ef-value">${esc(seg)}</div></div>` : ''}
       ${dataActo !== today ? `<div><div class="ef-label">Data</div><div class="ef-value">${esc(dataActo)}</div></div>` : ''}`;
     document.getElementById('ext-btns').innerHTML = `
-      ${temDados ? `<button class="btn btn-green btn-sm" onclick="prefillManual('${esc(proc)}','','${dataActo}','','${esc(seg)}')">✏ Preencher acto e guardar</button>` : ''}
+      ${temDados ? `<button class="btn btn-green btn-sm" onclick="prefillManualConfirmed('${dataActo}','${esc(seg)}')">✏ Preencher acto e guardar</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
 
   } catch(err) {
@@ -1536,6 +1554,31 @@ function prefillManual(proc, acto, data, tipo, seg) {
   document.getElementById('f-tipo').value=tipo;
   if(seg) document.getElementById('f-seguradora').value=seg;
   document.getElementById('extracted-box').style.display='none';
+}
+
+function toggleProcEdit() {
+  const display = document.getElementById('proc-display');
+  const input = document.getElementById('proc-input');
+  const btn = document.getElementById('proc-corrigir-btn');
+  if (!display || !input || !btn) return;
+  if (input.style.display === 'none' || !input.style.display) {
+    display.style.display = 'none';
+    input.style.display = 'block';
+    input.focus(); input.select();
+    btn.textContent = '✓ ok';
+  } else {
+    display.textContent = input.value.trim();
+    display.style.display = 'block';
+    input.style.display = 'none';
+    btn.textContent = '✏ corrigir';
+  }
+}
+
+function prefillManualConfirmed(data, seg) {
+  const input = document.getElementById('proc-input');
+  const display = document.getElementById('proc-display');
+  const proc = (input && input.style.display !== 'none') ? input.value.trim() : (display ? display.textContent.trim() : '');
+  prefillManual(proc, '', data, '', seg);
 }
 
 // ═══════════════════════════════════════
