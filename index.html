@@ -1321,16 +1321,16 @@ async function finishOnboarding() {
   setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
 }
 
-async function enterTestMode() {
+function enterTestMode() {
   userProfile.name = 'Teste';
   userProfile.specialty = 'anestesia';
-  const salt = 'medicheck-v3-salt';
-  encryptionKey = await deriveKey('0000', salt);
-  applySpecialty();
-  document.getElementById('onboarding').style.transition = 'opacity .4s';
-  document.getElementById('onboarding').style.opacity = '0';
-  setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
-  toast('🧪 Modo Teste activo — dados não são guardados');
+  encryptionKey = null; // sem encriptação em modo teste
+  try { applySpecialty(); } catch(e) { console.warn('applySpecialty:', e); }
+  const ob = document.getElementById('onboarding');
+  ob.style.transition = 'opacity .4s';
+  ob.style.opacity = '0';
+  setTimeout(() => { ob.style.display = 'none'; }, 400);
+  setTimeout(() => toast('🧪 Modo Teste activo'), 500);
 }
 
 function resetOnboarding() {
@@ -1499,7 +1499,7 @@ async function handleVignetteUpload(e) {
     const mediaType = 'image/jpeg';
     const today = new Date().toISOString().split('T')[0];
 
-    const prompt = `Es um sistema de OCR especializado em vinhetas medicas do Hospital CUF Torres Vedras. Analisa esta imagem e foca-te APENAS no texto IMPRESSO da etiqueta/vinheta. Ignora completamente: texto manuscrito, rabiscos, assinaturas, texto de fundo fora da vinheta. Extrai APENAS estes 3 campos impressos: 1) numero_processo: formato CCTV/NNNNNN na vinheta - extrai APENAS os digitos (ex: CCTV/107953 -> "107953"); 2) data: data impressa na vinheta formato YYYY-MM-DD; 3) seguradora: campo "Resp:" da vinheta (ex: "Multicare", "ADSE", "Medis"). Os campos acto, tipo e codigo sao sempre null (nao existem na vinheta). Adicionalmente, se conseguires localizar o numero_processo na imagem, retorna "proc_bbox": {"x":0.0,"y":0.0,"w":0.0,"h":0.0} com coordenadas normalizadas 0-1 (x,y = canto superior esquerdo, w,h = largura/altura), e "proc_angulo": graus de rotacao necessarios para tornar o texto horizontal (0 se ja horizontal, 90 se rodado 90 graus para a direita, -90 se para a esquerda). Responde APENAS com JSON valido: {"numero_processo":null,"data":null,"acto":null,"tipo":null,"codigo":null,"seguradora":null,"proc_bbox":null,"proc_angulo":0}`;
+    const prompt = `Es um sistema de OCR especializado em vinhetas medicas do Hospital CUF Torres Vedras. Analisa esta imagem e foca-te APENAS no texto IMPRESSO da etiqueta/vinheta. Ignora completamente: texto manuscrito, rabiscos, assinaturas, texto de fundo fora da vinheta. Extrai APENAS estes 3 campos impressos: 1) numero_processo: formato CCTV/NNNNNN na vinheta - extrai APENAS os digitos (ex: CCTV/107953 -> "107953"); 2) data: data impressa na vinheta formato YYYY-MM-DD; 3) seguradora: campo "Resp:" da vinheta (ex: "Multicare", "ADSE", "Medis"). Os campos acto, tipo e codigo sao sempre null (nao existem na vinheta). Adicionalmente retorna "angulo": graus necessarios para rodar a imagem e o texto ficar horizontal e legivel (0 se ja correcto, 90 se rodar direita, -90 se rodar esquerda, 180 se invertido). Responde APENAS com JSON valido: {"numero_processo":null,"data":null,"acto":null,"tipo":null,"codigo":null,"seguradora":null,"angulo":0}`;
 
     const response = await fetch('https://medicheck-proxy.goncalo-paulino-pereira.workers.dev', {
       method: 'POST',
@@ -1526,18 +1526,17 @@ async function handleVignetteUpload(e) {
     const tipo = extracted.tipo || '';
     const cod = extracted.codigo || '';
     const seg = extracted.seguradora || '';
-    const bbox = extracted.proc_bbox || null;
-    const angulo = extracted.proc_angulo || 0;
+    const angulo = extracted.angulo || 0;
     const val = acto ? estimarValor(acto, tipo, cod) : 0;
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const temDados = proc;
 
-    const cropUrl = (proc && lastVignetteDataUrl) ? await cropAndRotate(bbox, angulo) : null;
+    const displayUrl = (lastVignetteDataUrl && angulo) ? await rotateImage(lastVignetteDataUrl, angulo) : lastVignetteDataUrl;
 
     document.getElementById('ext-label').textContent = temDados ? '✦ Confirma o Nº Processo antes de continuar' : '⚠ Não foi possível ler a vinheta — preenche manualmente';
     document.getElementById('ext-fields').innerHTML = proc ? `
       <div class="vinheta-confirm">
-        ${cropUrl ? `<img src="${cropUrl}" class="vinheta-thumb" alt="Nº Processo">` : ''}
+        ${displayUrl ? `<img src="${displayUrl}" class="vinheta-thumb" alt="Vinheta">` : ''}
         <div class="proc-confirm">
           <div class="ef-label">Nº Processo</div>
           <div class="proc-big" id="proc-display">${esc(proc)}</div>
@@ -1618,6 +1617,28 @@ async function cropAndRotate(bbox, angle) {
     };
     img.onerror = () => resolve(lastVignetteDataUrl);
     img.src = lastVignetteDataUrl;
+  });
+}
+
+async function rotateImage(dataUrl, angle) {
+  if (!angle || angle === 0) return dataUrl;
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const rad = angle * Math.PI / 180;
+      const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+      const outW = Math.round(img.width * cos + img.height * sin);
+      const outH = Math.round(img.width * sin + img.height * cos);
+      const canvas = document.createElement('canvas');
+      canvas.width = outW; canvas.height = outH;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(outW / 2, outH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
   });
 }
 
