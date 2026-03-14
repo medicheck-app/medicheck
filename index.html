@@ -2293,7 +2293,10 @@ function importData(e){
 // API KEY
 // ═══════════════════════════════════════
 function getApiKey() {
-  return localStorage.getItem('medicheck_apikey') || ANTHROPIC_API_KEY || '';
+  const stored = localStorage.getItem('medicheck_apikey');
+  if (stored && stored.startsWith('sk-ant-')) return stored;
+  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY.startsWith('sk-ant-')) return ANTHROPIC_API_KEY;
+  return '';
 }
 function saveApiKey() {
   const key = document.getElementById('settings-apikey').value.trim();
