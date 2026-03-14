@@ -1987,7 +1987,7 @@ function downloadTemplate(){
 // ═══════════════════════════════════════
 // API KEY — SUBSTITUIR ANTES DE PUBLICAR
 // ═══════════════════════════════════════
-const ANTHROPIC_API_KEY = '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';
+const ANTHROPIC_API_KEY = 'COLOCA_AQUI_A_TUA_KEY';
 
 const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
 const DRIVE_FILE_NAME  = 'medicheck_v3_data.enc';
@@ -2293,7 +2293,10 @@ function importData(e){
 // API KEY
 // ═══════════════════════════════════════
 function getApiKey() {
-  return localStorage.getItem('medicheck_apikey') || ANTHROPIC_API_KEY || '';
+  const stored = localStorage.getItem('medicheck_apikey');
+  if (stored && stored.startsWith('sk-ant-')) return stored;
+  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY.startsWith('sk-ant-')) return ANTHROPIC_API_KEY;
+  return '';
 }
 function saveApiKey() {
   const key = document.getElementById('settings-apikey').value.trim();
