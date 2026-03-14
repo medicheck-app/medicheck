@@ -1587,59 +1587,29 @@ function prefillManual(proc, acto, data, tipo, seg) {
   document.getElementById('extracted-box').style.display='none';
 }
 
-async function cropAndRotate(bbox, angle) {
-  if (!lastVignetteDataUrl) return null;
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      let x, y, w, h;
-      if (bbox && bbox.w > 0 && bbox.h > 0) {
-        const pad = 0.01;
-        x = Math.max(0, (bbox.x - pad) * lastVignetteW);
-        y = Math.max(0, (bbox.y - pad) * lastVignetteH);
-        w = Math.min(lastVignetteW - x, (bbox.w + 2*pad) * lastVignetteW);
-        h = Math.min(lastVignetteH - y, (bbox.h + 2*pad) * lastVignetteH);
-      } else {
-        // fallback: canto superior esquerdo (onde CCTV/XXXXXX costuma estar)
-        x = 0; y = 0; w = lastVignetteW * 0.55; h = lastVignetteH * 0.35;
-      }
-      const rad = (angle || 0) * Math.PI / 180;
-      const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
-      const outW = Math.round(w * cos + h * sin);
-      const outH = Math.round(w * sin + h * cos);
-      const canvas = document.createElement('canvas');
-      canvas.width = outW; canvas.height = outH;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(outW/2, outH/2);
-      ctx.rotate(rad);
-      ctx.drawImage(img, x, y, w, h, -w/2, -h/2, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
-    };
-    img.onerror = () => resolve(lastVignetteDataUrl);
-    img.src = lastVignetteDataUrl;
-  });
-}
-
 async function rotateImage(dataUrl, angle) {
   if (!angle || angle === 0) return dataUrl;
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const rad = angle * Math.PI / 180;
-      const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
-      const outW = Math.round(img.width * cos + img.height * sin);
-      const outH = Math.round(img.width * sin + img.height * cos);
-      const canvas = document.createElement('canvas');
-      canvas.width = outW; canvas.height = outH;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(outW / 2, outH / 2);
-      ctx.rotate(rad);
-      ctx.drawImage(img, -img.width / 2, -img.height / 2);
-      resolve(canvas.toDataURL('image/jpeg', 0.9));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
+  return Promise.race([
+    new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const rad = angle * Math.PI / 180;
+        const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+        const outW = Math.round(img.width * cos + img.height * sin);
+        const outH = Math.round(img.width * sin + img.height * cos);
+        const canvas = document.createElement('canvas');
+        canvas.width = outW; canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(outW / 2, outH / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    }),
+    new Promise(resolve => setTimeout(() => resolve(dataUrl), 5000))
+  ]);
 }
 
 function toggleProcEdit() {
@@ -2366,6 +2336,7 @@ let _st;
 function autoSave(){setSyncStatus(true);clearTimeout(_st);_st=setTimeout(saveToStorage,1800);}
 function setSyncStatus(u,msg){
   const dot=document.getElementById('sync-dot');const txt=document.getElementById('sync-text');
+  if(!dot||!txt) return;
   if(u){dot.classList.add('unsaved');txt.textContent='A guardar…';}
   else{dot.classList.remove('unsaved');txt.textContent=msg||'Dados guardados';}
 }
