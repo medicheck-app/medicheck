@@ -1543,9 +1543,13 @@ async function handleVignetteUpload(e) {
 
   } catch(err) {
     console.error('OCR error:', err);
-    document.getElementById('ext-label').textContent = '⚠ Erro ao processar imagem';
-    document.getElementById('ext-fields').innerHTML = `<span style="color:var(--red);font-size:.85rem">Erro: ${err.message || String(err)}</span>`;
+    const isOverloaded = err.message && (err.message.toLowerCase().includes('overload') || err.message.includes('529'));
+    document.getElementById('ext-label').textContent = isOverloaded ? '⏳ Servidores ocupados' : '⚠ Erro ao processar imagem';
+    document.getElementById('ext-fields').innerHTML = isOverloaded
+      ? `<span style="color:var(--amber);font-size:.85rem">Os servidores estão muito ocupados agora.<br>Aguarda <strong>30 segundos</strong> e tenta de novo — a foto não precisa de ser tirada outra vez.</span>`
+      : `<span style="color:var(--red);font-size:.85rem">Erro: ${err.message || String(err)}</span>`;
     document.getElementById('ext-btns').innerHTML = `
+      <button class="btn btn-green btn-sm" onclick="document.getElementById('vignette-input').click()">↺ Tentar de novo</button>
       <button class="btn btn-ghost btn-sm" onclick="prefillManual('','','${new Date().toISOString().split('T')[0]}','','')">✏ Preencher manualmente</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
   }
@@ -1576,13 +1580,14 @@ async function cropAndRotate(bbox, angle) {
     img.onload = () => {
       let x, y, w, h;
       if (bbox && bbox.w > 0 && bbox.h > 0) {
-        const pad = 0.03;
+        const pad = 0.01;
         x = Math.max(0, (bbox.x - pad) * lastVignetteW);
         y = Math.max(0, (bbox.y - pad) * lastVignetteH);
         w = Math.min(lastVignetteW - x, (bbox.w + 2*pad) * lastVignetteW);
         h = Math.min(lastVignetteH - y, (bbox.h + 2*pad) * lastVignetteH);
       } else {
-        x = 0; y = 0; w = lastVignetteW; h = lastVignetteH;
+        // fallback: canto superior esquerdo (onde CCTV/XXXXXX costuma estar)
+        x = 0; y = 0; w = lastVignetteW * 0.55; h = lastVignetteH * 0.35;
       }
       const rad = (angle || 0) * Math.PI / 180;
       const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
