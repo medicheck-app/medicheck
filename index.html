@@ -1060,7 +1060,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       <div class="card">
         <div class="card-title">Custo estimado</div>
         <div class="card-sub">Cada foto de vinheta analisada custa aproximadamente <strong style="color:var(--accent)">€ 0,01</strong>. Para 100 fotos por mês são menos de €1.</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3);margin-top:8px">Modelo: claude-sonnet-4-20250514 · Vision API</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3);margin-top:8px">Modelo: claude-sonnet-4-5 · Vision API</div>
       </div>
     </div>
 
@@ -1488,7 +1488,7 @@ async function handleVignetteUpload(e) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 500,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
@@ -1498,19 +1498,10 @@ async function handleVignetteUpload(e) {
     });
 
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || `Erro API ${response.status}`);
     const text = data.content?.[0]?.text || '';
     let extracted = {};
-    try {
-      // Try to extract JSON from response even if wrapped in text
-      let jsonStr = text.replace(/```json|```/g,'').trim();
-      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-      if (jsonMatch) jsonStr = jsonMatch[0];
-      extracted = JSON.parse(jsonStr);
-    } catch {
-      // If API returned an error object, surface it
-      const errMsg = data.error?.message || data.content?.[0]?.text || 'parse error';
-      throw new Error(errMsg.substring(0, 100));
-    }
+    try { extracted = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch { throw new Error('Resposta inválida do modelo'); }
 
     const proc = extracted.numero_processo || '';
     const acto = extracted.acto || '';
@@ -1519,19 +1510,19 @@ async function handleVignetteUpload(e) {
     const cod = extracted.codigo || '';
     const seg = extracted.seguradora || '';
     const val = acto ? estimarValor(acto, tipo, cod) : 0;
-    const safe = s => String(s||'').replace(/'/g,"\'");
+    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const temDados = proc || acto;
 
     document.getElementById('ext-label').textContent = temDados ? '✦ Dados extraídos — confirma antes de guardar' : '⚠ Não foi possível ler a vinheta — preenche manualmente';
     document.getElementById('ext-fields').innerHTML = `
-      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc || '<span style="color:var(--ink2);font-style:italic">não detectado</span>'}</div></div>
-      ${acto ? `<div><div class="ef-label">Acto</div><div class="ef-value" style="max-width:200px;font-size:.8rem">${acto}</div></div>` : ''}
-      ${tipo ? `<div><div class="ef-label">Tipo</div><div class="ef-value">${tipo}</div></div>` : ''}
-      ${seg ? `<div><div class="ef-label">Seguradora</div><div class="ef-value">${seg}</div></div>` : ''}
+      <div><div class="ef-label">Nº Processo</div><div class="ef-value">${proc ? esc(proc) : '<span style="color:var(--ink2);font-style:italic">não detectado</span>'}</div></div>
+      ${acto ? `<div><div class="ef-label">Acto</div><div class="ef-value" style="max-width:200px;font-size:.8rem">${esc(acto)}</div></div>` : ''}
+      ${tipo ? `<div><div class="ef-label">Tipo</div><div class="ef-value">${esc(tipo)}</div></div>` : ''}
+      ${seg ? `<div><div class="ef-label">Seguradora</div><div class="ef-value">${esc(seg)}</div></div>` : ''}
       ${val > 0 ? `<div><div class="ef-label">€ Estimado</div><div class="ef-value accent">€ ${val.toFixed(2)}</div></div>` : ''}`;
     document.getElementById('ext-btns').innerHTML = `
-      ${temDados ? `<button class="btn btn-green btn-sm" onclick="confirmExtracted('${safe(proc)}','${safe(acto)}','${dataActo}','${safe(tipo)}','${safe(cod)}',${val},'${safe(seg)}')">✓ Confirmar e guardar</button>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="prefillManual('${safe(proc)}','${safe(acto)}','${dataActo}','${safe(tipo)}','${safe(cod)}')">✏ ${temDados ? 'Editar' : 'Preencher manualmente'}</button>
+      ${temDados ? `<button class="btn btn-green btn-sm" onclick="confirmExtracted('${esc(proc)}','${esc(acto)}','${dataActo}','${esc(tipo)}','${esc(cod)}',${val},'${esc(seg)}')">✓ Confirmar e guardar</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="prefillManual('${esc(proc)}','${esc(acto)}','${dataActo}','${esc(tipo)}','${esc(cod)}')">✏ ${temDados ? 'Editar' : 'Preencher manualmente'}</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
 
   } catch(err) {
