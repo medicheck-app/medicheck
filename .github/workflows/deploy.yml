@@ -10,10 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Inject API Key
-        run: |
-          sed -i "s|COLOCA_AQUI_A_TUA_KEY|${{ secrets.ANTHROPIC_API_KEY }}|g" index.html
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
