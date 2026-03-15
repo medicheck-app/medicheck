@@ -1653,7 +1653,7 @@ async function handleVignetteUpload(e) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
@@ -1798,8 +1798,8 @@ function saveWithActo(proc, acto, data, seg) {
 function prefillManualConfirmed(data, seg) {
   const input = document.getElementById('proc-input');
   const display = document.getElementById('proc-display');
-  const proc = (input && input.style.display !== 'none') ? input.value.trim() : (display ? display.textContent.trim() : '');
-  prefillManual(proc, '', data, '', seg);
+  const proc = (input && input.style.display !== 'none') ? (input.value || '').trim() : (display ? display.textContent.trim() : '');
+  prefillManual(proc || '', data || '', '', seg || '');
 }
 
 // ═══════════════════════════════════════
