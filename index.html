@@ -468,6 +468,22 @@ tbody td {
 .badge-ok { background:var(--green-glow);color:var(--green);border:1px solid rgba(56,176,122,.2); }
 .badge-missing { background:var(--red-glow);color:var(--red);border:1px solid rgba(217,85,85,.2); }
 .badge-seg { background:rgba(91,156,246,.08);color:#7ab4f5;border:1px solid rgba(91,156,246,.18);font-size:.58rem; }
+.badge-registado { background:rgba(150,150,150,.08);color:var(--ink3);border:1px solid rgba(150,150,150,.18); }
+/* Status filter chips */
+.status-chips { display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px; }
+.chip-filter { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:.68rem;font-family:'IBM Plex Mono',monospace;font-weight:500;cursor:pointer;border:1px solid transparent;transition:opacity .15s,transform .1s;white-space:nowrap;background:rgba(255,255,255,.04);color:var(--ink3);border-color:rgba(255,255,255,.08); }
+.chip-filter.active { opacity:1;transform:scale(1.04); }
+.chip-filter:not(.active) { opacity:.55; }
+.chip-filter .chip-count { font-size:.62rem;opacity:.75; }
+.badge-reclamado { background:rgba(160,110,240,.1);color:#c49af5;border:1px solid rgba(160,110,240,.22); }
+.badge-arquivado { background:rgba(100,100,100,.07);color:var(--ink3);border:1px solid rgba(100,100,100,.15);opacity:.6; }
+.badge-status { cursor:pointer;transition:filter .15s; }
+.badge-status:hover { filter:brightness(1.25); }
+/* Status popup */
+.status-popup { position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 6px 24px rgba(0,0,0,.4);padding:5px 0;min-width:148px;display:none; }
+.status-popup.open { display:block; }
+.status-opt { padding:7px 12px;font-size:.76rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .12s;color:var(--ink2); }
+.status-opt:hover { background:rgba(255,255,255,.05); }
 
 /* ─── ALERTS ─── */
 .alert {
@@ -764,22 +780,22 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
   <nav class="nav-section">
     <div class="nav-label">Fluxo mensal</div>
     <div class="nav-item active" data-panel="captura" onclick="switchPanel('captura')">
-      <span class="nav-icon" id="nav-icon-captura">📷</span><span id="nav-label-captura">Captura Rápida</span>
+      <span class="nav-icon" id="nav-icon-captura">📷</span><span id="nav-label-captura">Registar</span>
       <span class="nav-badge" id="badge-actos">0</span>
     </div>
     <div class="nav-item" data-panel="fatura" onclick="switchPanel('fatura')">
-      <span class="nav-icon">🧾</span>Fatura / Pago
+      <span class="nav-icon">🧾</span>Honorários
     </div>
     <div class="nav-item" data-panel="reconciliar" onclick="switchPanel('reconciliar')">
       <span class="nav-icon">⊕</span>Reconciliar
-    </div>
-    <div class="nav-item" data-panel="relatorio" onclick="switchPanel('relatorio')">
-      <span class="nav-icon">↗</span>Relatório
       <span class="nav-badge danger" id="badge-missing" style="display:none">!</span>
     </div>
     <div class="nav-label">Análise</div>
     <div class="nav-item" data-panel="dashboard" onclick="switchPanel('dashboard')">
-      <span class="nav-icon">◎</span>Dashboard Anual
+      <span class="nav-icon">◎</span>Histórico
+    </div>
+    <div class="nav-item" data-panel="recuperacao" onclick="switchPanel('recuperacao')">
+      <span class="nav-icon">↩</span>Recuperação
     </div>
     <div class="nav-item" data-panel="honorarios" onclick="switchPanel('honorarios')">
       <span class="nav-icon">€</span>Tabela de Honorários
@@ -929,6 +945,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
             <span style="font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--ink3)" id="lista-count">0 actos</span>
           </div>
         </div>
+        <div id="status-chips" class="status-chips"></div>
         <div class="view-toggle">
           <button class="view-btn" id="view-btn-lista" onclick="switchActosView('lista')">≡ Lista</button>
           <button class="view-btn active" id="view-btn-cal" onclick="switchActosView('cal')">📅 Calendário</button>
@@ -941,7 +958,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th></th></tr></thead>
+              <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th>Estado</th><th></th></tr></thead>
               <tbody id="actos-tbody">
                 <tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>
               </tbody>
@@ -1026,7 +1043,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       </div>
       <div id="recon-eur-falta" style="display:none"></div>
       <div class="card">
-        <div class="card-title">Cruzar Dados</div>
+        <div class="card-title">Cruzar com Fatura</div>
         <div class="card-sub">Compara os actos realizados com os pagamentos da fatura e identifica divergências.</div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="reconciliar()">⊕ Reconciliar</button>
@@ -1034,6 +1051,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
         </div>
       </div>
       <div id="reconciliation-result" style="display:none">
+        <div id="recon-missing-alert" style="display:none;margin-bottom:12px"></div>
         <div class="card">
           <div class="card-title" style="margin-bottom:13px">Resultado</div>
           <div class="table-wrap">
@@ -1041,6 +1059,17 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
               <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th>Estado</th></tr></thead>
               <tbody id="reconcile-tbody"></tbody>
             </table>
+          </div>
+        </div>
+        <div id="recon-cta-relatorio" style="display:none">
+          <div class="card" style="border-color:var(--amber);background:rgba(255,180,0,.04)">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+              <div>
+                <div style="font-weight:600;color:var(--amber);font-size:.88rem" id="recon-cta-title">Actos elegíveis para reclamação</div>
+                <div style="font-size:.75rem;color:var(--ink3);margin-top:3px">Já passaram 3 meses — podes reclamar estes actos à CUF.</div>
+              </div>
+              <button class="btn btn-primary" style="background:var(--amber);border-color:var(--amber)" onclick="switchPanel('relatorio')">↗ Gerar Relatório</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1082,16 +1111,34 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       </div>
     </div>
 
+    <!-- ══ PANEL: RECUPERAÇÃO ══ -->
+    <div id="panel-recuperacao" class="panel">
+      <div class="card">
+        <div class="card-title">Resposta da CUF — Após Reclamação</div>
+        <div class="card-sub">Abre o ficheiro Google Sheets enviado pela CUF → <strong style="color:var(--ink2)">Ctrl+A → Ctrl+C</strong> → cola aqui → Processar.</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;margin:12px 0 10px;font-size:.75rem;color:var(--ink3);line-height:1.7">
+          <strong style="color:var(--ink2)">Como fazer:</strong><br>
+          1. Abre o ficheiro que a CUF enviou por email<br>
+          2. Selecciona tudo — <kbd style="background:rgba(255,255,255,.08);border-radius:3px;padding:1px 5px;font-size:.72rem">Ctrl+A</kbd><br>
+          3. Copia — <kbd style="background:rgba(255,255,255,.08);border-radius:3px;padding:1px 5px;font-size:.72rem">Ctrl+C</kbd><br>
+          4. Cola aqui e clica em Processar
+        </div>
+        <textarea id="cuf-paste" rows="5" placeholder="Cola aqui o conteúdo do Google Sheets da CUF…" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--ink);font-size:.78rem;padding:10px 12px;resize:vertical;font-family:'IBM Plex Mono',monospace;margin-bottom:8px;box-sizing:border-box;"></textarea>
+        <div id="cuf-result"></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="importCufResposta()">⊕ Processar Resposta</button></div>
+      </div>
+    </div>
+
     <!-- ══ PANEL: DASHBOARD ══ -->
     <div id="panel-dashboard" class="panel">
       <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr">
         <div class="stat-card c-red">
           <div class="big-euro" id="dash-eur" style="font-size:1.6rem">€ 0</div>
-          <div class="big-euro-label">Estimado em falta (ano)</div>
+          <div class="big-euro-label">~ Estimado em falta (ano)</div>
         </div>
         <div class="stat-card c-green" style="position:relative">
           <div class="big-euro" id="dash-recuperado" style="font-size:1.6rem;color:var(--green)">€ 0</div>
-          <div class="big-euro-label" style="color:var(--ink3)">Recuperado com a app ✓</div>
+          <div class="big-euro-label" style="color:var(--ink3)">~ Recuperado estimado ✓</div>
         </div>
         <div class="stat-card c-accent">
           <div class="stat-num accent" id="dash-taxa">0%</div>
@@ -1190,21 +1237,21 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
     <div class="mob-tab active" data-panel="captura" onclick="switchPanel('captura')">
       <span class="mob-tab-icon" id="mob-icon-captura">📷</span>
       <span class="mob-tab-badge" id="mob-badge-actos" style="display:none"></span>
-      <span id="mob-label-captura">Captura</span>
+      <span id="mob-label-captura">Registar</span>
     </div>
     <div class="mob-tab" data-panel="fatura" onclick="switchPanel('fatura')">
-      <span class="mob-tab-icon">🧾</span>Fatura
+      <span class="mob-tab-icon">🧾</span>Honorários
     </div>
     <div class="mob-tab" data-panel="reconciliar" onclick="switchPanel('reconciliar')">
-      <span class="mob-tab-icon">⊕</span>Reconciliar
-    </div>
-    <div class="mob-tab" data-panel="relatorio" onclick="switchPanel('relatorio')">
-      <span class="mob-tab-icon">↗</span>
+      <span class="mob-tab-icon">⊕</span>
       <span class="mob-tab-badge danger" id="mob-badge-missing" style="display:none">!</span>
-      Relatório
+      Reconciliar
     </div>
     <div class="mob-tab" data-panel="dashboard" onclick="switchPanel('dashboard')">
-      <span class="mob-tab-icon">◎</span>Dashboard
+      <span class="mob-tab-icon">◎</span>Histórico
+    </div>
+    <div class="mob-tab" data-panel="recuperacao" onclick="switchPanel('recuperacao')">
+      <span class="mob-tab-icon">↩</span>Recuperação
     </div>
   </div>
 </nav>
@@ -1222,8 +1269,8 @@ const SP_CONFIG = {
     heroEyebrow: 'Captura Rápida · IA',
     heroTitle: 'Fotografa a <em>vinheta</em>',
     heroSub: 'Extrai nº processo e acto médico automaticamente. Nome e morada sempre omitidos.',
-    navLabel: 'Captura Rápida',
-    step1Label: 'Capturar',
+    navLabel: 'Registar',
+    step1Label: 'Registar',
     actoLabel: 'Acto / Procedimento',
     actoPlaceholder: 'ex: Colecistectomia Laparoscópica',
     showTipo: true,
@@ -1252,8 +1299,8 @@ const SP_CONFIG = {
     heroEyebrow: 'Captura Rápida · IA',
     heroTitle: 'Fotografa a <em>vinheta</em>',
     heroSub: 'Extrai nº processo e procedimento automaticamente. Nome e morada sempre omitidos.',
-    navLabel: 'Captura Rápida',
-    step1Label: 'Capturar',
+    navLabel: 'Registar',
+    step1Label: 'Registar',
     actoLabel: 'Procedimento Cirúrgico',
     actoPlaceholder: 'ex: Colecistectomia Laparoscópica',
     showTipo: false,
@@ -1279,7 +1326,7 @@ const SP_CONFIG = {
     heroEyebrow: 'Lista Diária · IA',
     heroTitle: 'Fotografa a <em>lista do dia</em>',
     heroSub: 'Extrai endoscopias e colonoscopias automaticamente. Adiciona procedimentos por doente.',
-    navLabel: 'Registar Exame',
+    navLabel: 'Registar',
     step1Label: 'Registar',
     actoLabel: 'Exame / Procedimento',
     actoPlaceholder: 'ex: Colonoscopia Diagnóstica',
@@ -1372,6 +1419,18 @@ function estimarValor(acto, tipo, cod) {
   if (tipo==='Geral') return 220.00;
   return 180.00;
 }
+
+// ═══════════════════════════════════════
+// STATUS CONFIG
+// ═══════════════════════════════════════
+const STATUS_CONFIG = {
+  registado: { label:'Registado', badge:'badge-registado', icon:'○' },
+  em_falta:  { label:'Em Falta',  badge:'badge-missing',   icon:'⚠' },
+  reclamado: { label:'Reclamado', badge:'badge-reclamado', icon:'✉' },
+  pago:      { label:'Pago',      badge:'badge-ok',        icon:'✓' },
+  arquivado: { label:'Arquivado', badge:'badge-arquivado', icon:'⊘' },
+};
+const STATUS_ORDER = ['registado','em_falta','reclamado','pago','arquivado'];
 
 // ═══════════════════════════════════════
 // STATE
@@ -1523,14 +1582,14 @@ function loadTestData() {
       const n = 3 + Math.floor(Math.random() * 4);
       for (let i = 0; i < n; i++) {
         const p = PROCS_BLOCO[Math.floor(Math.random() * PROCS_BLOCO.length)];
-        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7),status:'registado'});
       }
     });
     diasGastro.forEach(data => {
       const n = 4 + Math.floor(Math.random() * 5);
       for (let i = 0; i < n; i++) {
         const p = PROCS_GASTRO[Math.floor(Math.random() * PROCS_GASTRO.length)];
-        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7),status:'registado'});
       }
     });
   } else {
@@ -1546,7 +1605,7 @@ function loadTestData() {
       const n = 2 + Math.floor(Math.random() * 4);
       for (let i = 0; i < n; i++) {
         const acto = baseList[Math.floor(Math.random() * baseList.length)];
-        actos.push({processo:String(proc++),data,acto,tipo:'',codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+        actos.push({processo:String(proc++),data,acto,tipo:'',codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7),status:'registado'});
       }
     });
   }
@@ -1620,13 +1679,14 @@ function applySpecialty() {
 // NAVIGATION
 // ═══════════════════════════════════════
 const META = {
-  captura:    { title: () => SP_CONFIG[userProfile.specialty]?.navLabel || 'Captura', meta: () => SP_CONFIG[userProfile.specialty]?.heroSub?.substring(0,60)+'…' || '—' },
-  fatura:     { title: () => 'Fatura / Pago',        meta: () => 'Importa o Mapa de Honorários da CUF' },
-  reconciliar:{ title: () => 'Reconciliar',          meta: () => 'Cruzamento actos realizados vs pagamentos' },
-  relatorio:  { title: () => 'Relatório de Falta',   meta: () => 'Exporta os actos em falta para reclamação' },
-  dashboard:  { title: () => 'Dashboard Anual',      meta: () => 'Padrões, honorários em falta e seguradoras' },
-  honorarios: { title: () => 'Tabela de Honorários', meta: () => 'Valores por acto — extraídos da fatura CUF Fev 2026' },
-  definicoes: { title: () => 'Definições', meta: () => 'API Key e configurações' },
+  captura:     { title: () => 'Registar',             meta: () => SP_CONFIG[userProfile.specialty]?.heroSub?.substring(0,60)+'…' || '—' },
+  fatura:      { title: () => 'Honorários',           meta: () => 'Importa o Mapa de Honorários da CUF' },
+  reconciliar: { title: () => 'Reconciliar',          meta: () => 'Cruzamento actos realizados vs pagamentos' },
+  relatorio:   { title: () => 'Relatório de Falta',   meta: () => 'Exporta os actos em falta para reclamação' },
+  dashboard:   { title: () => 'Histórico',            meta: () => 'Padrões, honorários em falta e seguradoras' },
+  recuperacao: { title: () => 'Recuperação',          meta: () => 'Importa a resposta da CUF após reclamação' },
+  honorarios:  { title: () => 'Tabela de Honorários', meta: () => 'Valores por acto — extraídos da fatura CUF Fev 2026' },
+  definicoes:  { title: () => 'Definições',           meta: () => 'API Key e configurações' },
 };
 
 function updateTopbarMeta() {
@@ -2061,7 +2121,8 @@ function saveGastroDailyList() {
       seguradora: '',
       valorEst: 0,
       mes,
-      procedimentos: row.procs.map(p => ({nome:p.nome, codigo:p.cod, qty:p.qty}))
+      procedimentos: row.procs.map(p => ({nome:p.nome, codigo:p.cod, qty:p.qty})),
+      status: 'registado'
     });
     saved++;
   });
@@ -2073,7 +2134,7 @@ function saveGastroDailyList() {
 }
 
 function confirmExtracted(proc, acto, data, tipo, seg) {
-  actos.push({processo:proc,data,acto,tipo,codigo:'',seguradora:seg,valorEst:0,mes:data.substring(0,7)});
+  actos.push({processo:proc,data,acto,tipo,codigo:'',seguradora:seg,valorEst:0,mes:data.substring(0,7),status:'registado'});
   refreshActosTable(); autoSave();
   document.getElementById('extracted-box').style.display='none';
   document.getElementById('vignette-input').value='';
@@ -2135,7 +2196,7 @@ function toggleProcEdit() {
 }
 
 function saveWithActo(proc, acto, data, seg) {
-  actos.push({processo:proc, data, acto, tipo:'', codigo:'', seguradora:seg, valorEst:0, mes:data.substring(0,7)});
+  actos.push({processo:proc, data, acto, tipo:'', codigo:'', seguradora:seg, valorEst:0, mes:data.substring(0,7), status:'registado'});
   refreshActosTable(); autoSave();
   document.getElementById('extracted-box').style.display='none';
   toast('✓ ' + acto + ' guardado');
@@ -2158,7 +2219,7 @@ function addActo() {
   const tipo = document.getElementById('f-tipo').value;
   const seg = document.getElementById('f-seguradora').value;
   if (!proc||!data||!acto) { alert('Preenche Nº Processo, Data e Acto.'); return; }
-  actos.push({processo:proc,data,acto,tipo,codigo:'',seguradora:seg,valorEst:0,mes:data.substring(0,7)});
+  actos.push({processo:proc,data,acto,tipo,codigo:'',seguradora:seg,valorEst:0,mes:data.substring(0,7),status:'registado'});
   refreshActosTable(); autoSave();
   ['f-processo','f-acto'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-tipo').value='';
@@ -2169,6 +2230,64 @@ function addActo() {
 }
 
 function deleteActo(i) { actos.splice(i,1); refreshActosTable(); autoSave(); }
+
+// ═══════════════════════════════════════
+// STATUS
+// ═══════════════════════════════════════
+function isEmFaltaEligivel(acto) {
+  if (!acto?.data) return false;
+  const d = new Date(acto.data);
+  const limite = new Date();
+  limite.setMonth(limite.getMonth() - 3);
+  return d <= limite;
+}
+function emFaltaDisponivelEm(acto) {
+  if (!acto?.data) return '';
+  const d = new Date(acto.data);
+  d.setMonth(d.getMonth() + 3);
+  return d.toLocaleDateString('pt-PT', {month:'long', year:'numeric'});
+}
+
+let _spIdx = -1;
+function openStatusPopup(el, i) {
+  _spIdx = i;
+  const popup = document.getElementById('status-popup');
+  const rect = el.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if (spaceBelow < 180) {
+    popup.style.top = 'auto';
+    popup.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+  } else {
+    popup.style.bottom = 'auto';
+    popup.style.top = (rect.bottom + 4) + 'px';
+  }
+  popup.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+  // Update Em Falta option eligibility
+  const acto = actos[i];
+  const elegivel = isEmFaltaEligivel(acto);
+  const optEmFalta = document.getElementById('status-opt-em-falta');
+  const optEmFaltaHint = document.getElementById('status-opt-em-falta-hint');
+  if (optEmFalta) {
+    optEmFalta.style.opacity = elegivel ? '1' : '0.4';
+    optEmFalta.style.pointerEvents = elegivel ? '' : 'none';
+  }
+  if (optEmFaltaHint) {
+    optEmFaltaHint.style.display = elegivel ? 'none' : '';
+    optEmFaltaHint.textContent = elegivel ? '' : 'Disponível em ' + emFaltaDisponivelEm(acto);
+  }
+  popup.classList.add('open');
+  setTimeout(() => document.addEventListener('click', closeStatusPopup, {once:true}), 0);
+}
+function closeStatusPopup() {
+  document.getElementById('status-popup').classList.remove('open');
+}
+function setActoStatus(i, status) {
+  if (i < 0 || i >= actos.length) return;
+  if (status === 'em_falta' && !isEmFaltaEligivel(actos[i])) return; // guard
+  actos[i].status = status;
+  closeStatusPopup();
+  refreshActosTable(); autoSave();
+}
 
 // ═══════════════════════════════════════
 // CALENDÁRIO
@@ -2184,6 +2303,7 @@ function listaChangeMonth(d) {
   listaMonth += d;
   if (listaMonth > 11) { listaMonth = 0; listaYear++; }
   if (listaMonth < 0) { listaMonth = 11; listaYear--; }
+  statusFilter = null;
   refreshActosTable();
 }
 
@@ -2369,6 +2489,9 @@ function refreshActoSuggestions() {
   if (dl) dl.innerHTML = all.map(a => `<option value="${a.replace(/"/g,'&quot;')}">`).join('');
 }
 
+let statusFilter = null; // null = todos
+function setStatusFilter(s) { statusFilter = statusFilter === s ? null : s; refreshActosTable(); }
+
 function refreshActosTable() {
   refreshActoSuggestions();
   if (document.getElementById('view-cal') && document.getElementById('view-cal').style.display !== 'none') renderCalendar();
@@ -2380,18 +2503,41 @@ function refreshActosTable() {
   mb.style.display='none';
   const totalEur=actos.reduce((s,a)=>s+(a.valorEst||0),0);
   document.getElementById('lista-total-eur').textContent=totalEur>0?`€ ${totalEur.toFixed(2)} valor total estimado`:'';
+  // Status chips
+  const chipsEl = document.getElementById('status-chips');
+  if (chipsEl && n > 0) {
+    const counts = {};
+    STATUS_ORDER.forEach(s => counts[s] = 0);
+    actos.forEach(a => { const s = a.status||'registado'; if(counts[s]!==undefined) counts[s]++; });
+    const hasAny = STATUS_ORDER.some(s => counts[s] > 0);
+    chipsEl.style.display = hasAny ? '' : 'none';
+    chipsEl.innerHTML = STATUS_ORDER.filter(s => counts[s] > 0).map(s => {
+      const sc = STATUS_CONFIG[s];
+      const chipActive = statusFilter===null||statusFilter===s?'active':'';
+      return `<span class="chip-filter ${chipActive}" onclick="setStatusFilter('${s}')">
+        <span class="badge ${sc.badge}" style="pointer-events:none">${sc.icon} ${sc.label}</span>
+        <span class="chip-count">${counts[s]}</span>
+      </span>`;
+    }).join('');
+  } else if (chipsEl) { chipsEl.style.display = 'none'; }
   refreshListaHeader();
   const mesKey = `${listaYear}-${String(listaMonth+1).padStart(2,'0')}`;
-  const filtered = actos.map((a,i)=>({...a,_i:i})).filter(a=>a.data&&a.data.startsWith(mesKey)).reverse();
+  let filtered = actos.map((a,i)=>({...a,_i:i})).filter(a=>a.data&&a.data.startsWith(mesKey));
+  if (statusFilter) filtered = filtered.filter(a => (a.status||'registado') === statusFilter);
+  filtered = filtered.reverse();
   const tbody=document.getElementById('actos-tbody');
-  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto em ${MESES_PT[listaMonth]}.</div></div></td></tr>`;return;}
-  tbody.innerHTML=filtered.map(a=>`<tr>
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">${statusFilter?`Nenhum acto "${STATUS_CONFIG[statusFilter]?.label}" em ${MESES_PT[listaMonth]}.`:`Nenhum acto em ${MESES_PT[listaMonth]}.`}</div></div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(a=>{
+    const st = a.status || 'registado';
+    const sc = STATUS_CONFIG[st] || STATUS_CONFIG.registado;
+    return `<tr>
     <td class="td-proc">${a.processo}</td>
     <td>${formatDate(a.data)}</td>
     <td class="td-act">${a.acto}${a.procedimentos&&a.procedimentos.length?`<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${a.procedimentos.map(p=>`<span style="font-size:.72rem;color:var(--ink3)">×${p.qty} ${p.nome}</span>`).join('')}</div>`:''}</td>
     <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
+    <td><span class="badge ${sc.badge} badge-status" onclick="openStatusPopup(this,${a._i})">${sc.icon} ${sc.label}</span></td>
     <td><button class="btn-del" onclick="deleteActo(${a._i})">✕</button></td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 
 // ═══════════════════════════════════════
@@ -2489,16 +2635,82 @@ function simulateInvoice(){
 // ═══════════════════════════════════════
 // RECONCILIAR
 // ═══════════════════════════════════════
+function importCufResposta() {
+  const raw = document.getElementById('cuf-paste').value.trim();
+  if (!raw) { toast('⚠ Cola os dados da resposta CUF'); return; }
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  let nPagos = 0, nReclamados = 0, nEmFalta = 0, naoEncontrados = 0;
+
+  lines.forEach(line => {
+    const cols = line.split('\t');
+    if (cols.length < 2) return;
+    const proc = norm(cols[0]);
+    if (!proc || !/^\d+$/.test(proc)) return; // ignora cabeçalho e linhas inválidas
+    const comentario = (cols[4] || '').toLowerCase();
+
+    let novoStatus;
+    if (comentario.includes('paga no proc') || comentario.includes('pago no proc')) {
+      novoStatus = 'pago';
+    } else if (comentario.includes('a pagamento') || comentario.includes('pagamento no proc')) {
+      novoStatus = 'reclamado';
+    } else {
+      novoStatus = 'em_falta'; // problemas de faturação, dúvidas, etc.
+    }
+
+    const idx = actos.findIndex(a => norm(a.processo) === proc);
+    if (idx >= 0) {
+      actos[idx].status = novoStatus;
+      if (novoStatus === 'pago') nPagos++;
+      else if (novoStatus === 'reclamado') nReclamados++;
+      else nEmFalta++;
+    } else {
+      naoEncontrados++;
+    }
+  });
+
+  const total = nPagos + nReclamados + nEmFalta;
+  if (!total) {
+    document.getElementById('cuf-result').innerHTML = '<div class="alert alert-warning" style="margin-top:8px">⚠ Nenhum processo reconhecido — verifica se os dados foram colados correctamente.</div>';
+    return;
+  }
+
+  refreshActosTable(); autoSave();
+  document.getElementById('cuf-paste').value = '';
+
+  let msg = `✓ <strong>${total} actos actualizados</strong>`;
+  if (nPagos)       msg += ` · <span style="color:var(--green)">${nPagos} pagos</span>`;
+  if (nReclamados)  msg += ` · <span style="color:#c49af5">${nReclamados} a receber</span>`;
+  if (nEmFalta)     msg += ` · <span style="color:var(--red)">${nEmFalta} em falta</span>`;
+  if (naoEncontrados) msg += ` · <span style="color:var(--ink3)">${naoEncontrados} não encontrados localmente</span>`;
+  document.getElementById('cuf-result').innerHTML = `<div class="alert alert-success" style="margin-top:8px">${msg}</div>`;
+  toast(`✓ ${nPagos} pagos · ${nReclamados} a receber`);
+}
+
 function reconciliar(){
   if(!actos.length){alert('Sem actos para reconciliar.');return;}
   const pSet=new Set(pagos.map(p=>norm(p.processo)));
+  // Actualizar statuses em actos[]
+  actos.forEach((a,i)=>{
+    if(a.status==='arquivado') return; // nunca toca em arquivados
+    const found=pSet.has(norm(a.processo));
+    if(found){
+      actos[i].status='pago';
+    } else if(!found && (a.status==='registado'||a.status==='em_falta') && isEmFaltaEligivel(a)){
+      actos[i].status='em_falta';
+    }
+    // actos recentes (< 3 meses) ficam 'registado' mesmo não encontrados
+    // 'reclamado' fica 'reclamado' se ainda não pago
+  });
   reconciled=actos.map(a=>({...a,pago:pSet.has(norm(a.processo))}));
   missingActos=reconciled.filter(a=>!a.pago);
   const totalMiss=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
   document.getElementById('stat-total').textContent=actos.length;
   document.getElementById('stat-pagos').textContent=reconciled.filter(a=>a.pago).length;
   document.getElementById('stat-missing').textContent=missingActos.length;
-  document.getElementById('recon-eur-falta').textContent='€ '+totalMiss.toFixed(2);
+  const reconEurEl=document.getElementById('recon-eur-falta');
+  reconEurEl.style.display=totalMiss>0?'':'none';
+  reconEurEl.innerHTML=totalMiss>0?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--ink3)">~ € ${totalMiss.toFixed(2)} estimado em falta <span style="opacity:.6">(baseado na tabela CUF — o valor real consta da fatura)</span></span>`:'';
   if(missingActos.length>0){
     ['badge-missing','mob-badge-missing'].forEach(id=>document.getElementById(id).style.display='inline');
   }
@@ -2518,6 +2730,16 @@ function reconciliar(){
     <td><span class="badge ${a.pago?'badge-ok':'badge-missing'}">${a.pago?'✓ Pago':'⚠ Em falta'}</span></td>
   </tr>`).join('');
   document.getElementById('reconciliation-result').style.display='block';
+  // CTA relatório — actos em_falta elegíveis (≥3 meses)
+  const elegiveis = missingActos.filter(a => isEmFaltaEligivel(a));
+  const ctaEl = document.getElementById('recon-cta-relatorio');
+  const ctaTitleEl = document.getElementById('recon-cta-title');
+  if (elegiveis.length > 0) {
+    ctaTitleEl.textContent = `${elegiveis.length} acto${elegiveis.length>1?'s':''} elegíve${elegiveis.length>1?'is':'l'} para reclamação`;
+    ctaEl.style.display = '';
+  } else {
+    ctaEl.style.display = 'none';
+  }
   buildReport();saveToStorage();
   toast(`✓ ${missingActos.length} em falta de ${actos.length}`);
 }
@@ -2532,7 +2754,8 @@ function loadDemo(){
   actos=cfg.demoActos.map((d,i)=>{
     const dt=new Date(base);dt.setDate(i*2+2);
     const data=dt.toISOString().split('T')[0];
-    return{processo:genProc(),data,acto:d.acto,tipo:d.tipo||'',codigo:d.cod||'',seguradora:d.seg||'',valorEst:d.val||estimarValor(d.acto,d.tipo,d.cod),mes:data.substring(0,7)};
+    const status=i%3===2?'em_falta':'pago';
+    return{processo:genProc(),data,acto:d.acto,tipo:d.tipo||'',codigo:d.cod||'',seguradora:d.seg||'',valorEst:d.val||estimarValor(d.acto,d.tipo,d.cod),mes:data.substring(0,7),status};
   });
   pagos=actos.filter((_,i)=>i%3!==2).map(a=>({processo:a.processo,valor:a.valorEst}));
   const mk=new Date().toISOString().substring(0,7);
@@ -2553,6 +2776,7 @@ function loadDemo(){
     });
     historicoMeses[k]={actos:tot,pagos:tot-miss,missing:miss,eurFalta:eurF,tipos,procs,segs,segEur};
   }
+  statusFilter = null;
   refreshActosTable();refreshPagosTable();
   switchPanel('reconciliar');
   setTimeout(reconciliar,250);
@@ -2609,10 +2833,10 @@ function exportReport(){
     t+=`${i+1}. ${a.processo} · ${formatDate(a.data)}\n   ${a.acto}`;
     if(a.tipo)t+=` (${a.tipo})`;
     if(a.seguradora)t+=` · ${a.seguradora}`;
-    if(a.valorEst>0)t+=` · € ${a.valorEst.toFixed(2)}`;
+    if(a.valorEst>0)t+=` · ~ € ${a.valorEst.toFixed(2)} (est.)`;
     t+='\n\n';
   });
-  t+=`${'─'.repeat(60)}\nTotal a reclamar: € ${totalEur.toFixed(2)}\nSolicita-se rectificação dos honorários correspondentes.\n`;
+  t+=`${'─'.repeat(60)}\nTotal estimado a reclamar: ~ € ${totalEur.toFixed(2)}\n(Valores estimados pela tabela de honorários CUF — os valores reais constam das faturas.)\nSolicita-se rectificação dos honorários correspondentes.\n`;
   const blob=new Blob([t],{type:'text/plain;charset=utf-8'});
   const el=document.createElement('a');el.href=URL.createObjectURL(blob);
   el.download=`MediCheck_${new Date().toISOString().split('T')[0]}.txt`;el.click();
@@ -2620,8 +2844,8 @@ function exportReport(){
 
 function copyReport(){
   const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
-  let t=`*HONORÁRIOS EM FALTA — CUF Torres Vedras*\n${userProfile.name||'Dr.'} · ${new Date().toLocaleDateString('pt-PT')}\nTotal: € ${totalEur.toFixed(2)}\n\n`;
-  missingActos.forEach((a,i)=>{t+=`${i+1}. ${a.processo} | ${formatDate(a.data)} | ${a.acto}${a.seguradora?' | '+a.seguradora:''} | € ${(a.valorEst||0).toFixed(2)}\n`;});
+  let t=`*HONORÁRIOS EM FALTA — CUF Torres Vedras*\n${userProfile.name||'Dr.'} · ${new Date().toLocaleDateString('pt-PT')}\nTotal estimado: ~ € ${totalEur.toFixed(2)} _(valores estimados pela tabela CUF)_\n\n`;
+  missingActos.forEach((a,i)=>{t+=`${i+1}. ${a.processo} | ${formatDate(a.data)} | ${a.acto}${a.seguradora?' | '+a.seguradora:''}${(a.valorEst||0)>0?' | ~ € '+(a.valorEst||0).toFixed(2):''}\n`;});
   navigator.clipboard.writeText(t).then(()=>toast('⎘ Copiado'));
 }
 
@@ -2691,7 +2915,7 @@ function renderDashboard(){
         <span class="month-pill ok">${m.pagos} pagos</span>
         ${m.missing>0?`<span class="month-pill bad">${m.missing} em falta</span>`:''}
       </div>
-      ${m.eurFalta>0?`<span class="month-eur">- € ${m.eurFalta.toFixed(2)}</span>`:''}
+      ${m.eurFalta>0?`<span class="month-eur" title="Valor estimado pela tabela CUF">~ € ${m.eurFalta.toFixed(2)}</span>`:''}
     </div>`;
   }).join('');
 }
@@ -2743,7 +2967,7 @@ function handleExcelUpload(e){
         const seg=cols.seguradora?String(row[cols.seguradora]||'').trim():'';
         const valRaw=cols.valor?parseFloat(row[cols.valor]):NaN;
         const val=!isNaN(valRaw)&&valRaw>0?valRaw:estimarValor(av,tipo,cod);
-        actos.push({processo:proc,data:dv,acto:av,tipo,codigo:cod,seguradora:seg,valorEst:val,mes:dv.substring(0,7)});imp++;
+        actos.push({processo:proc,data:dv,acto:av,tipo,codigo:cod,seguradora:seg,valorEst:val,mes:dv.substring(0,7),status:'registado'});imp++;
       });
       refreshActosTable();autoSave();
       rd.innerHTML=`<div class="alert alert-success">✓ <strong>${imp} actos importados</strong>${skip>0?` · ${skip} ignorados`:''}</div>`;
@@ -3130,7 +3354,7 @@ function toast(msg){
 // HELPERS
 // ═══════════════════════════════════════
 function genProc(){return`${new Date().getFullYear()}/${String(Math.floor(Math.random()*90000)+10000)}`;}
-function norm(s){return String(s).replace(/^cctv/i,'').replace(/[\s\-\/]/g,'').toLowerCase();}
+function norm(s){return String(s).replace(/^cctv/i,'').replace(/^\d{4}[\/\-]/,'').replace(/[\s\-\/]/g,'').toLowerCase();}
 function formatDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
 
 // ═══════════════════════════════════════
@@ -3164,5 +3388,17 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 });
 </script>
+
+<!-- Status popup -->
+<div id="status-popup" class="status-popup">
+  <div class="status-opt" onclick="setActoStatus(_spIdx,'registado')"><span class="badge badge-registado">○ Registado</span></div>
+  <div id="status-opt-em-falta" class="status-opt" onclick="setActoStatus(_spIdx,'em_falta')">
+    <span class="badge badge-missing">⚠ Em Falta</span>
+    <span id="status-opt-em-falta-hint" style="font-size:.65rem;color:var(--ink3);margin-left:4px;display:none"></span>
+  </div>
+  <div class="status-opt" onclick="setActoStatus(_spIdx,'reclamado')"><span class="badge badge-reclamado">✉ Reclamado</span></div>
+  <div class="status-opt" onclick="setActoStatus(_spIdx,'pago')"><span class="badge badge-ok">✓ Pago</span></div>
+  <div class="status-opt" onclick="setActoStatus(_spIdx,'arquivado')"><span class="badge badge-arquivado">⊘ Arquivado</span></div>
+</div>
 </body>
 </html>
