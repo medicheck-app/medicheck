@@ -50,11 +50,13 @@ body::before {
 #onboarding {
   position:fixed;inset:0;z-index:1000;
   background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
+  display:flex;align-items:flex-start;justify-content:center;
   padding:24px;
+  overflow-y:auto;
 }
 .ob-wrap {
   width:100%;max-width:480px;
+  margin:auto;
   animation:obIn .6s cubic-bezier(.16,1,.3,1) both;
 }
 @keyframes obIn {
@@ -324,7 +326,7 @@ body::before {
 .chips-label { font-family:'IBM Plex Mono',monospace;font-size:.56rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;margin-top:4px; }
 .chips-row { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px; }
 .chip { background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-size:.82rem;color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s; }
-.chip:active,.chip:hover { background:var(--accent);border-color:var(--accent);color:#000; }
+.chip:active,.chip:hover,.chip.selected { background:var(--accent);border-color:var(--accent);color:#000; }
 .chip-outro { background:none;border:1px dashed var(--border);color:var(--ink3); }
 .chip-outro:active,.chip-outro:hover { background:var(--surface2);border-color:var(--ink3);color:var(--ink); }
 
@@ -660,7 +662,6 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
     <!-- STEP 1: Especialidade -->
     <div class="ob-step" id="ob-step-1">
       <div class="ob-heading">Qual é a tua<br>especialidade?</div>
-      <div class="ob-sub">A app adapta-se ao teu fluxo de trabalho e à tabela de honorários correspondente.</div>
       <div class="sp-cards" id="sp-cards">
         <div class="sp-card" data-sp="anestesia" onclick="selectSp(this)">
           <div class="sp-card-icon">💉</div>
@@ -668,7 +669,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
             <div class="sp-card-name">Anestesiologia</div>
             <div class="sp-card-desc">Captura por foto de vinheta · Tabela de apoio a cirurgia · Reconciliação com Mapa de Honorários CUF</div>
           </div>
-          <div class="sp-card-check">✓</div>
+          <div class="sp-card-check"></div>
         </div>
         <div class="sp-card" data-sp="cirurgia" onclick="selectSp(this)">
           <div class="sp-card-icon">🔪</div>
@@ -676,7 +677,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
             <div class="sp-card-name">Cirurgia</div>
             <div class="sp-card-desc">Registo por procedimento · Tabela cirúrgica completa · Cruzamento com fatura por acto operatório</div>
           </div>
-          <div class="sp-card-check">✓</div>
+          <div class="sp-card-check"></div>
         </div>
         <div class="sp-card" data-sp="gastro" onclick="selectSp(this)">
           <div class="sp-card-icon">🩺</div>
@@ -684,10 +685,25 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
             <div class="sp-card-name">Gastroenterologia</div>
             <div class="sp-card-desc">Exames e endoscopias · Valor fixo por acto · Reconciliação mensal simplificada</div>
           </div>
-          <div class="sp-card-check">✓</div>
+          <div class="sp-card-check"></div>
         </div>
       </div>
-      <button class="ob-btn" id="ob-btn-sp" onclick="obNext(2)" disabled>Continuar →</button>
+      <!-- Sub-especialidade (só para Cirurgia) -->
+      <div id="ob-subsp-section" style="display:none;margin-top:16px">
+        <div class="ob-sub" style="margin-bottom:8px;font-size:.82rem;text-align:left">Qual é a tua especialidade?</div>
+        <div class="chips-row" id="ob-subsp-chips" style="justify-content:flex-start">
+          <button class="chip" data-subsp="geral" onclick="selectSubSp(this)">Cirurgia Geral</button>
+          <button class="chip" data-subsp="ortopedia" onclick="selectSubSp(this)">Ortopedia</button>
+          <button class="chip" data-subsp="orl" onclick="selectSubSp(this)">ORL</button>
+          <button class="chip" data-subsp="vascular" onclick="selectSubSp(this)">Cirurgia Vascular</button>
+          <button class="chip" data-subsp="ginecologia" onclick="selectSubSp(this)">Ginecologia</button>
+          <button class="chip" data-subsp="plastica" onclick="selectSubSp(this)">Cirurgia Plástica</button>
+          <button class="chip" data-subsp="oftalmologia" onclick="selectSubSp(this)">Oftalmologia</button>
+          <button class="chip" data-subsp="urologia" onclick="selectSubSp(this)">Urologia</button>
+          <button class="chip" data-subsp="dentaria" onclick="selectSubSp(this)">Medicina Dentária</button>
+        </div>
+      </div>
+      <button class="ob-btn" id="ob-btn-sp" onclick="obContinuarSp()" disabled>Continuar →</button>
       <button class="ob-back" onclick="obNext(0)">← Voltar</button>
     </div>
 
@@ -1185,13 +1201,13 @@ const SP_CONFIG = {
   cirurgia: {
     name: 'Cirurgia',
     icon: '🔪',
-    captureIcon: '📋',
-    captureLabel: 'Registar Procedimento Cirúrgico',
-    heroEyebrow: 'Registo Rápido · Cirurgia',
-    heroTitle: 'Regista o <em>procedimento</em>',
-    heroSub: 'Adiciona o acto operatório com o código de tabela e seguradora para reconciliação mensal.',
-    navLabel: 'Registar Acto',
-    step1Label: 'Registar',
+    captureIcon: '📷',
+    captureLabel: 'Tirar Foto da Vinheta',
+    heroEyebrow: 'Captura Rápida · IA',
+    heroTitle: 'Fotografa a <em>vinheta</em>',
+    heroSub: 'Extrai nº processo e procedimento automaticamente. Nome e morada sempre omitidos.',
+    navLabel: 'Captura Rápida',
+    step1Label: 'Capturar',
     actoLabel: 'Procedimento Cirúrgico',
     actoPlaceholder: 'ex: Colecistectomia Laparoscópica',
     showTipo: false,
@@ -1317,7 +1333,8 @@ function estimarValor(acto, tipo, cod) {
 let actos = [], pagos = [], reconciled = [], missingActos = [];
 let historicoMeses = {};
 let recuperados = new Set(); // processos marcados como recuperados
-let userProfile = { name:'', specialty:'anestesia' };
+let userProfile = { name:'', specialty:'anestesia', subSpecialty:'' };
+let selectedSubSp = '';
 let lastVignetteUrl = null;
 let lastVignetteDataUrl = null;
 let lastVignetteW = 0, lastVignetteH = 0;
@@ -1327,6 +1344,23 @@ let lastVignetteW = 0, lastVignetteH = 0;
 // ═══════════════════════════════════════
 let selectedSp = '';
 let currentStep = 0;
+
+function obContinuarSp() {
+  if (_testMode) {
+    userProfile.name = 'Dr. Teste';
+    userProfile.specialty = selectedSp;
+    userProfile.subSpecialty = selectedSubSp;
+    loadTestData();
+    try { applySpecialty(); } catch(e) { console.warn('applySpecialty:', e); }
+    const ob = document.getElementById('onboarding');
+    ob.style.transition = 'opacity .4s';
+    ob.style.opacity = '0';
+    setTimeout(() => { ob.style.display = 'none'; _testMode = false; }, 400);
+    setTimeout(() => toast('🧪 Modo Teste activo'), 500);
+  } else {
+    obNext(2);
+  }
+}
 
 function obNext(step) {
   document.getElementById(`ob-step-${currentStep}`).classList.remove('active');
@@ -1339,9 +1373,23 @@ function selectSp(el) {
   document.querySelectorAll('.sp-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   selectedSp = el.dataset.sp;
-  document.getElementById('ob-btn-sp').disabled = false;
-  // Preview accent colour
   document.body.className = `sp-${selectedSp}`;
+  const subSection = document.getElementById('ob-subsp-section');
+  if (selectedSp === 'cirurgia') {
+    subSection.style.display = '';
+    document.getElementById('ob-btn-sp').disabled = selectedSubSp === '';
+  } else {
+    subSection.style.display = 'none';
+    selectedSubSp = '';
+    document.getElementById('ob-btn-sp').disabled = false;
+  }
+}
+
+function selectSubSp(el) {
+  document.querySelectorAll('#ob-subsp-chips .chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSubSp = el.dataset.subsp;
+  document.getElementById('ob-btn-sp').disabled = false;
 }
 
 function obCheckName() {
@@ -1368,6 +1416,7 @@ async function finishOnboarding() {
   userProfile.name = document.getElementById('ob-name').value.trim();
   localStorage.setItem('mc_display_name', userProfile.name);
   userProfile.specialty = selectedSp;
+  userProfile.subSpecialty = selectedSubSp;
   const pin = document.getElementById('ob-pin-create').value;
   // Derive encryption key from PIN
   const salt = 'medicheck-v3-salt';
@@ -1379,74 +1428,91 @@ async function finishOnboarding() {
   setTimeout(() => document.getElementById('onboarding').style.display = 'none', 400);
 }
 
-function enterTestMode() {
-  userProfile.name = 'Gonçalo';
-  userProfile.specialty = 'anestesia';
-  encryptionKey = null;
-  try { applySpecialty(); } catch(e) { console.warn('applySpecialty:', e); }
+let _testMode = false;
 
-  // Dados de teste realistas — Fevereiro e Março 2026 (até 15 Mar)
+function enterTestMode() {
+  _testMode = true;
+  actos = [];
+  obNext(1);
+  toast('🧪 Modo Teste — escolhe a tua especialidade');
+}
+
+function loadTestData() {
+  actos = [];
+  encryptionKey = null;
   const SEGS = ['Multicare','ADSE','Médis','AdvanceCare','Fidelidade'];
-  const PROCS_BLOCO = [
-    ['Anestesia Geral','Colecistectomia laparoscópica'],
-    ['Anestesia Geral','Prótese total do joelho'],
-    ['Anestesia Geral','Histerectomia laparoscópica'],
-    ['Bloqueio Subaracnoideu','Artroscopia do joelho'],
-    ['Anestesia Geral','Apendicectomia laparoscópica'],
-    ['Bloqueio Epidural','Parto por cesariana'],
-    ['Anestesia Geral','Tiroidectomia total'],
-    ['Bloqueio Axilar','Síndrome do túnel cárpico'],
-    ['Anestesia Geral','Colectomia direita'],
-    ['Bloqueio Subaracnoideu','Hernioplastia inguinal'],
-    ['Anestesia Geral','Nefrectomia laparoscópica'],
-    ['Bloqueio Femoral + Ciático','Osteossíntese do tornozelo'],
-  ];
-  const PROCS_GASTRO = [
-    ['Sedação para Endoscopia','Endoscopia digestiva alta'],
-    ['Sedação para Colonoscopia','Colonoscopia'],
-    ['Sedação para Endoscopia + Colonoscopia','Endoscopia + Colonoscopia'],
-    ['Sedação para Colonoscopia','Colonoscopia com polipectomia'],
-    ['Sedação para Endoscopia','Endoscopia digestiva alta + biópsia'],
-  ];
-  // Dias de bloco operatório em Fev/Mar (tipicamente 2-3x/semana)
-  const diasBloco = [
+  const sp = userProfile.specialty || 'anestesia';
+  const dias = [
     '2026-02-03','2026-02-05','2026-02-10','2026-02-12','2026-02-17',
     '2026-02-19','2026-02-24','2026-02-26',
     '2026-03-03','2026-03-05','2026-03-10','2026-03-12'
   ];
-  // Dias de gastro (1-2x/semana)
-  const diasGastro = [
-    '2026-02-04','2026-02-11','2026-02-18','2026-02-25',
-    '2026-03-04','2026-03-11'
-  ];
   let proc = 100001;
-  diasBloco.forEach(data => {
-    const n = 3 + Math.floor(Math.random() * 4); // 3-6 cirurgias por dia
-    for (let i = 0; i < n; i++) {
-      const p = PROCS_BLOCO[Math.floor(Math.random() * PROCS_BLOCO.length)];
-      actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
-    }
-  });
-  diasGastro.forEach(data => {
-    const n = 4 + Math.floor(Math.random() * 5); // 4-8 exames por dia
-    for (let i = 0; i < n; i++) {
-      const p = PROCS_GASTRO[Math.floor(Math.random() * PROCS_GASTRO.length)];
-      actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
-    }
-  });
-  refreshActosTable();
 
-  const ob = document.getElementById('onboarding');
-  ob.style.transition = 'opacity .4s';
-  ob.style.opacity = '0';
-  setTimeout(() => { ob.style.display = 'none'; }, 400);
-  setTimeout(() => toast('🧪 Modo Teste activo'), 500);
+  if (sp === 'anestesia') {
+    const PROCS_BLOCO = [
+      ['Anestesia Geral','Colecistectomia laparoscópica'],
+      ['Anestesia Geral','Prótese total do joelho'],
+      ['Anestesia Geral','Histerectomia laparoscópica'],
+      ['Bloqueio Subaracnoideu','Artroscopia do joelho'],
+      ['Anestesia Geral','Apendicectomia laparoscópica'],
+      ['Bloqueio Epidural','Parto por cesariana'],
+      ['Anestesia Geral','Tiroidectomia total'],
+      ['Bloqueio Axilar','Síndrome do túnel cárpico'],
+      ['Anestesia Geral','Colectomia direita'],
+      ['Bloqueio Subaracnoideu','Hernioplastia inguinal'],
+      ['Anestesia Geral','Nefrectomia laparoscópica'],
+      ['Bloqueio Femoral + Ciático','Osteossíntese do tornozelo'],
+    ];
+    const PROCS_GASTRO = [
+      ['Sedação para Endoscopia','Endoscopia digestiva alta'],
+      ['Sedação para Colonoscopia','Colonoscopia'],
+      ['Sedação para Endoscopia + Colonoscopia','Endoscopia + Colonoscopia'],
+      ['Sedação para Colonoscopia','Colonoscopia com polipectomia'],
+      ['Sedação para Endoscopia','Endoscopia digestiva alta + biópsia'],
+    ];
+    const diasGastro = ['2026-02-04','2026-02-11','2026-02-18','2026-02-25','2026-03-04','2026-03-11'];
+    dias.forEach(data => {
+      const n = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) {
+        const p = PROCS_BLOCO[Math.floor(Math.random() * PROCS_BLOCO.length)];
+        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+      }
+    });
+    diasGastro.forEach(data => {
+      const n = 4 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < n; i++) {
+        const p = PROCS_GASTRO[Math.floor(Math.random() * PROCS_GASTRO.length)];
+        actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+      }
+    });
+  } else {
+    // Cirurgia, gastro, ou outra especialidade — usa ACTOS_BASE da especialidade
+    let baseList;
+    if (sp === 'cirurgia') {
+      const subSp = userProfile.subSpecialty || 'geral';
+      baseList = ACTOS_BASE.cirurgia[subSp] || ACTOS_BASE.cirurgia.geral;
+    } else {
+      baseList = ACTOS_BASE[sp] || [];
+    }
+    dias.forEach(data => {
+      const n = 2 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) {
+        const acto = baseList[Math.floor(Math.random() * baseList.length)];
+        actos.push({processo:String(proc++),data,acto,tipo:'',codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+      }
+    });
+  }
+  refreshActosTable();
 }
 
 function resetOnboarding() {
   currentStep = 0;
   selectedSp = '';
+  selectedSubSp = '';
   document.querySelectorAll('.sp-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('#ob-subsp-chips .chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('ob-subsp-section').style.display = 'none';
   document.getElementById('ob-btn-sp').disabled = true;
   document.getElementById('ob-name').value = '';
   document.getElementById('ob-btn-name').disabled = true;
@@ -1464,7 +1530,9 @@ function applySpecialty() {
 
   // Sidebar
   document.getElementById('sb-user').textContent = userProfile.name;
-  document.getElementById('sb-sp').textContent = cfg.icon + ' ' + cfg.name;
+  const subSpNames = {geral:'Cirurgia Geral',ortopedia:'Ortopedia',orl:'ORL',vascular:'Cirurgia Vascular',ginecologia:'Ginecologia',plastica:'Cirurgia Plástica',oftalmologia:'Oftalmologia',urologia:'Urologia',dentaria:'Medicina Dentária'};
+  const spLabel = (userProfile.specialty === 'cirurgia' && userProfile.subSpecialty) ? subSpNames[userProfile.subSpecialty] || cfg.name : cfg.name;
+  document.getElementById('sb-sp').textContent = cfg.icon + ' ' + spLabel;
 
   // Nav labels
   document.getElementById('nav-label-captura').textContent = cfg.navLabel;
@@ -1898,19 +1966,106 @@ function calSelectDay(ds) {
 }
 
 
-const ACTOS_BASE = [
-  'Anestesia Geral','Anestesia Loco-Regional','Bloqueio Axilar','Bloqueio Femoral',
-  'Bloqueio Ciático','Bloqueio Interescalénico','Bloqueio Supraclavicular','Bloqueio Infraclavicular',
-  'Bloqueio Poplíteo','Bloqueio Safeno','Bloqueio TAP','Bloqueio Paravertebral',
-  'Bloqueio Erector Espinhal','Bloqueio PECS','Bloqueio Serrátil','Bloqueio Quadrado Lombar',
-  'Anestesia Epidural','Anestesia Raquidiana','Anestesia Combinada Raqui-Epidural',
-  'Sedação Consciente','Sedação Profunda','Analgesia Pós-Operatória','Cateter Epidural',
-  'Cateter Perineural','Bloqueio do Plexo Braquial'
-];
+const ACTOS_BASE = {
+  anestesia: [
+    'Anestesia Geral','Anestesia Loco-Regional','Bloqueio Axilar','Bloqueio Femoral',
+    'Bloqueio Ciático','Bloqueio Interescalénico','Bloqueio Supraclavicular','Bloqueio Infraclavicular',
+    'Bloqueio Poplíteo','Bloqueio Safeno','Bloqueio TAP','Bloqueio Paravertebral',
+    'Bloqueio Erector Espinhal','Bloqueio PECS','Bloqueio Serrátil','Bloqueio Quadrado Lombar',
+    'Anestesia Epidural','Anestesia Raquidiana','Anestesia Combinada Raqui-Epidural',
+    'Sedação Consciente','Sedação Profunda','Analgesia Pós-Operatória','Cateter Epidural',
+    'Cateter Perineural','Bloqueio do Plexo Braquial'
+  ],
+  cirurgia: {
+    geral: [
+      'Colecistectomia Laparoscópica','Apendicectomia','Herniorrafia Inguinal',
+      'Herniorrafia Umbilical','Herniorrafia Incisional','Hemorroidectomia',
+      'Fistulectomia Perianal','Esfincterotomia','Tiroidectomia Total','Tiroidectomia Parcial',
+      'Mastectomia Simples','Mastectomia Radical','Mastectomia Parcial (Quadrantectomia)',
+      'Excisão de Fibroadenoma','Esvasiamento Axilar','Dermolipectomia Abdominal',
+      'Adrenalectomia Unilateral','Gastrectomia Total','Gastrectomia Parcial',
+      'Fundoplicatura','Esplenectomia','Colectomia Direita','Colectomia Esquerda','Sigmoidectomia'
+    ],
+    ortopedia: [
+      'Artroplastia Total da Anca','Prótese Total do Joelho','Meniscectomia Artroscópica',
+      'Plastia do Ligamento Cruzado','Plastia do Ligamento Periférico',
+      'Osteossíntese da Clavícula','Osteossíntese do Colo do Úmero','Osteossíntese Diafisária Umeral',
+      'Osteossíntese Diafisária Femoral','Osteossíntese da Tíbia e Perónio','Osteotomia Proximal da Tíbia',
+      'Alongamento/Sutura do Tendão de Aquiles','Laminectomia + Foraminectomia + Extirpação de Hérnia Discal',
+      'Entorse/Rotura Ligamentar do Tornozelo','Síndrome do Túnel Cárpico','Artroscopia do Ombro','Hallux Valgus'
+    ],
+    orl: [
+      'Adenoidectomia','Amigdalectomia','Amigdalo-Adenoidectomia','Cornectomia',
+      'Septoplastia','Rino-Septoplastia','Rinoplastia','Microcirurgia Endonasal',
+      'Miringotomia + Tubos de Ventilação','Timpanoplastia','Timpanomastoidectomia',
+      'Estapedectomia','Exérese de Exostose do Canal Auditivo',
+      'Hemilaringectomia','Laringectomia Total','Laringectomia Supraglótica',
+      'Esvasiamento Cervical','Parotidectomia','Traqueotomia'
+    ],
+    vascular: [
+      'Safenectomia (Laqueação + Excisão Veia Safena)','Intervenção Percutânea na Aorta (EVAR)',
+      'Intervenção Percutânea na Artéria dos Membros','Intervenção Percutânea na Carótida',
+      'Laqueação da Veia Cava Inferior','Endarterectomia Carotídea',
+      'By-pass Fémoro-Poplíteo','By-pass Aorto-Bifemoral','Embolectomia',
+      'Fístula Arteriovenosa','Amputação Infrapatelar','Amputação Suprapatelar'
+    ],
+    ginecologia: [
+      'Miomectomia Abdominal/Vaginal','Miomectomia Laparoscópica','Ovariectomia','Cistectomia do Ovário',
+      'Salpingectomia','Salpingoplastia (Repermeabilização)','Laqueação Tubária','Laqueação Tubária Laparoscópica',
+      'Perineoplastia','Dilatação e Curetagem','Conização com Ansa Diatérmica','Conização Laser CO2',
+      'Colporrafia Anterior','Colporrafia Posterior','Histerectomia Total Abdominal',
+      'Histerectomia Total Laparoscópica','Histerectomia Vaginal','Histeroscopia Cirúrgica','Cesariana'
+    ],
+    plastica: [
+      'Dermolipectomia Abdominal','Mamoplastia de Aumento','Mamoplastia de Redução',
+      'Mastopexia','Reconstrução Mamária','Ginecomastia','Rinoplastia','Blefaroplastia',
+      'Otoplastia','Lipoaspiração','Enxerto de Pele (Thiersch)','Enxerto Livre de Pele Total',
+      'Retalho Local com Plastia Complexa','Excisão de Quisto Pilonidal'
+    ],
+    oftalmologia: [
+      'Facoemulsificação + Lente Intraocular','Extração de Catarata + Lente Intraocular',
+      'Vitrectomia Mecânica Via Pars Plana','Cirurgia do Descolamento da Retina + Vitrectomia',
+      'Fotocoagulação Laser da Retina','Operação Fistulizante p/ Glaucoma','Trabeculotomia Ab Externo',
+      'Tratamento Cirúrgico de Estrabismo','Tratamento Cirúrgico de Ptose Palpebral',
+      'Excisão de Chalázio','Excisão/Transposição de Pterígio','Queratomileusis (LASIK)',
+      'Queratoplastia Penetrante (Transplante de Córnea)','Queratoplastia Lamelar',
+      'Dacriocistotomia','Implante de Anéis Intracorneanos (Ceratocone)','Injeção Intravítrea (Anti-VEGF)','Iridectomia'
+    ],
+    urologia: [
+      'Ressecção Endoscópica de Tumor Vesical (RTU-V)','Biópsia Endoscópica de Tumor Vesical',
+      'Ressecção Transuretral da Próstata (RTUP)','Prostatectomia Suprapúbica por HBP',
+      'Prostatectomia Radical','Nefrectomia Radical','Nefrectomia Parcial','Nefroureterectomia',
+      'Ureteroscopia + Litotrícia','Litotrícia Extracorporal','Cistectomia Radical',
+      'Uretroplastia','Uretrotomia Interna Endoscópica','Circuncisão (Postectomia)',
+      'Hidrocelectomia','Orquidectomia','Varicocelectomia','Pieloplastia'
+    ],
+    dentaria: [
+      'Endodontia 1ª Sessão','Endodontia com Obturação de Canais','Exodontia','Exodontia de Dente Incluso',
+      'Apicectomia','Frenectomia','Gengivectomia','Excisão de Bridas Gengivais',
+      'Ablação de Quisto Dentário/Paradentário','Curetagem de Foco de Osteíte',
+      'Incisão e Drenagem de Abcesso Dentário','Ferulização/Estabilização de Peças Dentárias',
+      'Exérese de Epúlide/Rânula/Tumor de Tecidos Moles'
+    ]
+  },
+  gastro: [
+    'Colonoscopia Diagnóstica','Colonoscopia com Polipectomia','Endoscopia Digestiva Alta',
+    'Endoscopia + Colonoscopia','CPRE','Cápsula Endoscópica','Ecoendoscopia',
+    'Dilatação Esofágica','Ligadura de Varizes Esofágicas','Mucosectomia',
+    'Gastroscopia','Rectoscopia','Sigmoidoscopia'
+  ]
+};
 
 function refreshActoSuggestions() {
+  const sp = userProfile.specialty || 'anestesia';
+  let base;
+  if (sp === 'cirurgia') {
+    const subSp = userProfile.subSpecialty || 'geral';
+    base = (ACTOS_BASE.cirurgia[subSp] || ACTOS_BASE.cirurgia.geral);
+  } else {
+    base = ACTOS_BASE[sp] || ACTOS_BASE.anestesia;
+  }
   const userActos = [...new Set(actos.map(a => a.acto).filter(Boolean))];
-  const all = [...new Set([...userActos, ...ACTOS_BASE])];
+  const all = [...new Set([...userActos, ...base])];
   const dl = document.getElementById('acto-suggestions');
   if (dl) dl.innerHTML = all.map(a => `<option value="${a.replace(/"/g,'&quot;')}">`).join('');
 }
