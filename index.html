@@ -46,6 +46,31 @@ body::before {
   pointer-events:none;z-index:0;opacity:.6;
 }
 
+/* ─── GASTRO DAILY LIST ─── */
+.gastro-row { border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:8px; }
+.gastro-row-top { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+.gastro-proc-input { flex:1;min-width:110px;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;color:var(--ink1);font-size:.85rem; }
+.gastro-proc-input:focus { outline:none;border-color:var(--accent); }
+.exame-btns { display:flex;gap:4px;flex-shrink:0; }
+.exame-btn { padding:5px 10px;font-size:.75rem;border-radius:6px;border:1.5px solid var(--border2);background:transparent;color:var(--ink2);cursor:pointer;transition:all .15s;white-space:nowrap; }
+.exame-btn.active { background:var(--accent);border-color:var(--accent);color:#000;font-weight:600; }
+.gastro-row-procs { margin-top:10px;border-top:1px solid var(--border2);padding-top:8px; }
+.proc-list-vertical { display:flex;flex-direction:column;max-height:260px;overflow-y:auto;gap:2px; }
+.proc-list-vertical::-webkit-scrollbar { width:4px; }
+.proc-list-vertical::-webkit-scrollbar-thumb { background:var(--border2);border-radius:2px; }
+.proc-list-item { display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;transition:background .12s;font-size:.84rem;color:var(--ink2); }
+.proc-list-item:hover { background:var(--surface2); }
+.proc-list-item.selected { background:var(--accent-dim);color:var(--ink1); }
+.proc-list-check { width:16px;flex-shrink:0;font-size:.8rem;color:var(--accent);font-weight:700; }
+.proc-list-name { flex:1; }
+.proc-qty-input { flex:0 0 36px;max-width:36px;min-width:36px;background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:4px 2px;color:var(--ink1);text-align:center;font-size:.85rem; }
+.proc-qty-input:focus { outline:none;border-color:var(--accent); }
+.proc-qty-input::-webkit-outer-spin-button,.proc-qty-input::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
+.proc-qty-input[type=number] { -moz-appearance:textfield; }
+.proc-summary { margin-top:8px;display:flex;flex-direction:column;gap:4px; }
+.proc-summary-item { display:flex;align-items:baseline;gap:6px;font-size:.8rem;color:var(--ink2); }
+.proc-summary-qty { font-weight:700;color:var(--accent);font-size:.78rem;flex-shrink:0; }
+
 /* ─── ONBOARDING OVERLAY ─── */
 #onboarding {
   position:fixed;inset:0;z-index:1000;
@@ -667,7 +692,6 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           <div class="sp-card-icon">💉</div>
           <div>
             <div class="sp-card-name">Anestesiologia</div>
-            <div class="sp-card-desc">Captura por foto de vinheta · Tabela de apoio a cirurgia · Reconciliação com Mapa de Honorários CUF</div>
           </div>
           <div class="sp-card-check"></div>
         </div>
@@ -675,7 +699,6 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           <div class="sp-card-icon">🔪</div>
           <div>
             <div class="sp-card-name">Cirurgia</div>
-            <div class="sp-card-desc">Registo por procedimento · Tabela cirúrgica completa · Cruzamento com fatura por acto operatório</div>
           </div>
           <div class="sp-card-check"></div>
         </div>
@@ -683,7 +706,6 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           <div class="sp-card-icon">🩺</div>
           <div>
             <div class="sp-card-name">Gastroenterologia</div>
-            <div class="sp-card-desc">Exames e endoscopias · Valor fixo por acto · Reconciliação mensal simplificada</div>
           </div>
           <div class="sp-card-check"></div>
         </div>
@@ -813,10 +835,14 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
             <span id="capture-icon">📷</span>
             <span id="capture-label">Tirar Foto da Vinheta</span>
           </button>
-          <div class="hero-alts">
+          <div class="hero-alts" id="hero-alts-default">
             <div class="alt-btn" onclick="toggleManualForm()">✏ Manual</div>
             <div class="alt-btn" onclick="document.getElementById('excel-hidden').click()">📊 Excel/CSV</div>
             <input type="file" id="excel-hidden" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
+          </div>
+          <div class="hero-alts" id="hero-alts-gastro" style="display:none">
+            <div class="alt-btn" onclick="addGastroRow()">✏ Adicionar manualmente</div>
+            <div class="alt-btn" onclick="simulateGastroDailyList()">🧪 Simular lista</div>
           </div>
         </div>
         <div class="extracted-box" id="extracted-box">
@@ -871,6 +897,26 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
           <button class="btn btn-ghost" onclick="toggleManualForm()">Fechar</button>
         </div>
         <div id="excel-result" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <!-- GASTRO: Lista Diária -->
+      <div id="gastro-daily-panel" style="display:none">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <div class="card-title" style="margin-bottom:0">Lista do Dia</div>
+              <div class="card-sub" id="gastro-panel-date" style="margin-top:2px"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="addGastroRow()">+ Linha</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gastro-daily-panel').style.display='none'">✕</button>
+            </div>
+          </div>
+          <div id="gastro-rows-container"></div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn btn-primary" onclick="saveGastroDailyList()">Guardar todos →</button>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -1228,11 +1274,11 @@ const SP_CONFIG = {
   gastro: {
     name: 'Gastroenterologia',
     icon: '🩺',
-    captureIcon: '📝',
-    captureLabel: 'Registar Exame / Endoscopia',
-    heroEyebrow: 'Registo Rápido · Gastro',
-    heroTitle: 'Regista o <em>exame</em>',
-    heroSub: 'Colonoscopia, endoscopia, CPRE — regista e reconcilia mensalmente com a fatura da CUF.',
+    captureIcon: '📷',
+    captureLabel: 'Fotografar Lista Diária',
+    heroEyebrow: 'Lista Diária · IA',
+    heroTitle: 'Fotografa a <em>lista do dia</em>',
+    heroSub: 'Extrai endoscopias e colonoscopias automaticamente. Adiciona procedimentos por doente.',
     navLabel: 'Registar Exame',
     step1Label: 'Registar',
     actoLabel: 'Exame / Procedimento',
@@ -1338,6 +1384,7 @@ let selectedSubSp = '';
 let lastVignetteUrl = null;
 let lastVignetteDataUrl = null;
 let lastVignetteW = 0, lastVignetteH = 0;
+let gastroRows = []; // [{processo, exame, procs:[{nome,cod,qty}]}]
 
 // ═══════════════════════════════════════
 // ONBOARDING
@@ -1544,6 +1591,9 @@ function applySpecialty() {
   document.getElementById('hero-sub').textContent = cfg.heroSub;
   document.getElementById('capture-icon').textContent = cfg.captureIcon;
   document.getElementById('capture-label').textContent = cfg.captureLabel;
+  const isGastro = userProfile.specialty === 'gastro';
+  document.getElementById('hero-alts-default').style.display = isGastro ? 'none' : '';
+  document.getElementById('hero-alts-gastro').style.display = isGastro ? '' : 'none';
 
   // Form
   document.getElementById('form-title').textContent = 'Registo Manual';
@@ -1630,6 +1680,7 @@ function updateValorHint() {
 // ═══════════════════════════════════════
 async function handleVignetteUpload(e) {
   const file = e.target.files[0]; if (!file) return;
+  if (userProfile.specialty === 'gastro') { handleGastroDailyList(file); return; }
   if (lastVignetteUrl) { URL.revokeObjectURL(lastVignetteUrl); }
   lastVignetteUrl = URL.createObjectURL(file);
   const box = document.getElementById('extracted-box');
@@ -1792,6 +1843,233 @@ async function handleVignetteUpload(e) {
       <button class="btn btn-ghost btn-sm" onclick="prefillManual('','','${new Date().toISOString().split('T')[0]}','','')">✏ Preencher manualmente</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('extracted-box').style.display='none'">✕</button>`;
   }
+}
+
+// ═══════════════════════════════════════
+// GASTRO DAILY LIST
+// ═══════════════════════════════════════
+async function handleGastroDailyList(file) {
+  const today = new Date().toISOString().split('T')[0];
+  const panel = document.getElementById('gastro-daily-panel');
+  panel.style.display = 'block';
+  document.getElementById('gastro-panel-date').textContent = formatDate(today);
+  gastroRows = [];
+  document.getElementById('gastro-rows-container').innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--accent)"><span class="spinner"></span>A processar lista…</div>`;
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    gastroRows = [newGastroRow()];
+    renderGastroRows(today);
+    return;
+  }
+
+  try {
+    // Compress image
+    const base64 = await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Falha ao carregar imagem')); };
+      img.src = url;
+    });
+
+    const prompt = `Esta é uma lista diária de doentes de gastroenterologia do Hospital CUF Torres Vedras. Extrai cada linha de doente. Para cada linha extrai: 1) processo: o número de processo (coluna "Nº Benef" ou similar, pode ter formato CCTV/NNNNNN — extrai só os dígitos numéricos); 2) exame: "endo" se for endoscopia/esofagogastroduodenoscopia, "colono" se for colonoscopia, "ambos" se ambos. Ignora texto manuscrito, assinaturas e campos em branco. Se o mesmo número de processo aparecer em 2 linhas com exames diferentes, devolve apenas 1 entrada com exame "ambos". Responde APENAS com JSON válido: [{"processo":"...","exame":"endo|colono|ambos"}]`;
+
+    const response = await fetch('https://medicheck-proxy.goncalo-paulino-pereira.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 800,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+          { type: 'text', text: prompt }
+        ]}]
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || `Erro API ${response.status}`);
+    const text = data.content?.[0]?.text || '';
+    let extracted = [];
+    try { extracted = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch { extracted = []; }
+
+    // Merge entries with same processo
+    const merged = {};
+    extracted.forEach(row => {
+      const key = (row.processo || '').replace(/\D/g,'');
+      if (!key) return;
+      if (!merged[key]) {
+        merged[key] = { processo: key, exame: row.exame || 'endo', procs: [] };
+      } else {
+        const prev = merged[key].exame;
+        if (prev !== row.exame) merged[key].exame = 'ambos';
+      }
+    });
+    gastroRows = Object.values(merged);
+    if (!gastroRows.length) gastroRows = [newGastroRow()];
+  } catch(err) {
+    console.warn('Gastro OCR:', err);
+    gastroRows = [newGastroRow()];
+  }
+  renderGastroRows(today);
+}
+
+function simulateGastroDailyList() {
+  const today = new Date().toISOString().split('T')[0];
+  gastroRows = [
+    { processo: '107953', exame: 'endo', procs: [], _open: false },
+    { processo: '617831', exame: 'ambos', procs: [], _open: false },
+    { processo: '125690', exame: 'colono', procs: [], _open: false },
+    { processo: '714066', exame: 'endo', procs: [], _open: false },
+  ];
+  document.getElementById('gastro-daily-panel').style.display = 'block';
+  document.getElementById('gastro-panel-date').textContent = formatDate(today);
+  renderGastroRows(today);
+  document.getElementById('gastro-daily-panel').scrollIntoView({behavior:'smooth'});
+}
+
+function newGastroRow() {
+  return { processo: '', exame: 'endo', procs: [], _open: false };
+}
+
+function addGastroRow() {
+  const today = new Date().toISOString().split('T')[0];
+  gastroRows.push(newGastroRow());
+  renderGastroRows(today);
+  const panel = document.getElementById('gastro-daily-panel');
+  panel.style.display = 'block';
+  document.getElementById('gastro-panel-date').textContent = formatDate(today);
+}
+
+function removeGastroRow(i) {
+  gastroRows.splice(i, 1);
+  renderGastroRows(new Date().toISOString().split('T')[0]);
+}
+
+function toggleGastroProcs(i) {
+  gastroRows[i]._open = !gastroRows[i]._open;
+  renderGastroRows(new Date().toISOString().split('T')[0]);
+}
+
+function toggleGastroProc(i, nome, cod) {
+  const row = gastroRows[i];
+  const idx = row.procs.findIndex(p => p.cod === cod);
+  if (idx >= 0) { row.procs.splice(idx, 1); }
+  else { row.procs.push({ nome, cod, qty: 1 }); }
+  renderGastroRows(new Date().toISOString().split('T')[0]);
+}
+
+function setGastroProcQty(i, cod, val) {
+  const row = gastroRows[i];
+  const p = row.procs.find(x => x.cod === cod);
+  if (p) p.qty = Math.max(1, Math.min(20, parseInt(val) || 1));
+}
+
+function toggleGastroExamePanel(i) {
+  gastroRows[i]._examOpen = !gastroRows[i]._examOpen;
+  if (gastroRows[i]._examOpen) gastroRows[i]._open = false;
+  renderGastroRows(new Date().toISOString().split('T')[0]);
+}
+
+function setGastroExame(i, exame) {
+  gastroRows[i].exame = exame;
+  gastroRows[i]._examOpen = false;
+  renderGastroRows(new Date().toISOString().split('T')[0]);
+}
+
+function renderGastroRows(today) {
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const exameLabel = {endo:'Endoscopia', colono:'Colonoscopia', ambos:'Endo + Colon'};
+  const html = gastroRows.map((row, i) => `
+    <div class="gastro-row">
+      <div class="gastro-row-top">
+        <input class="gastro-proc-input" placeholder="Nº Processo" value="${esc(row.processo)}"
+          oninput="gastroRows[${i}].processo=this.value" inputmode="numeric"/>
+        <button class="btn btn-ghost btn-sm" onclick="removeGastroRow(${i})" style="color:var(--red);flex-shrink:0;margin-left:auto">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button class="exame-btn active" style="flex:1;justify-content:center" onclick="toggleGastroExamePanel(${i})">
+          ${exameLabel[row.exame]} ▾
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleGastroProcs(${i})" style="white-space:nowrap">
+          ${row.procs.length ? `✏ Editar` : '+ Proc.'}
+        </button>
+      </div>
+      ${row._examOpen ? `
+      <div class="gastro-row-procs">
+        <div class="proc-list-vertical">
+          ${['endo','colono','ambos'].map(e => `
+            <div class="proc-list-item ${row.exame===e?'selected':''}" onclick="setGastroExame(${i},'${e}')">
+              <span class="proc-list-check">${row.exame===e?'✓':''}</span>
+              <span class="proc-list-name">${exameLabel[e]}</span>
+            </div>`).join('')}
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="toggleGastroExamePanel(${i})">
+          ✓ OK
+        </button>
+      </div>` : ''}
+      ${!row._open && !row._examOpen && row.procs.length ? `
+      <div class="proc-summary">
+        ${row.procs.map(p => `<div class="proc-summary-item"><span class="proc-summary-qty">×${p.qty}</span>${esc(p.nome)}</div>`).join('')}
+      </div>` : ''}
+      ${row._open ? `
+      <div class="gastro-row-procs">
+        <div class="proc-list-vertical">
+          ${GASTRO_PROCS.map(p => {
+            const sel = row.procs.find(x=>x.cod===p.cod);
+            return `<div class="proc-list-item ${sel?'selected':''}" onclick="toggleGastroProc(${i},'${esc(p.nome)}','${p.cod}')">
+              <span class="proc-list-check">${sel?'✓':''}</span>
+              <span class="proc-list-name">${esc(p.nome)}</span>
+              ${sel ? `<input class="proc-qty-input" type="number" min="1" max="20" value="${sel.qty}"
+                onchange="setGastroProcQty(${i},'${p.cod}',this.value);event.stopPropagation()" onclick="event.stopPropagation()" inputmode="numeric"/>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="toggleGastroProcs(${i})">
+          ${row.procs.length ? `✓ OK — ${row.procs.length} procedimento${row.procs.length>1?'s':''} seleccionado${row.procs.length>1?'s':''}` : 'Fechar'}
+        </button>
+      </div>` : ''}
+    </div>
+  `).join('');
+  document.getElementById('gastro-rows-container').innerHTML = html || '<div style="color:var(--ink3);font-size:.85rem">Sem linhas. Clica "+ Linha" para adicionar.</div>';
+}
+
+function saveGastroDailyList() {
+  const today = new Date().toISOString().split('T')[0];
+  const mes = today.substring(0, 7);
+  const exameActo = {endo:'Endoscopia Digestiva Alta', colono:'Colonoscopia Total', ambos:'Endoscopia + Colonoscopia'};
+  let saved = 0;
+  gastroRows.forEach(row => {
+    if (!row.processo) return;
+    const acto = exameActo[row.exame] || 'Endoscopia Digestiva Alta';
+    actos.push({
+      processo: row.processo,
+      data: today,
+      acto,
+      tipo: '',
+      codigo: '',
+      seguradora: '',
+      valorEst: 0,
+      mes,
+      procedimentos: row.procs.map(p => ({nome:p.nome, codigo:p.cod, qty:p.qty}))
+    });
+    saved++;
+  });
+  if (!saved) { toast('⚠ Nenhuma linha com nº de processo'); return; }
+  refreshActosTable(); autoSave();
+  document.getElementById('gastro-daily-panel').style.display = 'none';
+  gastroRows = [];
+  toast(`✓ ${saved} ${saved===1?'exame guardado':'exames guardados'}`);
 }
 
 function confirmExtracted(proc, acto, data, tipo, seg) {
@@ -1959,7 +2237,9 @@ function calSelectDay(ds) {
   document.getElementById('cal-day-title').textContent = `${d}/${m}/${y} · ${dayActos.length} acto${dayActos.length!==1?'s':''}`;
   if (!dayActos.length) { detail.style.display='none'; return; }
   document.getElementById('cal-actos-tbody').innerHTML = dayActos.map(a =>
-    `<tr><td class="td-proc">${a.processo}</td><td>${a.acto||'—'}</td><td>${a.seguradora||'—'}</td>
+    `<tr><td class="td-proc">${a.processo}</td>
+     <td>${a.acto||'—'}${a.procedimentos&&a.procedimentos.length?`<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${a.procedimentos.map(p=>`<span style="font-size:.72rem;color:var(--ink3)">×${p.qty} ${p.nome}</span>`).join('')}</div>`:''}</td>
+     <td>${a.seguradora||'—'}</td>
      <td><button class="btn btn-ghost btn-sm" style="color:var(--red);padding:2px 8px" onclick="deleteActo(${a._i});calSelectDay('${ds}')">✕</button></td></tr>`
   ).join('');
   detail.style.display = '';
@@ -2055,6 +2335,25 @@ const ACTOS_BASE = {
   ]
 };
 
+const GASTRO_PROCS = [
+  {nome:'Biopsia Endoscópica', cod:'18000028'},
+  {nome:'Polipectomia com ansa (até 2 pólipos)', cod:'6009959'},
+  {nome:'Cromoscopia endoscópica', cod:'6009904'},
+  {nome:'Anuscopia', cod:'17000009'},
+  {nome:'Polipectomia com ansa (pólipo extra >2)', cod:'6009958'},
+  {nome:'Polipectomia c/ infiltração prévia (até 2)', cod:'6009960'},
+  {nome:'Polipectomia c/ infiltração prévia (>2)', cod:'6009961'},
+  {nome:'Polipectomia c/ pinça a frio (até 4)', cod:'6009962'},
+  {nome:'Mucosectomia', cod:'6008844'},
+  {nome:'Hemostática por Injecção de Fármacos', cod:'6009918'},
+  {nome:'Hemostática c/ Aplicação de Clips', cod:'6009919'},
+  {nome:'Hemostática c/ Argon-plasma', cod:'6009920'},
+  {nome:'Extracção de corpo estranho (endoscópica)', cod:'6000004'},
+  {nome:'Polipectomia c/ pinça a frio (>4)', cod:'6009963'},
+  {nome:'Tatuagem cólica', cod:'6009933'},
+  {nome:'Aplicação de laços', cod:'6009909'},
+];
+
 function refreshActoSuggestions() {
   const sp = userProfile.specialty || 'anestesia';
   let base;
@@ -2074,11 +2373,11 @@ function refreshActosTable() {
   refreshActoSuggestions();
   if (document.getElementById('view-cal') && document.getElementById('view-cal').style.display !== 'none') renderCalendar();
   const n = actos.length;
-  document.getElementById('badge-actos').textContent=n;
+  document.getElementById('badge-actos').textContent='';
   document.getElementById('lista-count').textContent=n+' actos';
   document.getElementById('stat-total').textContent=n;
   const mb=document.getElementById('mob-badge-actos');
-  mb.textContent=n; mb.style.display=n>0?'block':'none';
+  mb.style.display='none';
   const totalEur=actos.reduce((s,a)=>s+(a.valorEst||0),0);
   document.getElementById('lista-total-eur').textContent=totalEur>0?`€ ${totalEur.toFixed(2)} valor total estimado`:'';
   refreshListaHeader();
@@ -2089,7 +2388,7 @@ function refreshActosTable() {
   tbody.innerHTML=filtered.map(a=>`<tr>
     <td class="td-proc">${a.processo}</td>
     <td>${formatDate(a.data)}</td>
-    <td class="td-act">${a.acto}</td>
+    <td class="td-act">${a.acto}${a.procedimentos&&a.procedimentos.length?`<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">${a.procedimentos.map(p=>`<span style="font-size:.72rem;color:var(--ink3)">×${p.qty} ${p.nome}</span>`).join('')}</div>`:''}</td>
     <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
     <td><button class="btn-del" onclick="deleteActo(${a._i})">✕</button></td>
   </tr>`).join('');
