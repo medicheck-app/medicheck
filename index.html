@@ -328,6 +328,27 @@ body::before {
 .chip-outro { background:none;border:1px dashed var(--border);color:var(--ink3); }
 .chip-outro:active,.chip-outro:hover { background:var(--surface2);border-color:var(--ink3);color:var(--ink); }
 
+/* ─── CALENDÁRIO ─── */
+.view-toggle { display:flex;gap:6px;margin-bottom:14px; }
+.view-btn { flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--ink3);font-size:.75rem;cursor:pointer;transition:background .15s; }
+.view-btn.active { background:var(--accent);color:#000;border-color:var(--accent);font-weight:600; }
+.cal-nav { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+.cal-nav-btn { background:none;border:none;color:var(--ink);font-size:1.1rem;cursor:pointer;padding:4px 10px;border-radius:6px; }
+.cal-nav-btn:hover { background:var(--surface2); }
+.cal-month-label { font-family:'IBM Plex Mono',monospace;font-size:.78rem;color:var(--ink);font-weight:600;text-transform:uppercase;letter-spacing:.08em; }
+.cal-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:3px; }
+.cal-dow { font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--ink3);text-align:center;padding:3px 0;text-transform:uppercase; }
+.cal-day { aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:.82rem;color:var(--ink2); }
+.cal-day:hover { background:var(--surface2); }
+.cal-day.has-actos { color:var(--ink);font-weight:600; }
+.cal-day.has-actos::after { content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);position:absolute;bottom:3px; }
+.cal-day.selected { background:var(--accent);color:#000; }
+.cal-day.selected::after { background:#000; }
+.cal-day.today { border:1px solid var(--accent); }
+.cal-day.empty { cursor:default; }
+.cal-day-detail { margin-top:12px;border-top:1px solid var(--border);padding-top:12px; }
+.cal-day-title { font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px; }
+
 /* ─── FORM ─── */
 .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px; }
 .form-group { display:flex;flex-direction:column;gap:5px; }
@@ -837,23 +858,50 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       </div>
 
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div>
             <div class="card-title" style="margin-bottom:0" id="actos-table-title">Actos Registados</div>
             <div style="font-family:'IBM Plex Mono',monospace;font-size:.64rem;color:var(--accent);margin-top:2px" id="lista-total-eur"></div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--ink3)" id="lista-count">0 actos</span>
-            <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">⬇ Template</button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th></th></tr></thead>
-            <tbody id="actos-tbody">
-              <tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>
-            </tbody>
-          </table>
+        <div class="view-toggle">
+          <button class="view-btn" id="view-btn-lista" onclick="switchActosView('lista')">≡ Lista</button>
+          <button class="view-btn active" id="view-btn-cal" onclick="switchActosView('cal')">📅 Calendário</button>
+        </div>
+        <div id="view-lista" style="display:none">
+          <div class="cal-nav" style="margin-bottom:10px">
+            <button class="cal-nav-btn" onclick="listaChangeMonth(-1)">‹</button>
+            <span class="cal-month-label" id="lista-month-label"></span>
+            <button class="cal-nav-btn" onclick="listaChangeMonth(1)">›</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th></th></tr></thead>
+              <tbody id="actos-tbody">
+                <tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="view-cal">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="calChangeMonth(-1)">‹</button>
+            <span class="cal-month-label" id="cal-month-label"></span>
+            <button class="cal-nav-btn" onclick="calChangeMonth(1)">›</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-day-detail" id="cal-day-detail" style="display:none">
+            <div class="cal-day-title" id="cal-day-title"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nº Processo</th><th>Procedimento</th><th>Seguradora</th><th></th></tr></thead>
+                <tbody id="cal-actos-tbody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1332,10 +1380,62 @@ async function finishOnboarding() {
 }
 
 function enterTestMode() {
-  userProfile.name = 'Teste';
+  userProfile.name = 'Gonçalo';
   userProfile.specialty = 'anestesia';
-  encryptionKey = null; // sem encriptação em modo teste
+  encryptionKey = null;
   try { applySpecialty(); } catch(e) { console.warn('applySpecialty:', e); }
+
+  // Dados de teste realistas — Fevereiro e Março 2026 (até 15 Mar)
+  const SEGS = ['Multicare','ADSE','Médis','AdvanceCare','Fidelidade'];
+  const PROCS_BLOCO = [
+    ['Anestesia Geral','Colecistectomia laparoscópica'],
+    ['Anestesia Geral','Prótese total do joelho'],
+    ['Anestesia Geral','Histerectomia laparoscópica'],
+    ['Bloqueio Subaracnoideu','Artroscopia do joelho'],
+    ['Anestesia Geral','Apendicectomia laparoscópica'],
+    ['Bloqueio Epidural','Parto por cesariana'],
+    ['Anestesia Geral','Tiroidectomia total'],
+    ['Bloqueio Axilar','Síndrome do túnel cárpico'],
+    ['Anestesia Geral','Colectomia direita'],
+    ['Bloqueio Subaracnoideu','Hernioplastia inguinal'],
+    ['Anestesia Geral','Nefrectomia laparoscópica'],
+    ['Bloqueio Femoral + Ciático','Osteossíntese do tornozelo'],
+  ];
+  const PROCS_GASTRO = [
+    ['Sedação para Endoscopia','Endoscopia digestiva alta'],
+    ['Sedação para Colonoscopia','Colonoscopia'],
+    ['Sedação para Endoscopia + Colonoscopia','Endoscopia + Colonoscopia'],
+    ['Sedação para Colonoscopia','Colonoscopia com polipectomia'],
+    ['Sedação para Endoscopia','Endoscopia digestiva alta + biópsia'],
+  ];
+  // Dias de bloco operatório em Fev/Mar (tipicamente 2-3x/semana)
+  const diasBloco = [
+    '2026-02-03','2026-02-05','2026-02-10','2026-02-12','2026-02-17',
+    '2026-02-19','2026-02-24','2026-02-26',
+    '2026-03-03','2026-03-05','2026-03-10','2026-03-12'
+  ];
+  // Dias de gastro (1-2x/semana)
+  const diasGastro = [
+    '2026-02-04','2026-02-11','2026-02-18','2026-02-25',
+    '2026-03-04','2026-03-11'
+  ];
+  let proc = 100001;
+  diasBloco.forEach(data => {
+    const n = 3 + Math.floor(Math.random() * 4); // 3-6 cirurgias por dia
+    for (let i = 0; i < n; i++) {
+      const p = PROCS_BLOCO[Math.floor(Math.random() * PROCS_BLOCO.length)];
+      actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+    }
+  });
+  diasGastro.forEach(data => {
+    const n = 4 + Math.floor(Math.random() * 5); // 4-8 exames por dia
+    for (let i = 0; i < n; i++) {
+      const p = PROCS_GASTRO[Math.floor(Math.random() * PROCS_GASTRO.length)];
+      actos.push({processo:String(proc++),data,acto:p[1],tipo:p[0],codigo:'',seguradora:SEGS[Math.floor(Math.random()*SEGS.length)],valorEst:0,mes:data.substring(0,7)});
+    }
+  });
+  refreshActosTable();
+
   const ob = document.getElementById('onboarding');
   ob.style.transition = 'opacity .4s';
   ob.style.opacity = '0';
@@ -1434,6 +1534,7 @@ function switchPanel(name) {
   }
   if (name === 'dashboard') renderDashboard();
   if (name === 'definicoes') loadApiKeyToSettings();
+  if (name === 'actos') { renderCalendar(); calSelectDay(calSelectedDay); }
 }
 
 function toggleManualForm() {
@@ -1599,7 +1700,7 @@ async function handleVignetteUpload(e) {
        ${seg ? `<div><div class="ef-label">Seguradora</div><div class="ef-value">${esc(seg)}</div></div>` : ''}
        ${dataActo !== today ? `<div><div class="ef-label">Data</div><div class="ef-value">${esc(dataActo)}</div></div>` : ''}`;
     if (temDados) {
-      const recentActos = [...new Set(actos.map(a => a.acto).filter(Boolean))].slice(-5).reverse();
+      const recentActos = [...new Set(actos.map(a => a.acto).filter(Boolean))].slice(-3).reverse();
       const chipsHtml = recentActos.length ? `
         <div class="chips-label">Acto rápido</div>
         <div class="chips-row">
@@ -1723,6 +1824,80 @@ function addActo() {
 
 function deleteActo(i) { actos.splice(i,1); refreshActosTable(); autoSave(); }
 
+// ═══════════════════════════════════════
+// CALENDÁRIO
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelectedDay = new Date().toISOString().split('T')[0];
+let listaYear = new Date().getFullYear();
+let listaMonth = new Date().getMonth();
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function listaChangeMonth(d) {
+  listaMonth += d;
+  if (listaMonth > 11) { listaMonth = 0; listaYear++; }
+  if (listaMonth < 0) { listaMonth = 11; listaYear--; }
+  refreshActosTable();
+}
+
+function refreshListaHeader() {
+  const el = document.getElementById('lista-month-label');
+  if (el) el.textContent = MESES_PT[listaMonth] + ' ' + listaYear;
+}
+
+function switchActosView(v) {
+  const isCal = v === 'cal';
+  document.getElementById('view-lista').style.display = isCal ? 'none' : '';
+  document.getElementById('view-cal').style.display = isCal ? '' : 'none';
+  document.getElementById('view-btn-lista').classList.toggle('active', !isCal);
+  document.getElementById('view-btn-cal').classList.toggle('active', isCal);
+  if (isCal) { renderCalendar(); calSelectDay(calSelectedDay); }
+}
+
+function calChangeMonth(d) {
+  calMonth += d;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  calSelectedDay = null;
+  document.getElementById('cal-day-detail').style.display = 'none';
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DIAS = ['D','S','T','Q','Q','S','S'];
+  document.getElementById('cal-month-label').textContent = MESES[calMonth] + ' ' + calYear;
+  const today = new Date().toISOString().split('T')[0];
+  const actoDays = new Set(actos.map(a => a.data).filter(Boolean));
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  let html = DIAS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cls = ['cal-day', actoDays.has(ds)?'has-actos':'', ds===today?'today':'', ds===calSelectedDay?'selected':''].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="calSelectDay('${ds}')">${d}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function calSelectDay(ds) {
+  calSelectedDay = ds;
+  renderCalendar();
+  const dayActos = actos.map((a,i)=>({...a,_i:i})).filter(a => a.data === ds);
+  const detail = document.getElementById('cal-day-detail');
+  const [y,m,d] = ds.split('-');
+  document.getElementById('cal-day-title').textContent = `${d}/${m}/${y} · ${dayActos.length} acto${dayActos.length!==1?'s':''}`;
+  if (!dayActos.length) { detail.style.display='none'; return; }
+  document.getElementById('cal-actos-tbody').innerHTML = dayActos.map(a =>
+    `<tr><td class="td-proc">${a.processo}</td><td>${a.acto||'—'}</td><td>${a.seguradora||'—'}</td>
+     <td><button class="btn btn-ghost btn-sm" style="color:var(--red);padding:2px 8px" onclick="deleteActo(${a._i});calSelectDay('${ds}')">✕</button></td></tr>`
+  ).join('');
+  detail.style.display = '';
+}
+
+
 const ACTOS_BASE = [
   'Anestesia Geral','Anestesia Loco-Regional','Bloqueio Axilar','Bloqueio Femoral',
   'Bloqueio Ciático','Bloqueio Interescalénico','Bloqueio Supraclavicular','Bloqueio Infraclavicular',
@@ -1742,6 +1917,7 @@ function refreshActoSuggestions() {
 
 function refreshActosTable() {
   refreshActoSuggestions();
+  if (document.getElementById('view-cal') && document.getElementById('view-cal').style.display !== 'none') renderCalendar();
   const n = actos.length;
   document.getElementById('badge-actos').textContent=n;
   document.getElementById('lista-count').textContent=n+' actos';
@@ -1750,14 +1926,17 @@ function refreshActosTable() {
   mb.textContent=n; mb.style.display=n>0?'block':'none';
   const totalEur=actos.reduce((s,a)=>s+(a.valorEst||0),0);
   document.getElementById('lista-total-eur').textContent=totalEur>0?`€ ${totalEur.toFixed(2)} valor total estimado`:'';
+  refreshListaHeader();
+  const mesKey = `${listaYear}-${String(listaMonth+1).padStart(2,'0')}`;
+  const filtered = actos.map((a,i)=>({...a,_i:i})).filter(a=>a.data&&a.data.startsWith(mesKey)).reverse();
   const tbody=document.getElementById('actos-tbody');
-  if(!n){tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto registado.</div></div></td></tr>`;return;}
-  tbody.innerHTML=actos.map((a,i)=>`<tr>
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Nenhum acto em ${MESES_PT[listaMonth]}.</div></div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(a=>`<tr>
     <td class="td-proc">${a.processo}</td>
     <td>${formatDate(a.data)}</td>
     <td class="td-act">${a.acto}</td>
     <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
-    <td><button class="btn-del" onclick="deleteActo(${i})">✕</button></td>
+    <td><button class="btn-del" onclick="deleteActo(${a._i})">✕</button></td>
   </tr>`).join('');
 }
 
