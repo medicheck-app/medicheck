@@ -1226,7 +1226,7 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
       <div class="card">
         <div class="card-title">Custo estimado</div>
         <div class="card-sub">Cada foto de vinheta analisada custa aproximadamente <strong style="color:var(--accent)">€ 0,01</strong>. Para 100 fotos por mês são menos de €1.</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3);margin-top:8px">Modelo: claude-sonnet-4-5 · Vision API</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3);margin-top:8px">Modelo: claude-sonnet-4-6 · Vision API</div>
       </div>
     </div>
 
@@ -1968,6 +1968,7 @@ async function handleGastroDailyList(file) {
   } catch(err) {
     console.warn('Gastro OCR:', err);
     gastroRows = [newGastroRow()];
+    toast('⚠ Não consegui ler a lista — tenta de novo ou adiciona manualmente');
   }
   renderGastroRows(today);
 }
@@ -1987,7 +1988,7 @@ function simulateGastroDailyList() {
 }
 
 function newGastroRow() {
-  return { processo: '', exame: 'endo', procs: [], _open: false };
+  return { processo: '', exame: 'endo', procs: [], _open: false, seguradora: '' };
 }
 
 function addGastroRow() {
@@ -2059,6 +2060,11 @@ function renderGastroRows(today) {
           ${row.procs.length ? `✏ Editar` : '+ Proc.'}
         </button>
       </div>
+      <select style="width:100%;margin-top:6px;padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--ink);font-size:.8rem"
+        onchange="gastroRows[${i}].seguradora=this.value">
+        <option value="" ${!row.seguradora?'selected':''}>— Seguradora —</option>
+        ${['Multicare','Médis','Tranquilidade','Allianz','Fidelidade','Victoria','ADSE','Sams/Sbl','Sams Quadros','Meo Acs','Mudum / Gnb','Lusitânia','Real Vida','Montepio','CGD','Future Healthcare','Safecare','Plan+Cuf','Particulares'].map(s=>`<option value="${s}" ${row.seguradora===s?'selected':''}>${s}</option>`).join('')}
+      </select>
       ${row._examOpen ? `
       <div class="gastro-row-procs">
         <div class="proc-list-vertical">
@@ -2112,9 +2118,9 @@ function saveGastroDailyList() {
       acto,
       tipo: '',
       codigo: '',
-      seguradora: '',
+      seguradora: row.seguradora || '',
       nomePaciente: row.nome || '',
-      valorEst: 0,
+      valorEst: estimarValor(acto, '', ''),
       mes,
       procedimentos: row.procs.map(p => ({nome:p.nome, codigo:p.cod, qty:p.qty})),
       status: 'registado'
@@ -2129,6 +2135,8 @@ function saveGastroDailyList() {
 }
 
 function confirmExtracted(proc, acto, data, tipo, seg, nome) {
+  const dup = proc && data && actos.some(a => norm(a.processo)===norm(proc) && a.data===data);
+  if (dup && !confirm('Já existe um acto com este nº de processo para esta data.\nGuardar mesmo assim?')) return;
   actos.push({processo:proc,data,acto,tipo,codigo:'',seguradora:seg,nomePaciente:nome||'',valorEst:0,mes:data.substring(0,7),status:'registado'});
   refreshActosTable(); autoSave();
   document.getElementById('extracted-box').style.display='none';
@@ -2221,6 +2229,10 @@ function addActo() {
   const seg = document.getElementById('f-seguradora').value;
   const nome = document.getElementById('f-nome').value.trim();
   if (!proc||!data||!acto) { alert('Preenche Nº Processo, Data e Acto.'); return; }
+  if (_editingActoIdx < 0) {
+    const dup = actos.some(a => norm(a.processo)===norm(proc) && a.data===data);
+    if (dup && !confirm('Já existe um acto com este nº de processo para esta data.\nGuardar mesmo assim?')) return;
+  }
   if (_editingActoIdx >= 0) {
     const existing = actos[_editingActoIdx];
     actos[_editingActoIdx] = {...existing, processo:proc, data, acto, tipo, seguradora:seg, nomePaciente:nome, mes:data.substring(0,7)};
@@ -2860,7 +2872,7 @@ function buildReport(){
     t += '\n── ' + mesLabel + ' ──\n';
     actosMes.forEach(a => {
       const data = a.data ? new Date(a.data+'T00:00:00').toLocaleDateString('pt-PT') : '—';
-      t += data + ' — ' + (a.nomePaciente||'—') + ' — Proc. ' + (a.processo||'—') + ' — ' + (a.acto||'—') + '\n';
+      t += data + (a.nomePaciente ? ' — ' + a.nomePaciente : '') + ' — Proc. ' + (a.processo||'—') + ' — ' + (a.acto||'—') + '\n';
     });
   });
   document.getElementById('report-text').textContent = t;
@@ -3050,7 +3062,7 @@ function downloadTemplate(){
 // ═══════════════════════════════════════
 // API KEY — SUBSTITUIR ANTES DE PUBLICAR
 // ═══════════════════════════════════════
-const ANTHROPIC_API_KEY = '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';
+const ANTHROPIC_API_KEY = ''; // OCR passa pelo Cloudflare Worker — key guardada lá
 
 const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
 const DRIVE_FILE_NAME  = 'medicheck_v3_data.enc';
