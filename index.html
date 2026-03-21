@@ -1035,36 +1035,32 @@ hr.divider { border:none;border-top:1px solid var(--border);margin:18px 0; }
 
     <!-- ══ PANEL: RELATÓRIO ══ -->
     <div id="panel-relatorio" class="panel">
-      <div id="report-empty" class="card">
-        <div class="empty"><div class="empty-icon">↗</div><div class="empty-text">Reconcilia primeiro para gerar o relatório.</div><br><button class="btn btn-ghost" onclick="switchPanel('reconciliar')">Ir para Reconciliação</button></div>
+      <div id="report-empty" class="card" style="display:none">
+        <div class="empty">
+          <div class="empty-icon" style="font-size:1.6rem">✓</div>
+          <div class="empty-text">Sem actos em falta — tudo reconciliado ✓</div>
+          <br><button class="btn btn-ghost" onclick="switchPanel('reconciliar')">Voltar à Reconciliação</button>
+        </div>
       </div>
       <div id="report-content" style="display:none">
-        <div class="btn-row" style="margin-bottom:16px">
-          <button class="btn btn-primary" onclick="exportReport()">⬇ Exportar TXT</button>
-          <button class="btn btn-ghost" onclick="copyReport()">⎘ Copiar</button>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:2px" id="report-count-title">0 actos em falta</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink3)" id="report-meta-line">—</div>
         </div>
-        <div style="border-radius:var(--r);overflow:hidden">
-          <div class="report-header">
-            <div>
-              <div class="report-title">Honorários em Falta</div>
-              <div class="report-meta-line" id="report-meta-line">—</div>
-            </div>
-            <div style="text-align:right">
-              <div class="report-count-num" id="report-count-big">0</div>
-              <div id="report-count-eur" style="display:none"></div>
-              <div class="report-count-label">actos em falta</div>
-            </div>
-          </div>
-          <div class="report-body">
-            <table>
-              <thead><tr><th>#</th><th>Nº Processo</th><th>Data</th><th>Procedimento</th><th>Seguradora</th><th>Recuperado</th></tr></thead>
-              <tbody id="report-tbody"></tbody>
-            </table>
-          </div>
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
+          <pre id="report-text" style="margin:0;padding:16px 18px;font-family:'IBM Plex Mono',monospace;font-size:.72rem;line-height:1.8;white-space:pre-wrap;color:var(--ink2);background:transparent;border:none"></pre>
         </div>
-        <div class="note-card">
-          <div class="note-card-label">⚠ Para envio</div>
-          <div class="note-card-text" id="report-note">Para a <strong style="color:var(--ink)">Direcção Clínica / Gestão</strong> da CUF Torres Vedras — rectificação de honorários em falta. Dados pessoais omitidos.</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary" id="btn-copy-report" onclick="copyReportText()" style="width:100%;padding:14px;font-size:1rem;font-weight:600">⎘ Copiar para Clipboard</button>
+          <button class="btn btn-ghost" id="btn-share-report" style="display:none;width:100%" onclick="shareReport()">↗ Partilhar</button>
+        </div>
+        <div id="report-marcar-card" class="card" style="display:none;border-color:var(--amber);background:rgba(255,180,0,.04);margin-top:12px">
+          <div style="font-weight:600;color:var(--amber);margin-bottom:6px" id="report-marcar-title">Marcar estes actos como Reclamado?</div>
+          <div style="font-size:.78rem;color:var(--ink3);margin-bottom:12px">Após enviar a reclamação, os actos ficam com status "Reclamado" até a CUF confirmar o pagamento.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="marcarTodosReclamados()" style="flex:1">Sim, marcar</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('report-marcar-card').style.display='none'" style="flex:1">Não</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1717,6 +1713,7 @@ function switchPanel(name) {
     document.getElementById('topbar-meta').textContent = m.meta();
   }
   if (name === 'dashboard') renderDashboard();
+  if (name === 'relatorio') buildReport();
   if (name === 'definicoes') loadApiKeyToSettings();
   if (name === 'actos') { renderCalendar(); calSelectDay(calSelectedDay); }
 }
@@ -2835,67 +2832,72 @@ function loadDemo(){
 // REPORT
 // ═══════════════════════════════════════
 function buildReport(){
-  if(!missingActos.length){
-    document.getElementById('report-empty').innerHTML=`<div class="empty"><div class="empty-icon">✓</div><div class="empty-text" style="color:var(--green);font-weight:600">Todos os actos estão pagos!</div></div>`;
+  const emFalta = actos.filter(a => a.status === 'em_falta');
+  if(!emFalta.length){
     document.getElementById('report-empty').style.display='block';
     document.getElementById('report-content').style.display='none';
     return;
   }
-  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
-  const totalRec=missingActos.filter(a=>recuperados.has(a.processo)).reduce((s,a)=>s+(a.valorEst||0),0);
-  const now=new Date();
-  document.getElementById('report-meta-line').textContent=
-    `${userProfile.name||'Dr.'} · CUF Torres Vedras · ${now.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})} · ${now.toLocaleDateString('pt-PT')}`;
-  document.getElementById('report-count-big').textContent=missingActos.filter(a=>!recuperados.has(a.processo)).length;
-  document.getElementById('report-tbody').innerHTML=missingActos.map((a,i)=>{
-    const rec=recuperados.has(a.processo);
-    return`<tr style="${rec?'opacity:.45':''}">
-    <td style="color:var(--ink3)">${i+1}</td>
-    <td class="td-proc">${a.processo}</td><td>${formatDate(a.data)}</td>
-    <td class="td-act">${a.acto}</td>
-    <td>${a.seguradora?`<span class="badge badge-seg">${a.seguradora}</span>`:'—'}</td>
-    <td>${rec
-      ? `<span class="badge badge-ok">✓ Recuperado</span>`
-      : `<button class="btn btn-green btn-sm" style="font-size:.68rem;padding:4px 9px" onclick="marcarRecuperado('${a.processo}')">✓ Recuperei</button>`
-    }</td>
-  </tr>`}).join('');
-  document.getElementById('report-note').innerHTML=SP_CONFIG[userProfile.specialty]?.reportNote||'Para a Direcção Clínica da CUF Torres Vedras.';
-  document.getElementById('report-empty').style.display='none';
-  document.getElementById('report-content').style.display='block';
-}
-
-function marcarRecuperado(proc){
-  recuperados.add(proc);
-  autoSave();
-  buildReport();
-  const rec=missingActos.filter(a=>recuperados.has(a.processo));
-  toast(`✓ ${rec.length} acto(s) recuperado(s)`);
-}
-
-function exportReport(){
-  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
-  const now=new Date();
-  const sp=SP_CONFIG[userProfile.specialty];
-  let t=`RELATÓRIO DE HONORÁRIOS EM FALTA\n${sp?.name||'Medicina'} — Hospital CUF Torres Vedras\n${userProfile.name||'Dr.'}\n${now.toLocaleDateString('pt-PT')} ${now.toLocaleTimeString('pt-PT')}\n${'─'.repeat(60)}\n\n`;
-  t+=`Actos realizados: ${actos.length} | Pagos: ${actos.length-missingActos.length} | EM FALTA: ${missingActos.length}\n\n${'─'.repeat(60)}\n\n`;
-  missingActos.forEach((a,i)=>{
-    t+=`${i+1}. ${a.processo} · ${formatDate(a.data)}\n   ${a.acto}`;
-    if(a.tipo)t+=` (${a.tipo})`;
-    if(a.seguradora)t+=` · ${a.seguradora}`;
-    if(a.valorEst>0)t+=` · ~ € ${a.valorEst.toFixed(2)} (est.)`;
-    t+='\n\n';
+  const now = new Date();
+  const nomeMedico = userProfile.name || 'Dr.';
+  const byMes = {};
+  emFalta.forEach(a => {
+    const mes = a.data ? a.data.substring(0,7) : 'sem-data';
+    if(!byMes[mes]) byMes[mes] = [];
+    byMes[mes].push(a);
   });
-  t+=`${'─'.repeat(60)}\nTotal estimado a reclamar: ~ € ${totalEur.toFixed(2)}\n(Valores estimados pela tabela de honorários CUF — os valores reais constam das faturas.)\nSolicita-se rectificação dos honorários correspondentes.\n`;
-  const blob=new Blob([t],{type:'text/plain;charset=utf-8'});
-  const el=document.createElement('a');el.href=URL.createObjectURL(blob);
-  el.download=`MediCheck_${new Date().toISOString().split('T')[0]}.txt`;el.click();
+  const mesesOrdenados = Object.keys(byMes).sort((a,b) => b.localeCompare(a));
+  let t = nomeMedico + '\n' + 'Gerado em ' + now.toLocaleDateString('pt-PT') + '\n' + emFalta.length + ' acto' + (emFalta.length!==1?'s':'') + ' em falta\n';
+  mesesOrdenados.forEach(mes => {
+    const actosMes = byMes[mes].slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+    let mesLabel = mes;
+    if(mes !== 'sem-data'){
+      const parts = mes.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, 1);
+      mesLabel = d.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+      mesLabel = mesLabel.charAt(0).toUpperCase() + mesLabel.slice(1);
+    }
+    t += '\n── ' + mesLabel + ' ──\n';
+    actosMes.forEach(a => {
+      const data = a.data ? new Date(a.data+'T00:00:00').toLocaleDateString('pt-PT') : '—';
+      t += data + ' — ' + (a.nomePaciente||'—') + ' — Proc. ' + (a.processo||'—') + ' — ' + (a.acto||'—') + '\n';
+    });
+  });
+  document.getElementById('report-text').textContent = t;
+  document.getElementById('report-meta-line').textContent = nomeMedico + ' · ' + now.toLocaleDateString('pt-PT');
+  document.getElementById('report-count-title').textContent = emFalta.length + ' acto' + (emFalta.length!==1?'s':'') + ' em falta';
+  document.getElementById('report-marcar-card').style.display = 'none';
+  document.getElementById('btn-copy-report').textContent = '⎘ Copiar para Clipboard';
+  document.getElementById('btn-share-report').style.display = navigator.share ? 'block' : 'none';
+  document.getElementById('report-empty').style.display = 'none';
+  document.getElementById('report-content').style.display = 'block';
 }
 
-function copyReport(){
-  const totalEur=missingActos.reduce((s,a)=>s+(a.valorEst||0),0);
-  let t=`*HONORÁRIOS EM FALTA — CUF Torres Vedras*\n${userProfile.name||'Dr.'} · ${new Date().toLocaleDateString('pt-PT')}\nTotal estimado: ~ € ${totalEur.toFixed(2)} _(valores estimados pela tabela CUF)_\n\n`;
-  missingActos.forEach((a,i)=>{t+=`${i+1}. ${a.processo} | ${formatDate(a.data)} | ${a.acto}${a.seguradora?' | '+a.seguradora:''}${(a.valorEst||0)>0?' | ~ € '+(a.valorEst||0).toFixed(2):''}\n`;});
-  navigator.clipboard.writeText(t).then(()=>toast('⎘ Copiado'));
+function copyReportText(){
+  const t = document.getElementById('report-text').textContent;
+  navigator.clipboard.writeText(t).then(() => {
+    const btn = document.getElementById('btn-copy-report');
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => { btn.textContent = '⎘ Copiar para Clipboard'; }, 2000);
+    document.getElementById('report-marcar-card').style.display = 'block';
+  });
+}
+
+function shareReport(){
+  const t = document.getElementById('report-text').textContent;
+  if(!navigator.share) return;
+  navigator.share({ title: 'Honorários em Falta — CUF', text: t })
+    .then(() => { document.getElementById('report-marcar-card').style.display = 'block'; })
+    .catch(() => {});
+}
+
+function marcarTodosReclamados(){
+  let count = 0;
+  actos.forEach((a,i) => { if(a.status==='em_falta'){ actos[i].status='reclamado'; count++; } });
+  autoSave();
+  refreshActosTable();
+  buildReport();
+  toast('✓ ' + count + ' acto' + (count!==1?'s':'') + ' marcado' + (count!==1?'s':'') + ' como Reclamado');
 }
 
 // ═══════════════════════════════════════
