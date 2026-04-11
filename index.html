@@ -48,11 +48,11 @@
     .hdr h1 { font-size: 1.1rem; font-weight: 600; flex: 1; }
     .hdr-back {
       background: none; border: none; color: var(--accent);
-      font-size: 1rem; cursor: pointer; padding: 8px 4px 8px 0; min-width: 60px;
+      font-size: 1rem; cursor: pointer; padding: 10px 8px 10px 0; min-width: 64px; min-height: 44px;
     }
     .hdr-action {
       background: none; border: none; color: var(--ink2);
-      font-size: 0.85rem; cursor: pointer; padding: 8px 0;
+      font-size: 0.9rem; cursor: pointer; padding: 10px 0; min-height: 44px;
     }
 
     /* ── LOGIN ── */
@@ -282,10 +282,9 @@
     }
     .ocr-icon { font-size: 4rem; }
     .ocr-hint { color: var(--ink2); font-size: 0.9rem; text-align: center; line-height: 1.5; }
-    .ocr-status {
-      font-size: 0.85rem; color: var(--accent); text-align: center;
-      min-height: 20px; display: flex; align-items: center; gap: 8px;
-    }
+    .ocr-status { min-height: 24px; text-align: center; }
+    .ocr-loading { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--accent); justify-content: center; }
+    .ocr-error { font-size: 0.88rem; color: var(--red); background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); border-radius: 10px; padding: 12px 16px; line-height: 1.5; }
     .ocr-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 0 24px calc(var(--sb) + 24px); flex-shrink: 0; }
 
     /* ── Detail ── */
@@ -588,6 +587,10 @@
           <div id="proc-sugg-list" class="proc-sugg-list"></div>
         </div>
       </div>
+      <div class="field">
+        <label>Notas <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(opcional)</span></label>
+        <textarea id="f-notas" rows="2" placeholder="Ex: doente com alergias, cirurgia complicada…" style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--ink);border-radius:var(--radius);padding:12px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
       <button class="btn-p" onclick="saveAct()">Guardar acto</button>
     </div>
   </div>
@@ -611,13 +614,18 @@
     </div>
     <div class="settings-body">
       <div class="settings-section">
-        <h3>OCR (Gemini Flash)</h3>
-        <p style="font-size:0.85rem;color:var(--ink2)">OCR processado pelo servidor — a API key está guardada de forma segura no Cloudflare Worker.</p>
-      </div>
-      <div class="settings-section" style="padding-top:8px;border-top:1px solid var(--border)">
         <h3>Conta</h3>
         <div style="font-size:0.9rem;color:var(--ink2);margin-bottom:14px" id="s-user"></div>
+        <button class="btn-s" style="margin-bottom:10px" onclick="changePIN()">🔒 Alterar PIN</button>
         <button class="btn-logout" onclick="logout()">Sair da conta</button>
+      </div>
+      <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
+        <h3>Privacidade</h3>
+        <p style="font-size:0.82rem;color:var(--ink2);line-height:1.6">Os teus dados são encriptados com AES-256 no próprio dispositivo antes de serem guardados no Google Drive. O PIN nunca sai do dispositivo. As imagens enviadas para OCR são processadas temporariamente e não são guardadas.</p>
+      </div>
+      <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
+        <h3>OCR</h3>
+        <p style="font-size:0.82rem;color:var(--ink2)">Gemini Flash via Cloudflare Worker — API key guardada de forma segura no servidor.</p>
       </div>
     </div>
   </div>
@@ -831,6 +839,9 @@ function showPinScreen(mode) {
   if (mode === 'create') {
     document.getElementById('pin-heading').textContent = 'Criar PIN';
     document.getElementById('pin-sub').textContent = 'Escolhe um PIN de 4 dígitos para proteger os teus dados';
+  } else if (mode === 'change') {
+    document.getElementById('pin-heading').textContent = 'Novo PIN';
+    document.getElementById('pin-sub').textContent = 'Escolhe um novo PIN de 4 dígitos';
   } else {
     document.getElementById('pin-heading').textContent = firstName ? 'Olá, ' + firstName : 'Introduz o PIN';
     document.getElementById('pin-sub').textContent = 'Introduz o teu PIN para desbloquear';
@@ -866,6 +877,28 @@ async function handlePin() {
     } else {
       document.getElementById('pin-error').textContent = 'PIN incorrecto. Tenta novamente.';
       pinBuf = ''; updatePinDots();
+    }
+  } else if (pinMode === 'change') {
+    if (!pinConfirm) {
+      pinConfirm = pinBuf; pinBuf = '';
+      document.getElementById('pin-heading').textContent = 'Confirmar novo PIN';
+      document.getElementById('pin-sub').textContent = 'Repete o novo PIN para confirmar';
+      updatePinDots();
+    } else {
+      if (pinBuf !== pinConfirm) {
+        document.getElementById('pin-error').textContent = 'Os PINs não coincidem. Tenta de novo.';
+        pinBuf = ''; pinConfirm = '';
+        document.getElementById('pin-heading').textContent = 'Novo PIN';
+        document.getElementById('pin-sub').textContent = 'Escolhe um novo PIN de 4 dígitos';
+        updatePinDots();
+        return;
+      }
+      setSyncing(true, 'A guardar novo PIN…');
+      encKey = await deriveKey(pinBuf);
+      await saveToDrive();
+      setSyncing(false, '');
+      toast('PIN alterado com sucesso!');
+      showScreen('screen-dashboard');
     }
   } else {
     // create mode
@@ -1061,9 +1094,33 @@ function handleFile(e) {
   img.src = url;
 }
 
+function ocrErrorMsg(msg) {
+  if (!msg) return 'Erro desconhecido. Tenta novamente.';
+  if (/high demand|overloaded|503|quota/i.test(msg))
+    return 'O Gemini está sobrecarregado. Aguarda 30 segundos e tenta novamente.';
+  if (/fetch|network|failed to fetch|networkerror/i.test(msg))
+    return 'Sem ligação. Verifica a internet e tenta novamente.';
+  if (/401|403|unauthorized/i.test(msg))
+    return 'Erro de autenticação. Sai e volta a entrar na conta.';
+  if (/inválida|invalid/i.test(msg))
+    return 'Não foi possível ler a vinheta. Tenta com melhor iluminação ou introduz manualmente.';
+  return 'Não foi possível ler a vinheta. Tenta novamente ou introduz manualmente.';
+}
+
+function setOcrLoading(on) {
+  const statusEl = document.getElementById('ocr-status');
+  const btns = document.querySelectorAll('.ocr-btns button');
+  if (on) {
+    statusEl.innerHTML = `<div class="ocr-loading"><div class="spin" style="width:20px;height:20px;border-width:3px"></div><span>A extrair dados com Gemini Flash…</span></div>`;
+    btns.forEach(b => b.disabled = true);
+  } else {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
 async function processOCR(b64) {
   const statusEl = document.getElementById('ocr-status');
-  statusEl.innerHTML = '<div class="spin"></div> A ler vinheta com IA…';
+  setOcrLoading(true);
 
   const prompt = `Esta é uma fotografia de uma vinheta de identificação de paciente de um hospital português.
 Extrai APENAS os seguintes campos e responde em JSON puro (sem markdown, sem texto adicional):
@@ -1089,18 +1146,17 @@ Se um campo não for legível, usa null.`;
     const result = await r.json();
     if (result.error) throw new Error(result.error.message || JSON.stringify(result.error));
     const text = result?.candidates?.[0]?.content?.parts?.find(p => !p.thought)?.text || '';
-    // Extract JSON object from response (handles code blocks and extra text)
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Resposta inválida do OCR: ' + text.slice(0, 100));
+    if (!match) throw new Error('inválida');
     const data = JSON.parse(match[0]);
+    setOcrLoading(false);
     statusEl.innerHTML = '';
-    toast('Vinheta lida!');
+    toast('Vinheta lida com sucesso!');
     openNewAct(data);
   } catch(e) {
-    const msg = e?.message || 'erro desconhecido';
     console.error('OCR error:', e);
-    statusEl.innerHTML = `<span style="color:var(--red)">Erro: ${msg}</span>`;
-    // keep error visible — don't auto-navigate
+    setOcrLoading(false);
+    statusEl.innerHTML = `<div class="ocr-error">⚠️ ${ocrErrorMsg(e?.message)}</div>`;
   }
 }
 
@@ -1177,6 +1233,7 @@ function openNewAct(ocr) {
   document.getElementById('f-data').value         = today();
   document.getElementById('f-especialidade').value = '';
   document.getElementById('f-procedimento').value  = '';
+  document.getElementById('f-notas').value          = '';
   setTipo('cirurgica');
   showScreen('screen-new-act');
   initProcSuggestions();
@@ -1197,6 +1254,7 @@ function saveAct() {
     tipo,
     especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
     procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
+    notas:        document.getElementById('f-notas').value.trim() || null,
     valor:        null,
     status:       'registado',
     criadoEm:     new Date().toISOString(),
@@ -1517,6 +1575,10 @@ window.showScreen = function(id) {
 
 function saveSettings() {
   toast('Definições guardadas'); showScreen('screen-dashboard');
+}
+
+function changePIN() {
+  showPinScreen('change');
 }
 
 function logout() {
