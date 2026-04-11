@@ -146,7 +146,7 @@
     .cal-grid-wrap { padding: 4px 0; flex-shrink: 0; }
     .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; }
     .cal-wd { text-align: center; font-size: 0.65rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; }
-    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); row-gap: 2px; }
+    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); row-gap: 2px; grid-auto-rows: 46px; }
     .cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 46px; cursor: pointer; gap: 4px; -webkit-tap-highlight-color: transparent; }
     .cal-cell.empty { cursor: default; pointer-events: none; }
     .cal-cell-num { font-size: 0.88rem; color: var(--ink3); line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
@@ -333,6 +333,32 @@
       font-size: 0.9rem; padding: 14px; border-radius: var(--radius); cursor: pointer; width: 100%;
     }
 
+    /* ── Relatório ── */
+    .rel-section { display: flex; flex-direction: column; gap: 8px; }
+    .rel-section h3 { font-size: 0.75rem; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; }
+    .rel-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rel-card {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .rel-card-val { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .rel-card-lbl { font-size: 0.75rem; color: var(--ink3); }
+    .rel-card.c-pago    .rel-card-val { color: var(--green); }
+    .rel-card.c-reclamado .rel-card-val { color: var(--accent); }
+    .rel-card.c-falta   .rel-card-val { color: var(--red); }
+    .rel-card.c-total   .rel-card-val { color: var(--ink); }
+    .rel-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .rel-row:last-child { border-bottom: none; }
+    .rel-row-lbl { color: var(--ink2); }
+    .rel-row-val { color: var(--ink); font-weight: 600; }
+    .rel-box { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 14px; }
+    .btn-export {
+      background: var(--green); color: #000; border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 700; padding: 16px; cursor: pointer; width: 100%;
+      margin-top: 8px;
+    }
+    .btn-export:active { opacity: 0.85; }
+
     /* ── Toast ── */
     #toast {
       position: fixed; bottom: calc(var(--sb) + 90px); left: 50%; transform: translateX(-50%);
@@ -366,6 +392,7 @@
       .cal-nav { padding: 12px 16px; }
       .cal-grid-wrap { padding: 12px 16px 8px; }
       .cal-cell { min-height: 52px; }
+      .cal-days { grid-auto-rows: 52px; }
       .cal-cell-num { font-size: 1rem; }
 
       /* Layout 2 colunas: calendário | painel */
@@ -471,6 +498,7 @@
       <button class="main-tab"        id="mtab-cruzar"       onclick="switchTab('cruzar')">Cruzar dados</button>
       <button class="main-tab"        id="mtab-reclamar"     onclick="switchTab('reclamar')">Reclamar</button>
       <button class="main-tab"        id="mtab-pagamentos"   onclick="switchTab('pagamentos')">Pagamentos</button>
+      <button class="main-tab"        id="mtab-relatorio"    onclick="switchTab('relatorio')">Relatório</button>
     </div>
 
     <!-- ── TAB: REGISTAR ── -->
@@ -518,6 +546,11 @@
     <!-- ── TAB: PAGAMENTOS ── -->
     <div class="tab-pane" id="tab-pagamentos">
       <div class="sc-body" id="pagamentos-body"></div>
+    </div>
+
+    <!-- ── TAB: RELATÓRIO ── -->
+    <div class="tab-pane" id="tab-relatorio">
+      <div class="sc-body" id="relatorio-body"></div>
     </div>
   </div>
 
@@ -1335,6 +1368,7 @@ function switchTab(tab) {
   if (tab === 'cruzar')      setTimeout(initDropZone, 0);
   if (tab === 'reclamar')    renderReclamar();
   if (tab === 'pagamentos')  renderPagamentos();
+  if (tab === 'relatorio')   renderRelatorio();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1462,7 +1496,7 @@ function applyCUF() {
   const out = document.getElementById('cruzar-out');
   let html = '<div class="info-box" style="color:var(--green)">Cruzamento aplicado.<br>';
   if (pagos)   html += `${pagos} acto${pagos!==1?'s':''} marcado${pagos!==1?'s':''} como pago. `;
-  if (emFalta) html += `${emFalta} acto${emFalta!==1?'s':''} marcado${emFalta!==1?'s':''} como em falta.`;
+  if (emFalta) html += `<span style="color:var(--red)">${emFalta} acto${emFalta!==1?'s':''} marcado${emFalta!==1?'s':''} como em falta.</span>`;
   html += '</div>';
   out.innerHTML = html;
   toast('Cruzamento concluído');
@@ -1598,6 +1632,109 @@ function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
+}
+
+// ═══════════════════════════════════════════════════
+// RELATÓRIO + EXPORT
+// ═══════════════════════════════════════════════════
+function renderRelatorio() {
+  const body = document.getElementById('relatorio-body');
+  if (!procedimentos.length) {
+    body.innerHTML = '<div class="info-box">Sem dados para apresentar.</div>'; return;
+  }
+
+  // Por especialidade cirúrgica (excluir gastro e anestesia)
+  const porEsp = {};
+  for (const p of procedimentos) {
+    if (p.tipo !== 'cirurgica') continue;
+    const k = p.especialidade || 'Outra';
+    porEsp[k] = (porEsp[k] || 0) + 1;
+  }
+  const espSorted = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
+  const maxEsp = Math.max(...espSorted.map(x => x[1]));
+
+  // Por mês (últimos 12)
+  const porMes = {};
+  for (const p of procedimentos) {
+    const m = (p.data || '').slice(0, 7);
+    if (m) porMes[m] = (porMes[m] || 0) + 1;
+  }
+  const mesSorted = Object.entries(porMes).sort((a,b) => a[0].localeCompare(b[0])).slice(-12);
+  const maxMes = Math.max(...mesSorted.map(x => x[1]));
+  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  body.innerHTML = `
+    <div class="rel-section">
+      <h3>Actos por mês</h3>
+      <div class="rel-box">
+        ${mesSorted.map(([mes, n]) => {
+          const [y, m] = mes.split('-');
+          const label = mesesNomes[parseInt(m,10)-1] + ' ' + y;
+          const pct = Math.round((n / maxMes) * 100);
+          return `<div class="rel-row" style="gap:10px">
+            <span class="rel-row-lbl" style="min-width:64px">${label}</span>
+            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+            </div>
+            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="rel-section">
+      <h3>Por especialidade cirúrgica</h3>
+      <div class="rel-box">
+        ${espSorted.map(([esp, n]) => {
+          const pct = Math.round((n / maxEsp) * 100);
+          return `<div class="rel-row" style="gap:10px">
+            <span class="rel-row-lbl" style="min-width:120px">${esc(esp)}</span>
+            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+            </div>
+            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
+  `;
+}
+
+function exportXLSX() {
+  // Export CSV com BOM UTF-8 — abre directamente no Excel com acentos correctos
+  const cols = ['Data','Paciente','Processo','Tipo','Especialidade','Procedimento','Status','Valor (€)','Reclamado em','Pago em'];
+  const statusLabel = { registado:'Registado', em_falta:'Em falta', reclamado:'Reclamado', pago:'Pago' };
+  const rows = procedimentos
+    .slice()
+    .sort((a,b) => (a.data||'').localeCompare(b.data||''))
+    .map(p => [
+      fmtDate(p.data),
+      p.paciente || '',
+      p.processo || '',
+      p.tipo === 'gastro' ? 'Gastroenterologia' : (p.tipo === 'anestesia' ? 'Anestesiologia' : 'Cirurgia'),
+      p.especialidade || '',
+      p.procedimento || '',
+      statusLabel[p.status] || p.status,
+      p.valor != null ? String(p.valor).replace('.',',') : '',
+      fmtDate(p.reclamadoEm?.slice(0,10)),
+      fmtDate(p.pagoEm?.slice(0,10)),
+    ]);
+
+  const csvContent = [cols, ...rows]
+    .map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(';'))
+    .join('\n');
+
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `medicheck_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Ficheiro exportado');
 }
 
 // DEV BYPASS — aceder com ?dev no URL para saltar login/PIN
