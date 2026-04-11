@@ -256,6 +256,10 @@
     .seg-btn { flex: 1; padding: 13px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 500; background: none; color: var(--ink2); cursor: pointer; transition: all 0.15s; font-family: inherit; }
     .seg-btn.active { background: var(--accent); color: #000; font-weight: 700; }
 
+    /* ── Form groups ── */
+    .form-group { background: var(--bg3); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+    .form-group-lbl { font-size: 0.7rem; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.07em; }
+
     /* ── Forms ── */
     .form-body {
       padding: 20px; display: flex; flex-direction: column; gap: 16px;
@@ -583,45 +587,51 @@
       <h1>Novo acto</h1>
     </div>
     <div class="form-body">
-      <div class="field">
-        <label>Paciente</label>
-        <input type="text" id="f-pac" placeholder="Nome completo" autocomplete="off" autocorrect="off">
-      </div>
-      <div class="field">
-        <label>Nº Processo <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(sem CCTV/)</span></label>
-        <input type="text" id="f-proc" placeholder="Ex: 123456" inputmode="numeric" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Data do acto</label>
-        <input type="date" id="f-data">
-      </div>
-      <div class="field">
-        <label>Tipo de acto</label>
-        <div class="seg-ctrl">
-          <button class="seg-btn active" id="seg-cirurgica" onclick="setTipo('cirurgica')">Cirúrgica</button>
-          <button class="seg-btn" id="seg-gastro" onclick="setTipo('gastro')">Gastro</button>
+      <div class="form-group">
+        <div class="form-group-lbl">Dados do Paciente</div>
+        <div class="field">
+          <label>Paciente</label>
+          <input type="text" id="f-pac" placeholder="Nome completo" autocomplete="off" autocorrect="off">
         </div>
-        <input type="hidden" id="f-tipo" value="cirurgica">
+        <div class="field">
+          <label>Nº Processo <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(sem CCTV/)</span></label>
+          <input type="text" id="f-proc" placeholder="Ex: 123456" inputmode="numeric" autocomplete="off">
+        </div>
       </div>
-      <div class="field" id="field-especialidade">
-        <label>Especialidade (opcional)</label>
-        <select id="f-especialidade">
-          <option value="">Seleccionar…</option>
-          <option>Cirurgia Geral</option>
-          <option>Cirurgia Vascular</option>
-          <option>Ginecologia/Obstetrícia</option>
-          <option>Neurocirurgia</option>
-          <option>Oftalmologia</option>
-          <option>Ortopedia</option>
-          <option>Otorrinolaringologia</option>
-          <option>Urologia</option>
-        </select>
-      </div>
-      <div class="field" id="field-procedimento">
-        <label>Procedimento</label>
-        <div class="proc-sugg-wrap">
-          <input type="text" id="f-procedimento" placeholder="Ex: Artroscopia joelho, Colecistectomia…" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
-          <div id="proc-sugg-list" class="proc-sugg-list"></div>
+      <div class="form-group">
+        <div class="form-group-lbl">Detalhes do Acto</div>
+        <div class="field">
+          <label>Data do acto</label>
+          <input type="date" id="f-data">
+        </div>
+        <div class="field">
+          <label>Tipo de acto</label>
+          <div class="seg-ctrl">
+            <button class="seg-btn active" id="seg-cirurgica" onclick="setTipo('cirurgica')">Cirúrgica</button>
+            <button class="seg-btn" id="seg-gastro" onclick="setTipo('gastro')">Gastro</button>
+          </div>
+          <input type="hidden" id="f-tipo" value="cirurgica">
+        </div>
+        <div class="field" id="field-especialidade">
+          <label>Especialidade (opcional)</label>
+          <select id="f-especialidade">
+            <option value="">Seleccionar…</option>
+            <option>Cirurgia Geral</option>
+            <option>Cirurgia Vascular</option>
+            <option>Ginecologia/Obstetrícia</option>
+            <option>Neurocirurgia</option>
+            <option>Oftalmologia</option>
+            <option>Ortopedia</option>
+            <option>Otorrinolaringologia</option>
+            <option>Urologia</option>
+          </select>
+        </div>
+        <div class="field" id="field-procedimento">
+          <label>Procedimento</label>
+          <div class="proc-sugg-wrap">
+            <input type="text" id="f-procedimento" placeholder="Ex: Artroscopia joelho, Colecistectomia…" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
+            <div id="proc-sugg-list" class="proc-sugg-list"></div>
+          </div>
         </div>
       </div>
       <div class="field">
