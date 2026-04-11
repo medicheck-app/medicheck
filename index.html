@@ -1277,8 +1277,6 @@ function showDetail(id) {
   let actions = '';
   if (p.status === 'em_falta')
     actions += `<button class="btn-p" onclick="changeStatus('${id}','reclamado','Marcado como reclamado')">Marcar como reclamado</button>`;
-  if (p.status === 'reclamado')
-    actions += `<button class="btn-p" style="background:var(--green)" onclick="changeStatus('${id}','pago','Marcado como pago',true)">Marcar como pago ✓</button>`;
   if (p.status === 'registado')
     actions += `<button class="btn-p" style="background:var(--red);color:#fff" onclick="changeStatus('${id}','em_falta','Marcado como em falta')">Marcar como em falta</button>`;
 
@@ -1542,7 +1540,7 @@ function renderPagamentos() {
         </div>
       </div>
       <div class="pag-btns">
-        ${!isPago ? `<button class="btn-p" style="padding:8px 14px;font-size:0.8rem;background:var(--green)" onclick="confirmPago('${esc(p.id)}')">Pago ✓</button>` : ''}
+        ${!isPago ? `<button class="btn-s" style="padding:8px 14px;font-size:0.8rem;width:auto" onclick="confirmPago('${esc(p.id)}')">Confirmar pago</button>` : ''}
       </div>
     </div>`;
   });
@@ -1552,6 +1550,7 @@ function renderPagamentos() {
 function confirmPago(id) {
   const p = procedimentos.find(x => x.id === id);
   if (!p) return;
+  if (!confirm(`Confirmar pagamento de "${p.paciente || 'este acto'}"?`)) return;
   p.status = 'pago'; p.pagoEm = new Date().toISOString();
   autoSave(); renderDashboard(); renderPagamentos();
   toast('Marcado como pago');
