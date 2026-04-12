@@ -106,7 +106,7 @@
     .pin-dot.filled { background: var(--accent); }
     .pin-keypad {
       display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 12px; max-width: 280px; width: 100%;
+      gap: 10px; max-width: 240px; width: 100%;
     }
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
@@ -166,9 +166,8 @@
     .cal-nav-selects { display: flex; gap: 6px; }
     .cal-nav-sel { background: var(--bg3); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: 6px 8px; font-size: 0.9rem; font-family: inherit; cursor: pointer; }
     .cal-grid-wrap { padding: 4px 0; flex-shrink: 0; }
-    .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; }
-    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; }
-    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); row-gap: 2px; grid-auto-rows: 46px; }
+    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); row-gap: 2px; }
+    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 0 8px; border-bottom: 1px solid var(--border); }
     .cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 46px; cursor: pointer; gap: 4px; -webkit-tap-highlight-color: transparent; }
     .cal-cell.empty { cursor: default; pointer-events: none; }
     .cal-cell-num { font-size: 0.88rem; color: var(--ink3); line-height: 1; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
@@ -543,11 +542,6 @@
       <div class="dash-body-split">
         <div class="cal-left">
           <div class="cal-grid-wrap">
-            <div class="cal-weekdays">
-              <div class="cal-wd">Seg</div><div class="cal-wd">Ter</div><div class="cal-wd">Qua</div>
-              <div class="cal-wd">Qui</div><div class="cal-wd">Sex</div><div class="cal-wd">Sáb</div>
-              <div class="cal-wd">Dom</div>
-            </div>
             <div class="cal-days" id="cal-days"></div>
           </div>
         </div>
@@ -836,7 +830,10 @@ async function loadFromDrive(pin) {
     if (!d) return false;
     encKey = key;
     procedimentos = d.procedimentos || [];
-    if (d.userProfile) userProfile = d.userProfile;
+    if (d.userProfile) {
+      if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
+      if (!userProfile.email) userProfile.email = d.userProfile.email || '';
+    }
     saveLocal();
     return true;
   } catch { return false; }
@@ -853,7 +850,10 @@ function loadLocal() {
     const d = JSON.parse(localStorage.getItem('mc2') || 'null');
     if (!d) return false;
     procedimentos = d.procedimentos || [];
-    if (d.userProfile) userProfile = d.userProfile;
+    if (d.userProfile) {
+      if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
+      if (!userProfile.email) userProfile.email = d.userProfile.email || '';
+    }
     return true;
   } catch { return false; }
 }
@@ -1110,8 +1110,10 @@ function renderCalGrid() {
   selMonth.value = mo;
   selYear.value = y;
 
-  // Grelha
-  let cells = '<div class="cal-cell empty"></div>'.repeat(firstDow);
+  // Grelha — cabeçalhos e dias no mesmo grid para alinhamento perfeito
+  let cells = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+    .map(d => `<div class="cal-wd">${d}</div>`).join('');
+  cells += '<div class="cal-cell empty"></div>'.repeat(firstDow);
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${currentMonth}-${String(d).padStart(2,'0')}`;
     const cls = ['cal-cell',
