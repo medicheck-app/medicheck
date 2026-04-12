@@ -111,8 +111,9 @@
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
       color: var(--ink); font-size: 1.4rem; font-weight: 500;
-      padding: 18px; border-radius: var(--radius);
-      cursor: pointer; text-align: center; -webkit-user-select: none;
+      border-radius: var(--radius); aspect-ratio: 1;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; -webkit-user-select: none;
       transition: background 0.15s, transform 0.15s ease-out;
       transform: scale(1);
     }
@@ -1120,7 +1121,7 @@ function renderCalGrid() {
     ].filter(Boolean).join(' ');
     cells += `<div class="${cls}" onclick="selectDay('${ds}')">
       <span class="cal-cell-num">${d}</span>
-      ${daysWithActs.has(ds) ? '<span class="cal-dot"></span>' : ''}
+      <span class="cal-dot"${daysWithActs.has(ds) ? '' : ' style="visibility:hidden"'}></span>
     </div>`;
   }
   document.getElementById('cal-days').innerHTML = cells;
@@ -1678,8 +1679,20 @@ const _origShowScreen = showScreen;
 window.showScreen = function(id) {
   _origShowScreen(id);
   if (id === 'screen-settings') {
-    document.getElementById('s-user').textContent =
-      userProfile.name ? userProfile.name + ' (' + userProfile.email + ')' : userProfile.email || '—';
+    const sUser = document.getElementById('s-user');
+    sUser.textContent = userProfile.name
+      ? userProfile.name + ' (' + userProfile.email + ')'
+      : userProfile.email || '—';
+    // Se o nome estiver vazio, tentar refrescar do Google
+    if (!userProfile.name && googleToken) {
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + googleToken } })
+        .then(r => r.json()).then(info => {
+          if (info.name) { userProfile.name = info.name; userProfile.email = info.email || userProfile.email; autoSave(); }
+          sUser.textContent = userProfile.name
+            ? userProfile.name + ' (' + userProfile.email + ')'
+            : userProfile.email || '—';
+        }).catch(() => {});
+    }
   }
 };
 
@@ -1867,7 +1880,7 @@ function _buildDemoData() {
 
 function activateDemo() {
   isDemoMode  = true;
-  userProfile = { name: 'Dr. André Costa', email: 'andre.costa@cuf.pt' };
+  userProfile = { name: 'Dr. Gonçalo Paulino Pereira', email: 'goncalo.pereira@cuf.pt' };
   procedimentos = _buildDemoData();
   renderDashboard(); showScreen('screen-dashboard');
   document.getElementById('demo-banner').style.display = 'block';
