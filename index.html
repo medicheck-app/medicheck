@@ -116,7 +116,7 @@
       transition: background 0.15s, transform 0.15s ease-out;
       transform: scale(1);
     }
-    .pk:active { background: var(--bg); transform: scale(0.88); transition: background 0.05s, transform 0.05s; }
+    .pk:active, .pk.pressed { background: var(--bg); transform: scale(0.88); transition: background 0.05s, transform 0.05s; }
     .pk:focus { outline: none; }
     .pk.del { font-size: 1rem; color: var(--ink2); }
     .pk.empty { visibility: hidden; pointer-events: none; }
@@ -559,9 +559,9 @@
     <div class="tab-pane" id="tab-cruzar">
       <div class="sc-body">
         <input type="file" id="pdf-input" accept="application/pdf" style="display:none" onchange="handlePDF(event)">
-        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('pdf-input').click()">
+        <div class="drop-zone" id="drop-zone" onclick="handleDropZoneClick()">
           <div class="drop-icon">📄</div>
-          <div class="drop-label">Arrasta o PDF aqui<br><span>ou toca para seleccionar</span></div>
+          <div class="drop-label" id="drop-label">Arrasta o PDF aqui<br><span>ou toca para seleccionar</span></div>
         </div>
         <div id="cruzar-status"></div>
         <div id="cruzar-out"></div>
@@ -703,6 +703,9 @@
         <h3>Demonstração</h3>
         <p style="font-size:0.82rem;color:var(--ink2);margin-bottom:12px">Estás no modo de demonstração. Os dados são fictícios e nunca são guardados.</p>
         <button class="btn-s" onclick="resetDemo()">↺ Reiniciar demonstração</button>
+      </div>
+      <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px">
+        <button class="btn-s" onclick="activateDemo()" style="font-size:0.78rem;color:var(--ink3)">Modo de demonstração</button>
       </div>
     </div>
   </div>
@@ -1454,6 +1457,7 @@ function initDropZone() {
   zone.addEventListener('drop', e => {
     e.preventDefault();
     zone.classList.remove('drag-over');
+    if (isDemoMode) { simulateDemoPDF(); return; }
     const file = e.dataTransfer.files[0];
     if (file?.type === 'application/pdf') processPDFFile(file);
     else toast('Selecciona um ficheiro PDF');
@@ -1842,6 +1846,10 @@ function _buildDemoData() {
     _d('2026-03-12','134556','CLARA ISABEL BARROSO RAMOS CAMPOS','','','em_falta','gastro'),
     _d('2026-03-14','305548','CARLA ALEXANDRA GOMES DOS SANTOS','Cirurgia Vascular','Safenectomia laser endovenosa','em_falta'),
     _d('2026-03-18','234175','HELENA MARIA BRANCO RODRIGUES','Otorrinolaringologia','Turbinectomia bilateral','em_falta'),
+    // REGISTADO — Out/Dez 2025 (antigos, >3 meses — em falta na simulação PDF)
+    _d('2025-10-14','481203','RUTE MARGARIDA FARIA PEREIRA','Cirurgia Geral','Herniorrafia inguinal laparoscópica','registado'),
+    _d('2025-11-06','394817','DAVID MIGUEL SANTOS BAPTISTA','Ortopedia','Osteossíntese de fractura do antebraço','registado'),
+    _d('2025-12-03','562940','FERNANDA EMÍLIA NOBRE LOURENÇO','Ginecologia/Obstetrícia','Laparoscopia diagnóstica','registado'),
     // REGISTADO — Mar/Abr 2026 (recentes, ainda não cruzados)
     _d('2026-03-25','131644','GONÇALO NUNES MURTA DUARTE','Urologia','Cirurgia de hidrocele','registado'),
     _d('2026-03-26','618851','ISABEL MARIA FERREIRA MARTINHO','Ortopedia','Tratamento de doença de Morton','registado'),
@@ -1856,20 +1864,63 @@ function _buildDemoData() {
   ];
 }
 
+function activateDemo() {
+  isDemoMode  = true;
+  userProfile = { name: 'Dr. André Costa', email: 'andre.costa@cuf.pt' };
+  procedimentos = _buildDemoData();
+  renderDashboard(); showScreen('screen-dashboard');
+  document.getElementById('demo-banner').style.display = 'block';
+  document.getElementById('settings-demo-section').style.display = 'block';
+  document.getElementById('drop-label').innerHTML = 'Simular fatura CUF<br><span>(modo demonstração)</span>';
+  toast('Modo de demonstração activado');
+}
+
 function resetDemo() {
   procedimentos = _buildDemoData();
   renderDashboard(); showScreen('screen-dashboard');
   toast('Demonstração reiniciada');
 }
 
+function handleDropZoneClick() {
+  if (isDemoMode) { simulateDemoPDF(); return; }
+  document.getElementById('pdf-input').click();
+}
+
+function simulateDemoPDF() {
+  const status = document.getElementById('cruzar-status');
+  const out    = document.getElementById('cruzar-out');
+  status.innerHTML = '<div class="info-box">A ler PDF… (simulação demo)</div>';
+  out.innerHTML = '';
+  // Texto sintético com layout do PDF CUF:
+  // — processos 131644, 618851, 727643, 123834, 729311 → serão cruzados (registado recente)
+  // — processos 481203, 394817, 562940 NÃO incluídos → aparecerão como em falta (>3 meses)
+  // — processos pagos/reclamados incluídos mas ignorados pelo filtro (status !== 'registado')
+  const fakeText = [
+    '131644 GONÇALO NUNES MURTA DUARTE  35.00',
+    '618851 ISABEL MARIA FERREIRA MARTINHO  28.50',
+    '727643 BELMIRO AURÉLIO DE SOUSA  42.00',
+    '123834 SANTIAGO FERREIRA MANUEL  31.00',
+    '729311 LUÍSA DE FREITAS CARDOSO  55.00',
+    '712572 PAULO FRANCISCO VIEIRA DE SOUSA  180.00',
+    '556906 CAETANA ALVES LOURENÇO  95.00',
+  ].join('\n');
+  setTimeout(() => processCUFText(fakeText, status, out), 600);
+}
+
+// Feedback táctil PIN — pointerdown/up para iOS Safari (fiável com transform)
+document.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('.pk');
+  if (btn) btn.classList.add('pressed');
+});
+['pointerup', 'pointercancel'].forEach(ev =>
+  document.addEventListener(ev, () =>
+    document.querySelectorAll('.pk.pressed').forEach(b => b.classList.remove('pressed'))
+  )
+);
+
 if (new URLSearchParams(location.search).has('dev')) {
-  isDemoMode    = true;
-  userProfile   = { name: 'Dr. André Costa', email: 'andre.costa@cuf.pt' };
-  procedimentos = _buildDemoData();
-  renderDashboard(); showScreen('screen-dashboard');
   document.documentElement.classList.remove('is-dev-loading');
-  document.getElementById('demo-banner').style.display = 'block';
-  document.getElementById('settings-demo-section').style.display = 'block';
+  activateDemo();
 }
 </script>
 </body>
