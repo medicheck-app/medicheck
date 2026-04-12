@@ -7,6 +7,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0d0d12">
   <title>MediCheck</title>
+  <script>if(new URLSearchParams(location.search).has('dev'))document.documentElement.classList.add('is-dev','is-dev-loading');</script>
+  <style>
+    .is-dev #screen-login{display:none!important}
+    .is-dev-loading #screen-dashboard{display:flex!important}
+  </style>
+  <link rel="apple-touch-icon" href="Gemini_Generated_Image_bbyfcwbbyfcwbbyf.png">
+  <link rel="icon" type="image/png" href="Gemini_Generated_Image_bbyfcwbbyfcwbbyf.png">
   <style>
     :root {
       --bg:      #0d0d12;
@@ -64,7 +71,14 @@
     }
     .logo { text-align: center; }
     .logo h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
-    .logo p { color: var(--ink2); margin-top: 6px; font-size: 0.9rem; }
+    .logo p {
+      color: var(--ink3); margin-top: 12px; font-size: 0.68rem;
+      text-transform: uppercase; letter-spacing: 0.22em; font-weight: 500;
+      display: flex; align-items: center; gap: 12px; white-space: nowrap;
+    }
+    .logo p::before, .logo p::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
     .btn-google {
       display: flex; align-items: center; justify-content: center; gap: 10px;
       background: var(--bg3); border: 1px solid var(--border); color: var(--ink);
@@ -99,12 +113,16 @@
       color: var(--ink); font-size: 1.4rem; font-weight: 500;
       padding: 18px; border-radius: var(--radius);
       cursor: pointer; text-align: center; -webkit-user-select: none;
-      transition: background 0.1s;
+      transition: background 0.15s, transform 0.15s ease-out;
+      transform: scale(1);
     }
-    .pk:active, .pk:focus { background: var(--bg2); outline: none; }
+    .pk:active { background: var(--bg); transform: scale(0.88); transition: background 0.05s, transform 0.05s; }
+    .pk:focus { outline: none; }
     .pk.del { font-size: 1rem; color: var(--ink2); }
     .pk.empty { visibility: hidden; pointer-events: none; }
     #pin-error { color: var(--red); font-size: 0.85rem; text-align: center; min-height: 20px; }
+    @keyframes pin-confirm { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+    .pin-dots.confirming .pin-dot { animation: pin-confirm 0.3s ease; background: #fff; border-color: #fff; }
 
     /* ── DASHBOARD ── */
     .dash-hdr {
@@ -214,9 +232,9 @@
     }
 
     /* ── Main tabs ── */
-    .main-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+    .main-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; position: sticky; top: 0; z-index: 9; background: var(--bg); }
     .main-tabs::-webkit-scrollbar { display: none; }
-    .main-tab { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; color: var(--ink2); font-size: 0.82rem; font-weight: 500; padding: 12px 6px; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; min-width: 70px; }
+    .main-tab { flex: 0 0 auto; background: none; border: none; border-bottom: 2px solid transparent; color: var(--ink2); font-size: 0.82rem; font-weight: 500; padding: 12px 14px; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; }
     .main-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
     /* ── Tab panes ── */
     .tab-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; position: relative; }
@@ -446,7 +464,7 @@
   <!-- ══════════════ LOGIN ══════════════ -->
   <div id="screen-login" class="screen active">
     <div class="logo">
-      <h1>MediCheck</h1>
+      <img src="Gemini_Generated_Image_l49wlul49wlul49w.png" alt="MediCheck" style="width:240px;height:auto;margin-bottom:4px">
       <p>Registo de actos de anestesia</p>
     </div>
     <button class="btn-google" id="btn-google" onclick="requestGoogleLogin()">
@@ -499,6 +517,10 @@
     <div class="sync-bar" id="sync-bar">
       <div class="spin"></div>
       <span id="sync-msg">A sincronizar…</span>
+    </div>
+    <!-- Banner modo demo -->
+    <div id="demo-banner" style="display:none;background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.25);padding:6px 16px;text-align:center;font-size:0.78rem;color:var(--accent);flex-shrink:0">
+      ⚠️ Modo Demonstração
     </div>
     <!-- Nav tabs -->
     <div class="main-tabs">
@@ -574,8 +596,10 @@
       <div class="ocr-status" id="ocr-status"></div>
     </div>
     <div class="ocr-btns">
-      <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+      <input type="file" id="file-input"    accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+      <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="handleFile(event)">
       <button class="btn-p" onclick="document.getElementById('file-input').click()">📷 Fotografar vinheta</button>
+      <button class="btn-s" onclick="document.getElementById('gallery-input').click()">🖼️ Escolher da fototeca</button>
       <button class="btn-s" onclick="openNewAct(null)">✏️ Introduzir manualmente</button>
     </div>
   </div>
@@ -669,10 +693,16 @@
       <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
         <h3>Privacidade</h3>
         <p style="font-size:0.82rem;color:var(--ink2);line-height:1.6">Os teus dados são encriptados com AES-256 no próprio dispositivo antes de serem guardados no Google Drive. O PIN nunca sai do dispositivo. As imagens enviadas para OCR são processadas temporariamente e não são guardadas.</p>
+        <a href="privacy.html" target="_blank" style="display:inline-block;margin-top:12px;font-size:0.82rem;color:var(--accent);text-decoration:none">Política de Privacidade →</a>
       </div>
       <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
         <h3>OCR</h3>
         <p style="font-size:0.82rem;color:var(--ink2)">Gemini Flash via Cloudflare Worker — API key guardada de forma segura no servidor.</p>
+      </div>
+      <div id="settings-demo-section" style="display:none;padding-top:16px;border-top:1px solid var(--border)">
+        <h3>Demonstração</h3>
+        <p style="font-size:0.82rem;color:var(--ink2);margin-bottom:12px">Estás no modo de demonstração. Os dados são fictícios e nunca são guardados.</p>
+        <button class="btn-s" onclick="resetDemo()">↺ Reiniciar demonstração</button>
       </div>
     </div>
   </div>
@@ -698,6 +728,7 @@ const PBKDF2_SALT      = 'medicheck-v2-salt';
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
+if (!crypto.randomUUID) crypto.randomUUID = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 let googleToken   = null;
 let driveFileId   = null;
 let encKey        = null;
@@ -710,6 +741,7 @@ let selectedDay   = null;
 let pinBuf        = '';
 let pinMode       = 'enter';  // 'create' | 'enter'
 let pinConfirm    = '';
+let isDemoMode    = false;
 
 // ═══════════════════════════════════════════════════
 // CRYPTO
@@ -822,7 +854,7 @@ function loadLocal() {
 }
 
 let _saveT;
-function autoSave() { clearTimeout(_saveT); _saveT = setTimeout(saveToDrive, 1500); }
+function autoSave() { if (isDemoMode) return; clearTimeout(_saveT); _saveT = setTimeout(saveToDrive, 1500); }
 
 // ═══════════════════════════════════════════════════
 // GOOGLE SIGN-IN
@@ -838,6 +870,7 @@ initGIS();
 
 
 function requestGoogleLogin() {
+  if (isDemoMode) return;
   if (location.protocol === 'file:') {
     setLoginStatus('Abre a app via servidor web — o Google não aceita login em ficheiros locais.');
     return;
@@ -900,7 +933,12 @@ function pinKey(d) {
   if (pinBuf.length >= 4) return;
   pinBuf += d; updatePinDots();
   document.getElementById('pin-error').textContent = '';
-  if (pinBuf.length === 4) setTimeout(handlePin, 120);
+  if (pinBuf.length === 4) {
+    const dots = document.querySelector('.pin-dots');
+    dots.classList.add('confirming');
+    setTimeout(() => dots.classList.remove('confirming'), 350);
+    setTimeout(handlePin, 120);
+  }
 }
 
 function pinDel() {
@@ -1121,6 +1159,7 @@ function handleFile(e) {
   const file = e.target.files[0];
   if (!file) return;
   e.target.value = '';
+  if (isDemoMode) { simulateDemoOCR(); return; }
   // Compress image before OCR
   const img = new Image();
   const url = URL.createObjectURL(file);
@@ -1139,6 +1178,25 @@ function handleFile(e) {
     processOCR(b64);
   };
   img.src = url;
+}
+
+function simulateDemoOCR() {
+  const mock = [
+    { paciente: 'MARGARIDA ISABEL FERREIRA ALVES', processo: '748291' },
+    { paciente: 'RODRIGO MANUEL COSTA PINHEIRO',   processo: '523847' },
+    { paciente: 'ANA SOFIA CARVALHO MENDES',        processo: '691374' },
+    { paciente: 'FRANCISCO JOSÉ NUNES BAPTISTA',    processo: '834629' },
+  ][Math.floor(Math.random() * 4)];
+  const statusEl = document.getElementById('ocr-status');
+  const btns = document.querySelectorAll('.ocr-btns button');
+  statusEl.innerHTML = `<div class="ocr-loading"><div class="spin" style="width:20px;height:20px;border-width:3px"></div><span>A extrair dados com Gemini Flash…</span></div>`;
+  btns.forEach(b => b.disabled = true);
+  setTimeout(() => {
+    btns.forEach(b => b.disabled = false);
+    statusEl.innerHTML = '';
+    toast('Vinheta lida com sucesso!');
+    openNewAct(mock);
+  }, 1200);
 }
 
 function ocrErrorMsg(msg) {
@@ -1751,52 +1809,67 @@ function exportXLSX() {
   toast('Ficheiro exportado');
 }
 
-// DEV BYPASS — aceder com ?dev no URL para saltar login/PIN
-if (new URLSearchParams(location.search).has('dev')) {
-  userProfile = { name: 'Dev', email: 'dev@test.com' };
+// ═══════════════════════════════════════════════════
+// DEMO MODE — aceder com ?dev no URL para saltar login/PIN
+// Os dados são fictícios e NUNCA são guardados (autoSave é no-op quando isDemoMode=true)
+// ═══════════════════════════════════════════════════
+function _buildDemoData() {
   const _d = (data, proc, pac, esp, proc_nome, status, tipo='cirurgica') => ({
     id: crypto.randomUUID(), paciente: pac, processo: proc, data,
-    tipo, especialidade: tipo==='gastro'?'':esp,
-    procedimento: tipo==='gastro'?'Anestesia Gastro':proc_nome,
-    valor: null, status, criadoEm: new Date().toISOString(),
-    reclamadoEm: status==='reclamado'||status==='pago' ? '2026-01-15T10:00:00.000Z' : null,
-    pagoEm: status==='pago' ? '2026-02-20T10:00:00.000Z' : null,
+    tipo, especialidade: tipo==='gastro' ? '' : esp,
+    procedimento: tipo==='gastro' ? 'Anestesia Gastro' : proc_nome,
+    status, criadoEm: new Date().toISOString(),
+    reclamadoEm: status==='reclamado' ? '2026-04-01T10:00:00.000Z'
+               : status==='pago'      ? '2026-02-01T10:00:00.000Z' : null,
+    pagoEm: status==='pago' ? '2026-03-15T10:00:00.000Z' : null,
   });
-  procedimentos = [
-    _d('2025-08-21','712572','PAULO FRANCISCO VIEIRA DE SOUSA','Ortopedia','Foraminectomia','pago'),
-    _d('2025-09-08','556906','CAETANA ALVES LOURENÇO','Otorrinolaringologia','Miringotomia com tubo de ventilação bilateral','pago'),
-    _d('2025-09-22','709167','MARIA DE LURDES ALBINO FRANCISCO SILVA','Ortopedia','Artroplastia total — artrose','pago'),
-    _d('2025-09-22','707507','OCTAVIANO NETO PESSOA DE AMORIM','Ortopedia','Tectoplastia cotiloideia','pago'),
-    _d('2025-11-03','533072','ALICE MARIANNE LEMOS GARCIA DE OLIVEIRA LANGAN','Otorrinolaringologia','Amigdalectomia com anestesia geral','reclamado'),
-    _d('2025-11-05','726725','BÁRBARA FILIPA PIRES BÁRBARA','Oftalmologia','Crioterapia ou diatermia retiniana','reclamado'),
-    _d('2025-11-12','357545','JOAO PEDRO ANTUNES DAS EIRAS CASALEIRO','Ortopedia','Tratamento de quisto ósseo — mão','reclamado'),
-    _d('2025-11-18','643393','ANTONIO JOSE RODRIGUES FERRAZ','Urologia','Ressecção endoscópica da próstata (RTUP)','reclamado'),
-    _d('2025-11-19','121185','JOSÉ EDUARDO DE CARVALHO GARRIDO DA SILVA','Oftalmologia','Vitrectomia mecânica complicada','reclamado'),
-    _d('2025-11-26','588016','LAUREINE STEPHANIE L UYTTERSPROT','Ortopedia','Artroscopia com tratamento de lesões articulares','reclamado'),
-    _d('2025-11-29','705053','DÉLIA DUARTE ANTUNES SALVADOR','Cirurgia Vascular','Excisão veia safena com laqueação','reclamado'),
-    _d('2025-11-29','224150','MARIANA RITA SERRA DUARTE','Cirurgia Vascular','Excisão veia safena com laqueação','reclamado'),
-    _d('2025-12-02','131268','AIRES DANIEL FARIA DA SILVA','Neurocirurgia','Neurólise','em_falta'),
-    _d('2025-12-02','602370','FERNANDO SANTOS PEREIRA','Ortopedia','Laminectomia descompressiva (> 2 vértebras)','em_falta'),
-    _d('2025-12-02','409312','MARIA TERESA PEREIRA RIBEIRO DE QUEIROZ','Neurocirurgia','Laminectomia descompressiva (até 2 vértebras)','em_falta'),
-    _d('2025-12-03','199505','CARLOS ALBERTO PINTO','Oftalmologia','Facoemulsificação do cristalino com LIO','em_falta'),
-    _d('2025-12-04','134556','CLARA ISABEL BARROSO RAMOS CAMPOS LIBORIO','','','em_falta','gastro'),
-    _d('2025-12-04','435780','CÁTIA ISABEL DOS SANTOS GOMES','','','em_falta','gastro'),
-    _d('2025-12-04','305548','CARLA ALEXANDRA GOMES DOS SANTOS ARAÚJO','Ginecologia/Obstetrícia','Suspensão uretral por incontinência','em_falta'),
-    _d('2025-12-04','234175','HELENA MARIA BRANCO RODRIGUES ZEFERINO','Ginecologia/Obstetrícia','Histeroscopia','em_falta'),
-    _d('2025-12-05','515990','ANABELA VIEIRA MARTINHO','Cirurgia Vascular','Excisão veia safena com laqueação','em_falta'),
-    _d('2025-12-05','698691','JOSÉ LUÍS DA CONCEIÇÃO GOMES FERREIRA','Cirurgia Vascular','Excisão veia safena com laqueação','em_falta'),
-    _d('2025-12-16','131644','GONÇALO NUNES MURTA DUARTE','Urologia','Cirurgia de hidrocele','registado'),
-    _d('2025-12-16','618851','ISABEL MARIA FERREIRA MARTINHO GALRÃO','Urologia','Cateterismo endoscópico ureteral terapêutico','registado'),
-    _d('2025-12-17','735323','MARIA IDALINA DOS SANTOS PAULINO VITORINO','Neurocirurgia','Foraminectomia','registado'),
-    _d('2025-12-18','297992','NUNO MANUEL RIBEIRO CLEMENTE','','','registado','gastro'),
-    _d('2025-12-19','727643','BELMIRO AURÉLIO DE SOUSA','Oftalmologia','Facoemulsificação do cristalino com LIO','registado'),
-    _d('2025-12-19','183593','GREGÓRIO JOAQUIM CLAUDINO ALFREDO','Ortopedia','Tratamento de doença de Morton','registado'),
-    _d('2025-12-22','123834','SANTIAGO FERREIRA MANUEL','Otorrinolaringologia','Rino-septoplastia','registado'),
-    _d('2025-12-22','583639','TIAGO DANIEL NEVES CARVALHO','Otorrinolaringologia','Turbinectomia bilateral','registado'),
-    _d('2025-12-26','738646','DONATELLA FERRARI','Cirurgia Geral','Colecistectomia','registado'),
-    _d('2025-12-29','729311','LUÍSA DE FREITAS CARDOSO','Otorrinolaringologia','Amigdalectomia com anestesia geral e intubação','registado'),
+  return [
+    // PAGO — Jan/Fev 2026
+    _d('2026-01-08','712572','PAULO FRANCISCO VIEIRA DE SOUSA','Ortopedia','Artroplastia total — artrose','pago'),
+    _d('2026-01-15','556906','CAETANA ALVES LOURENÇO','Otorrinolaringologia','Amigdalectomia com anestesia geral','pago'),
+    _d('2026-01-22','709167','MARIA DE LURDES ALBINO FRANCISCO SILVA','Cirurgia Vascular','Excisão veia safena com laqueação','pago'),
+    _d('2026-02-05','707507','OCTAVIANO NETO PESSOA DE AMORIM','Neurocirurgia','Foraminectomia','pago'),
+    _d('2026-02-12','533072','ALICE MARIANNE LEMOS GARCIA DE OLIVEIRA','Oftalmologia','Facoemulsificação do cristalino com LIO','pago'),
+    // RECLAMADO — Fev/Mar 2026
+    _d('2026-02-18','726725','BÁRBARA FILIPA PIRES BÁRBARA','Ginecologia/Obstetrícia','Histeroscopia diagnóstica','reclamado'),
+    _d('2026-02-25','357545','JOÃO PEDRO ANTUNES DAS EIRAS','Urologia','Ressecção endoscópica da próstata (RTUP)','reclamado'),
+    _d('2026-03-04','643393','ANTÓNIO JOSÉ RODRIGUES FERRAZ','Cirurgia Geral','Colecistectomia laparoscópica','reclamado'),
+    _d('2026-03-04','435780','CÁTIA ISABEL DOS SANTOS GOMES','','','reclamado','gastro'),
+    // EM FALTA — Mar 2026 (presentes nos registos mas ausentes do PDF CUF)
+    _d('2026-03-10','131268','AIRES DANIEL FARIA DA SILVA','Neurocirurgia','Laminectomia descompressiva (até 2 vértebras)','em_falta'),
+    _d('2026-03-10','602370','FERNANDO SANTOS PEREIRA','Ortopedia','Artroscopia com tratamento de lesões articulares','em_falta'),
+    _d('2026-03-12','199505','CARLOS ALBERTO PINTO','Oftalmologia','Crioterapia ou diatermia retiniana','em_falta'),
+    _d('2026-03-12','134556','CLARA ISABEL BARROSO RAMOS CAMPOS','','','em_falta','gastro'),
+    _d('2026-03-14','305548','CARLA ALEXANDRA GOMES DOS SANTOS','Cirurgia Vascular','Safenectomia laser endovenosa','em_falta'),
+    _d('2026-03-18','234175','HELENA MARIA BRANCO RODRIGUES','Otorrinolaringologia','Turbinectomia bilateral','em_falta'),
+    // REGISTADO — Mar/Abr 2026 (recentes, ainda não cruzados)
+    _d('2026-03-25','131644','GONÇALO NUNES MURTA DUARTE','Urologia','Cirurgia de hidrocele','registado'),
+    _d('2026-03-26','618851','ISABEL MARIA FERREIRA MARTINHO','Ortopedia','Tratamento de doença de Morton','registado'),
+    _d('2026-03-27','735323','MARIA IDALINA DOS SANTOS PAULINO','Ginecologia/Obstetrícia','Suspensão uretral por incontinência','registado'),
+    _d('2026-03-28','297992','NUNO MANUEL RIBEIRO CLEMENTE','','','registado','gastro'),
+    _d('2026-04-02','727643','BELMIRO AURÉLIO DE SOUSA','Cirurgia Geral','Apendicectomia laparoscópica','registado'),
+    _d('2026-04-03','183593','GREGÓRIO JOAQUIM CLAUDINO ALFREDO','Neurocirurgia','Neurólise','registado'),
+    _d('2026-04-07','123834','SANTIAGO FERREIRA MANUEL','Otorrinolaringologia','Rino-septoplastia','registado'),
+    _d('2026-04-08','583639','TIAGO DANIEL NEVES CARVALHO','Cirurgia Vascular','Excisão veia safena com laqueação','registado'),
+    _d('2026-04-09','738646','DONATELLA FERRARI','Oftalmologia','Blefaroplastia bilateral','registado'),
+    _d('2026-04-10','729311','LUÍSA DE FREITAS CARDOSO','Ortopedia','Tectoplastia cotiloideia','registado'),
   ];
+}
+
+function resetDemo() {
+  procedimentos = _buildDemoData();
   renderDashboard(); showScreen('screen-dashboard');
+  toast('Demonstração reiniciada');
+}
+
+if (new URLSearchParams(location.search).has('dev')) {
+  isDemoMode    = true;
+  userProfile   = { name: 'Dr. André Costa', email: 'andre.costa@cuf.pt' };
+  procedimentos = _buildDemoData();
+  renderDashboard(); showScreen('screen-dashboard');
+  document.documentElement.classList.remove('is-dev-loading');
+  document.getElementById('demo-banner').style.display = 'block';
+  document.getElementById('settings-demo-section').style.display = 'block';
 }
 </script>
 </body>
