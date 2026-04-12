@@ -705,7 +705,7 @@
         <button class="btn-s" onclick="resetDemo()">↺ Reiniciar demonstração</button>
         <button class="btn-s" onclick="location.reload()" style="margin-top:8px;color:var(--red)">Sair do modo de demonstração</button>
       </div>
-      <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px">
+      <div id="settings-enter-demo" style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px">
         <button class="btn-s" onclick="activateDemo()" style="font-size:0.78rem;color:var(--ink3)">Modo de demonstração</button>
       </div>
     </div>
@@ -1872,6 +1872,7 @@ function activateDemo() {
   renderDashboard(); showScreen('screen-dashboard');
   document.getElementById('demo-banner').style.display = 'block';
   document.getElementById('settings-demo-section').style.display = 'block';
+  document.getElementById('settings-enter-demo').style.display = 'none';
   document.getElementById('drop-label').innerHTML = 'Simular fatura CUF<br><span>(modo demonstração)</span>';
   toast('Modo de demonstração activado');
 }
