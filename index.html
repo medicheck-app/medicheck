@@ -107,14 +107,15 @@
     }
     .pin-dot.filled { background: var(--accent); }
     .pin-keypad {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 6px; max-width: 168px; width: 100%;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      /* largura explícita: ~72px por botão em qualquer smartphone moderno */
+      width: min(67vw, 236px);
     }
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
-      color: var(--ink); font-size: 1rem; font-weight: 500;
-      border-radius: var(--radius);
-      height: clamp(38px, 11vw, 50px);
+      color: var(--ink); font-size: 1.2rem; font-weight: 500;
+      border-radius: var(--radius); aspect-ratio: 1;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; -webkit-user-select: none;
       transition: background 0.15s, transform 0.15s ease-out;
