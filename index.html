@@ -93,24 +93,24 @@
     /* ── PIN ── */
     #screen-pin {
       justify-content: center; align-items: center;
-      padding: 40px 32px; gap: 24px;
+      padding: 32px 32px; gap: 20px;
     }
     .pin-title { text-align: center; }
-    .pin-title h2 { font-size: 1.3rem; font-weight: 600; }
-    .pin-title p { color: var(--ink2); margin-top: 6px; font-size: 0.9rem; }
+    .pin-title h2 { font-size: 1.2rem; font-weight: 600; }
+    .pin-title p { color: var(--ink2); margin-top: 5px; font-size: 0.85rem; }
     .pin-dots { display: flex; gap: 14px; justify-content: center; }
     .pin-dot {
-      width: 16px; height: 16px; border-radius: 50%;
+      width: 14px; height: 14px; border-radius: 50%;
       border: 2px solid var(--accent); background: transparent; transition: background 0.1s;
     }
     .pin-dot.filled { background: var(--accent); }
     .pin-keypad {
       display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 8px; max-width: 200px; width: 100%;
+      gap: 7px; max-width: 168px; width: 100%;
     }
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
-      color: var(--ink); font-size: 1.2rem; font-weight: 500;
+      color: var(--ink); font-size: 1.1rem; font-weight: 500;
       border-radius: var(--radius); aspect-ratio: 1;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; -webkit-user-select: none;
@@ -435,6 +435,15 @@
     /* ── Mobile: scroll na lista de doentes ── */
     .dash-body-split { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .cal-left { flex-shrink: 0; }
+
+    /* ── Ecrãs baixos (iPhone SE, Android pequeno) ── */
+    @media (max-height: 620px) {
+      #screen-pin { padding: 16px 32px; gap: 12px; }
+      .pin-title h2 { font-size: 1.05rem; }
+      .pin-title p  { font-size: 0.78rem; margin-top: 3px; }
+      .pin-dots { gap: 10px; }
+      .pin-dot { width: 12px; height: 12px; }
+    }
 
     /* ══════════════════════════════════════════
        DESKTOP / TABLET  (≥ 768px)
@@ -845,7 +854,7 @@
 const GOOGLE_CLIENT_ID = '948110278451-va6sv5uf9j1g9v7m2mqoja86b6l44msr.apps.googleusercontent.com';
 const WORKER_URL       = 'https://medicheck-proxy.goncalo-paulino-pereira.workers.dev';
 const DRIVE_FILE       = 'medicheck_v2.enc';
-const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const PBKDF2_SALT      = 'medicheck-v2-salt';
 
 // ═══════════════════════════════════════════════════
