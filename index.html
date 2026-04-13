@@ -91,33 +91,30 @@
     #login-status { color: var(--ink2); font-size: 0.85rem; text-align: center; min-height: 20px; }
 
     /* ── PIN ── */
-    /* overflow:hidden garante que nunca há scroll neste ecrã */
+    /* overflow:hidden elimina scroll; tudo usa clamp() para caber em qualquer ecrã */
     #screen-pin {
       justify-content: center; align-items: center; overflow: hidden;
-      padding: clamp(8px, 3dvh, 28px) 32px;
-      gap: clamp(8px, 2dvh, 18px);
+      padding: clamp(8px, 3svh, 28px) 32px;
+      gap: clamp(8px, 2svh, 16px);
     }
     .pin-title { text-align: center; }
-    .pin-title h2 { font-size: clamp(1rem, 3dvh, 1.2rem); font-weight: 600; }
-    .pin-title p { color: var(--ink2); margin-top: clamp(3px, 0.5dvh, 6px); font-size: clamp(0.75rem, 2dvh, 0.85rem); }
-    .pin-dots { display: flex; gap: clamp(10px, 1.5dvh, 14px); justify-content: center; }
+    .pin-title h2 { font-size: 1.1rem; font-weight: 600; }
+    .pin-title p { color: var(--ink2); margin-top: 4px; font-size: 0.82rem; }
+    .pin-dots { display: flex; gap: 12px; justify-content: center; }
     .pin-dot {
-      width: clamp(10px, 2dvh, 14px); height: clamp(10px, 2dvh, 14px); border-radius: 50%;
+      width: 12px; height: 12px; border-radius: 50%;
       border: 2px solid var(--accent); background: transparent; transition: background 0.1s;
     }
     .pin-dot.filled { background: var(--accent); }
     .pin-keypad {
       display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: clamp(5px, 1dvh, 7px);
-      /* largura baseada na altura disponível: 4 linhas de botões cabem em (dvh - overhead) */
-      width: min(168px, 75vw, calc(((100dvh - 180px) / 4) * 3 + clamp(5px,1dvh,7px) * 2));
+      gap: 6px; max-width: 168px; width: 100%;
     }
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
-      color: var(--ink); font-size: clamp(0.95rem, 2.5dvh, 1.1rem); font-weight: 500;
+      color: var(--ink); font-size: 1rem; font-weight: 500;
       border-radius: var(--radius);
-      /* altura calculada: (espaço disponível - overhead fixo) / 4 linhas, entre 36px e 50px */
-      height: clamp(36px, calc((100dvh - 180px) / 4), 50px);
+      height: clamp(38px, 11vw, 50px);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; -webkit-user-select: none;
       transition: background 0.15s, transform 0.15s ease-out;
@@ -125,7 +122,7 @@
     }
     .pk:active, .pk.pressed { background: var(--bg); transform: scale(0.88); transition: background 0.05s, transform 0.05s; }
     .pk:focus { outline: none; }
-    .pk.del { font-size: clamp(0.85rem, 2dvh, 1rem); color: var(--ink2); }
+    .pk.del { font-size: 0.9rem; color: var(--ink2); }
     .pk.empty { visibility: hidden; pointer-events: none; }
     #pin-error { color: var(--red); font-size: 0.82rem; text-align: center; min-height: 18px; }
     @keyframes pin-confirm { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
