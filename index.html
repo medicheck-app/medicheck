@@ -106,11 +106,11 @@
     .pin-dot.filled { background: var(--accent); }
     .pin-keypad {
       display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 10px; max-width: 240px; width: 100%;
+      gap: 8px; max-width: 200px; width: 100%;
     }
     .pk {
       background: var(--bg3); border: 1px solid var(--border);
-      color: var(--ink); font-size: 1.4rem; font-weight: 500;
+      color: var(--ink); font-size: 1.2rem; font-weight: 500;
       border-radius: var(--radius); aspect-ratio: 1;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; -webkit-user-select: none;
@@ -359,6 +359,43 @@
       font-size: 0.9rem; padding: 14px; border-radius: var(--radius); cursor: pointer; width: 100%;
     }
 
+    /* ── Modal Privacidade ── */
+    #privacy-modal {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); align-items: flex-start; justify-content: center;
+      padding: calc(var(--st) + 16px) 0 0;
+    }
+    .privacy-sheet {
+      background: var(--bg); width: 100%; max-width: 720px;
+      height: calc(100vh - var(--st) - 16px);
+      display: flex; flex-direction: column; border-radius: 16px 16px 0 0;
+      overflow: hidden;
+    }
+    .privacy-sheet-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .privacy-sheet-hdr h2 { font-size: 1rem; font-weight: 600; }
+    .privacy-sheet-body {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 20px; font-size: 0.85rem; line-height: 1.7; color: var(--ink2);
+    }
+    .privacy-sheet-body h1 { font-size: 0.9rem; font-weight: 700; color: var(--ink); margin: 18px 0 6px; }
+    .privacy-sheet-body h2 { font-size: 0.82rem; font-weight: 600; color: var(--ink); margin: 12px 0 4px; }
+    .privacy-sheet-body p { margin-bottom: 8px; }
+    .privacy-sheet-body ul { padding-left: 18px; margin-bottom: 8px; }
+    .privacy-sheet-body li { margin-bottom: 3px; }
+    .privacy-sheet-body .meta-box {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 14px; margin-bottom: 16px; font-size: 0.8rem;
+    }
+    .privacy-sheet-body .note-box {
+      background: var(--bg3); border-left: 3px solid var(--accent);
+      padding: 10px 14px; margin: 10px 0; font-size: 0.8rem;
+    }
+    .privacy-sheet-body a { color: var(--accent); }
+    .privacy-sheet-foot { padding: 12px 20px calc(var(--sb) + 12px); border-top: 1px solid var(--border); flex-shrink: 0; }
+
     /* ── Relatório ── */
     .rel-section { display: flex; flex-direction: column; gap: 8px; }
     .rel-section h3 { font-size: 0.75rem; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; }
@@ -394,6 +431,10 @@
       white-space: nowrap; z-index: 999; max-width: calc(100vw - 40px);
     }
     #toast.on { opacity: 1; }
+
+    /* ── Mobile: scroll na lista de doentes ── */
+    .dash-body-split { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .cal-left { flex-shrink: 0; }
 
     /* ══════════════════════════════════════════
        DESKTOP / TABLET  (≥ 768px)
@@ -613,8 +654,12 @@
           <input type="text" id="f-pac" placeholder="Nome completo" autocomplete="off" autocorrect="off">
         </div>
         <div class="field">
-          <label>Nº Processo <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(sem CCTV/)</span></label>
+          <label>Nº Processo</label>
           <input type="text" id="f-proc" placeholder="Ex: 123456" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Seguradora <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(opcional)</span></label>
+          <input type="text" id="f-seg" placeholder="Ex: Médis, AdvanceCare…" autocomplete="off" autocorrect="off">
         </div>
       </div>
       <div class="form-group">
@@ -688,7 +733,7 @@
       <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
         <h3>Privacidade</h3>
         <p style="font-size:0.82rem;color:var(--ink2);line-height:1.6">Os teus dados são encriptados com AES-256 no próprio dispositivo antes de serem guardados no Google Drive. O PIN nunca sai do dispositivo. As imagens enviadas para OCR são processadas temporariamente e não são guardadas.</p>
-        <a href="privacy.html" target="_blank" style="display:inline-block;margin-top:12px;font-size:0.82rem;color:var(--accent);text-decoration:none">Política de Privacidade →</a>
+        <button onclick="document.getElementById('privacy-modal').style.display='flex'" style="background:none;border:none;padding:0;margin-top:12px;font-size:0.82rem;color:var(--accent);cursor:pointer;font-family:inherit">Política de Privacidade →</button>
       </div>
       <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
         <h3>OCR</h3>
@@ -702,6 +747,85 @@
       </div>
       <div id="settings-enter-demo" style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px">
         <button class="btn-s" onclick="activateDemo()" style="font-size:0.78rem;color:var(--ink3)">Modo de demonstração</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ MODAL: POLÍTICA DE PRIVACIDADE ══════════════ -->
+  <div id="privacy-modal" onclick="if(event.target===this)this.style.display='none'">
+    <div class="privacy-sheet">
+      <div class="privacy-sheet-hdr">
+        <h2>Política de Privacidade</h2>
+        <button onclick="document.getElementById('privacy-modal').style.display='none'" style="background:none;border:none;color:var(--ink2);font-size:1.5rem;cursor:pointer;padding:0;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">×</button>
+      </div>
+      <div class="privacy-sheet-body">
+        <div class="meta-box">
+          <strong>Política de Privacidade e Protecção de Dados Pessoais</strong><br>
+          Versão 1.0 · Última actualização: 6 de março de 2026<br>
+          Elaborada em conformidade com o RGPD (UE) 2016/679 e a Lei n.º 58/2019, de 8 de agosto
+        </div>
+        <h1>1. Identificação do Responsável</h1>
+        <p><strong>Nome:</strong> Gonçalo Filipe da Paz Paulino Pereira</p>
+        <p><strong>País:</strong> Portugal</p>
+        <p><strong>Contacto:</strong> <a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a></p>
+        <p><strong>Aplicação:</strong> MediCheck — goncalopereira88.github.io/medicheck</p>
+        <h1>2. Encarregado de Protecção de Dados (DPO)</h1>
+        <p>Nos termos dos Arts. 37.º a 39.º do RGPD e do Art. 20.º da Lei n.º 58/2019, a designação de DPO não é obrigatória, dado que o tratamento ocorre de forma acessória, o volume é reduzido e o universo de titulares é limitado a um pequeno número de profissionais de saúde. O responsável assume pessoalmente as funções de ponto de contacto através de <a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a>.</p>
+        <h1>3. Descrição da Aplicação</h1>
+        <p>O MediCheck é uma aplicação web destinada exclusivamente a médicos do Hospital CUF Torres Vedras para reconciliação de actos médicos com pagamentos de honorários. Funciona inteiramente no browser — não existem servidores próprios que armazenem dados dos utilizadores.</p>
+        <h1>4. Dados Pessoais Tratados</h1>
+        <h2>4.1 Dados de identificação</h2>
+        <ul>
+          <li>Nome completo (introduzido voluntariamente)</li>
+          <li>Email da conta Google (via OAuth 2.0)</li>
+        </ul>
+        <h2>4.2 Dados profissionais</h2>
+        <ul>
+          <li>Registos de actos médicos: data, tipo de acto, número de processo</li>
+          <li>Valores de honorários estimados e recebidos</li>
+          <li>Informação sobre seguradoras e pagamentos</li>
+        </ul>
+        <div class="note-box">Os registos de actos médicos podem constituir dados de saúde na acepção do Art. 4.º, n.º 15 do RGPD, sendo tratados em conformidade com o Art. 9.º.</div>
+        <h2>4.3 Dados técnicos de sessão</h2>
+        <ul>
+          <li>Token de acesso Google (em memória temporária; não é guardado de forma persistente)</li>
+        </ul>
+        <h1>5. Finalidade do Tratamento</h1>
+        <ul>
+          <li>Autenticação segura via Google OAuth 2.0</li>
+          <li>Armazenamento encriptado no Google Drive pessoal do utilizador</li>
+          <li>Sincronização entre dispositivos do mesmo utilizador</li>
+          <li>Geração de relatórios de reconciliação de honorários</li>
+        </ul>
+        <p>Os dados não são utilizados para análise estatística, publicidade ou partilha com terceiros.</p>
+        <h1>6. Base Legal do Tratamento</h1>
+        <p>Consentimento do titular (Art. 6.º, n.º 1, al. a) e Art. 9.º, n.º 2, al. a) do RGPD), prestado na primeira autenticação. O utilizador pode retirar o consentimento através de <a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a> ou revogando o acesso em myaccount.google.com.</p>
+        <h1>7. Medidas de Segurança</h1>
+        <ul>
+          <li>Encriptação AES-256-GCM antes de os dados saírem do dispositivo</li>
+          <li>Chave derivada de PIN pessoal via PBKDF2 (100 000 iterações) — o PIN nunca é armazenado</li>
+          <li>Dados guardados exclusivamente na pasta privada do Google Drive do utilizador</li>
+          <li>Comunicações exclusivamente via HTTPS/TLS</li>
+          <li>Sem registos de actividade dos utilizadores</li>
+        </ul>
+        <h1>8. Subcontratantes e Transferências Internacionais</h1>
+        <p>Os dados não são partilhados, vendidos ou cedidos a terceiros. Transferências para os EUA ao abrigo do EU-US Data Privacy Framework:</p>
+        <ul>
+          <li><strong>Google LLC</strong> — autenticação e armazenamento</li>
+          <li><strong>GitHub, Inc.</strong> — hosting do código estático (não processa dados pessoais)</li>
+        </ul>
+        <h1>9. Período de Retenção</h1>
+        <p>O responsável não armazena dados em sistemas próprios. Os dados residem no Google Drive do utilizador pelo período que o próprio determinar. Para eliminar: apagar <code>medicheck_v3_data.enc</code> do Google Drive, revogar acesso em myaccount.google.com e limpar o localStorage nas definições do browser.</p>
+        <h1>10. Direitos do Titular</h1>
+        <p>Nos termos dos Arts. 15.º a 22.º do RGPD: acesso, rectificação, eliminação, limitação, portabilidade, oposição. Pedidos para <a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a> com resposta em um mês. Reclamações: <strong>CNPD</strong> — Av. D. Carlos I, 134 – 1.º, 1200-651 Lisboa.</p>
+        <h1>11. Armazenamento Local</h1>
+        <p>A aplicação não usa cookies de rastreio. Utiliza localStorage como cache encriptada para funcionamento offline, eliminável nas definições do browser.</p>
+        <h1>12. Contacto</h1>
+        <p><a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a></p>
+        <p style="margin-top:24px;font-size:0.75rem;color:var(--ink3)">MediCheck · Política de Privacidade · Versão 1.0 · 6 de março de 2026</p>
+      </div>
+      <div class="privacy-sheet-foot">
+        <button class="btn-p" onclick="document.getElementById('privacy-modal').style.display='none'">Fechar</button>
       </div>
     </div>
   </div>
@@ -907,6 +1031,7 @@ async function onToken(resp) {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + googleToken } });
     const info = await r.json();
     userProfile.name = info.name || ''; userProfile.email = info.email || '';
+    saveLocal();
   } catch {}
   driveFileId = await findDriveFile();
   setSyncing(false, '');
@@ -1238,7 +1363,8 @@ async function processOCR(b64) {
 Extrai APENAS os seguintes campos e responde em JSON puro (sem markdown, sem texto adicional):
 {
   "paciente": "nome completo do paciente",
-  "processo": "número de processo ou admissão completo, incluindo prefixo se existir (ex: CCTV/107959), ou null se não visível"
+  "processo": "número de processo — apenas os dígitos (ex: 123456), ou null se não visível",
+  "seguradora": "nome da seguradora ou entidade pagadora da linha SS: ou Seguradora:, ou null se não visível"
 }
 Se um campo não for legível, usa null.`;
 
@@ -1339,9 +1465,10 @@ function pickSugg(e, val) {
 }
 
 function openNewAct(ocr) {
-  const proc = (ocr?.processo || '').replace(/^CCTV\//i, '');
+  const proc = (ocr?.processo || '').replace(/\D/g, '');
   document.getElementById('f-pac').value          = ocr?.paciente || '';
   document.getElementById('f-proc').value         = proc;
+  document.getElementById('f-seg').value          = ocr?.seguradora || '';
   document.getElementById('f-data').value         = today();
   document.getElementById('f-especialidade').value = '';
   document.getElementById('f-procedimento').value  = '';
@@ -1366,6 +1493,7 @@ function saveAct() {
     tipo,
     especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
     procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
+    seguradora:   document.getElementById('f-seg').value.trim() || null,
     notas:        document.getElementById('f-notas').value.trim() || null,
     valor:        null,
     status:       'registado',
@@ -1399,6 +1527,7 @@ function showDetail(id) {
     </div>
     <div class="det-sec"><div class="det-lbl">Paciente</div><div class="det-val">${esc(p.paciente || '—')}</div></div>
     <div class="det-sec"><div class="det-lbl">Nº Processo</div><div class="det-val">${esc(p.processo || '—')}</div></div>
+    ${p.seguradora ? `<div class="det-sec"><div class="det-lbl">Seguradora</div><div class="det-val">${esc(p.seguradora)}</div></div>` : ''}
     <div class="det-sec"><div class="det-lbl">Data</div><div class="det-val">${fmtDate(p.data)}</div></div>
     <div class="det-sec"><div class="det-lbl">Tipo</div><div class="det-val">${p.tipo === 'gastro' ? 'Gastro' : 'Cirúrgica'}</div></div>
     ${p.especialidade ? `<div class="det-sec"><div class="det-lbl">Especialidade</div><div class="det-val">${esc(p.especialidade)}</div></div>` : ''}
