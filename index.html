@@ -909,14 +909,17 @@ async function findDriveFile() {
       `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE}%27&fields=files(id)`,
       { headers: { Authorization: 'Bearer ' + googleToken } }
     );
+    if (!r.ok) return { id: null, error: 'network' };
     const d = await r.json();
-    return d.files?.length > 0 ? d.files[0].id : null;
-  } catch { return null; }
+    const id = d.files?.length > 0 ? d.files[0].id : null;
+    return { id, error: null };
+  } catch { return { id: null, error: 'network' }; }
 }
 
 async function saveToDrive() {
   if (!googleToken || !encKey) { saveLocal(); return; }
   setSyncing(true, 'A guardar…');
+  const isFirstSave = !driveFileId;
   try {
     const payload = { procedimentos, userProfile, v: 2, savedAt: new Date().toISOString() };
     const enc = await encryptData(payload, encKey);
@@ -935,27 +938,31 @@ async function saveToDrive() {
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
         { method: 'POST', headers: { Authorization: 'Bearer ' + googleToken }, body: form }
       );
-      driveFileId = (await resp.json()).id;
+      const created = await resp.json();
+      if (!created.id) throw new Error('Drive create failed');
+      driveFileId = created.id;
     }
     saveLocal();
     setSyncing(false, '');
   } catch {
     saveLocal();
     setSyncing(false, '');
+    if (isFirstSave) toast('Dados guardados localmente. Liga-te à internet para proteger os teus dados.');
   }
 }
 
 async function loadFromDrive(pin) {
-  if (!googleToken || !driveFileId) return false;
+  if (!googleToken || !driveFileId) return { ok: false, reason: 'network' };
   try {
     const r = await fetch(
       `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
       { headers: { Authorization: 'Bearer ' + googleToken } }
     );
+    if (!r.ok) return { ok: false, reason: 'network' };
     const enc = await r.text();
     const key = await deriveKey(pin);
     const d = await decryptData(enc, key);
-    if (!d) return false;
+    if (!d) return { ok: false, reason: 'pin' };
     encKey = key;
     procedimentos = d.procedimentos || [];
     if (d.userProfile) {
@@ -963,8 +970,8 @@ async function loadFromDrive(pin) {
       if (!userProfile.email) userProfile.email = d.userProfile.email || '';
     }
     saveLocal();
-    return true;
-  } catch { return false; }
+    return { ok: true };
+  } catch { return { ok: false, reason: 'network' }; }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1037,8 +1044,13 @@ async function onToken(resp) {
     userProfile.name = info.name || ''; userProfile.email = info.email || '';
     saveLocal();
   } catch {}
-  driveFileId = await findDriveFile();
+  const driveResult = await findDriveFile();
   setSyncing(false, '');
+  if (driveResult.error === 'network') {
+    setLoginStatus('Erro de ligação — verifica a internet e tenta novamente.');
+    return;
+  }
+  driveFileId = driveResult.id;
   showPinScreen(driveFileId ? 'enter' : 'create');
 }
 
@@ -1088,13 +1100,15 @@ function updatePinDots() {
 async function handlePin() {
   if (pinMode === 'enter') {
     setSyncing(true, 'A desencriptar…');
-    const ok = await loadFromDrive(pinBuf);
+    const result = await loadFromDrive(pinBuf);
     setSyncing(false, '');
-    if (ok) {
+    if (result.ok) {
       toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
       renderDashboard(); showScreen('screen-dashboard');
     } else {
-      document.getElementById('pin-error').textContent = 'PIN incorrecto. Tenta novamente.';
+      document.getElementById('pin-error').textContent = result.reason === 'network'
+        ? 'Erro de ligação. Verifica a internet e tenta novamente.'
+        : 'PIN incorrecto. Tenta novamente.';
       pinBuf = ''; updatePinDots();
     }
   } else if (pinMode === 'change') {
