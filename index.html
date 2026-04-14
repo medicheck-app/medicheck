@@ -964,12 +964,18 @@ async function loadFromDrive(pin) {
     const d = await decryptData(enc, key);
     if (!d) return { ok: false, reason: 'pin' };
     encKey = key;
-    procedimentos = d.procedimentos || [];
+    const driveActs = d.procedimentos || [];
+    const localData = JSON.parse(localStorage.getItem('mc2') || 'null');
+    const localActs = localData?.procedimentos || [];
+    const driveIds  = new Set(driveActs.map(p => p.id));
+    const extra     = localActs.filter(p => !driveIds.has(p.id));
+    procedimentos   = [...driveActs, ...extra];
     if (d.userProfile) {
       if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
       if (!userProfile.email) userProfile.email = d.userProfile.email || '';
     }
     saveLocal();
+    if (extra.length) saveToDrive();   // sincroniza actos locais que faltavam no Drive
     return { ok: true };
   } catch { return { ok: false, reason: 'network' }; }
 }
