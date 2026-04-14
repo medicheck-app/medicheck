@@ -1471,8 +1471,12 @@ function initProcSuggestions() {
   inp.addEventListener('focus', () => renderSuggs(inp.value));
   inp.addEventListener('input', () => renderSuggs(inp.value));
   inp.addEventListener('blur',  () => setTimeout(() => list.classList.remove('open'), 150));
-  document.getElementById('f-especialidade').addEventListener('change', () => {
-    inp.value = ''; renderSuggs('');
+  document.getElementById('f-especialidade').addEventListener('change', (e) => {
+    const prevEsp   = e.target._prevValue ?? '';
+    const prevSuggs = PROC_SUGESTOES[prevEsp] || [];
+    if (prevSuggs.includes(inp.value)) inp.value = '';  // era sugestão predefinida → apagar
+    e.target._prevValue = e.target.value;
+    renderSuggs('');
   });
 }
 
@@ -1488,7 +1492,8 @@ function openNewAct(ocr) {
   document.getElementById('f-proc').value         = proc;
   document.getElementById('f-seg').value          = ocr?.seguradora || '';
   document.getElementById('f-data').value         = today();
-  document.getElementById('f-especialidade').value = '';
+  const _fEsp = document.getElementById('f-especialidade');
+  _fEsp.value = ''; _fEsp._prevValue = '';
   document.getElementById('f-procedimento').value  = '';
   document.getElementById('f-notas').value          = '';
   setTipo('cirurgica');
@@ -1520,7 +1525,7 @@ function saveAct() {
     pagoEm:       null,
   });
 
-  autoSave(); renderDashboard();
+  saveLocal(); autoSave(); renderDashboard();
   toast('Acto guardado'); showScreen('screen-dashboard');
 }
 
@@ -1882,6 +1887,15 @@ function renderRelatorio() {
     body.innerHTML = '<div class="info-box">Sem dados para apresentar.</div>'; return;
   }
 
+  // Por tipo de acto (gastro / cirurgia / anestesia)
+  const porTipo = { cirurgica: 0, gastro: 0, anestesia: 0 };
+  for (const p of procedimentos) {
+    if (porTipo[p.tipo] !== undefined) porTipo[p.tipo]++;
+  }
+  const tipoLabels = { cirurgica: 'Cirurgia', gastro: 'Gastroenterologia', anestesia: 'Anestesiologia' };
+  const tipoEntries = Object.entries(porTipo).filter(([,n]) => n > 0);
+  const maxTipo = tipoEntries.length ? Math.max(...tipoEntries.map(([,n]) => n)) : 1;
+
   // Por especialidade cirúrgica (excluir gastro e anestesia)
   const porEsp = {};
   for (const p of procedimentos) {
@@ -1890,7 +1904,7 @@ function renderRelatorio() {
     porEsp[k] = (porEsp[k] || 0) + 1;
   }
   const espSorted = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
-  const maxEsp = Math.max(...espSorted.map(x => x[1]));
+  const maxEsp = espSorted.length ? Math.max(...espSorted.map(x => x[1])) : 1;
 
   // Por mês (últimos 12)
   const porMes = {};
@@ -1912,6 +1926,22 @@ function renderRelatorio() {
           const pct = Math.round((n / maxMes) * 100);
           return `<div class="rel-row" style="gap:10px">
             <span class="rel-row-lbl" style="min-width:64px">${label}</span>
+            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+            </div>
+            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="rel-section">
+      <h3>Por tipo de acto</h3>
+      <div class="rel-box">
+        ${tipoEntries.map(([tipo, n]) => {
+          const pct = Math.round((n / maxTipo) * 100);
+          return `<div class="rel-row" style="gap:10px">
+            <span class="rel-row-lbl" style="min-width:120px">${tipoLabels[tipo]}</span>
             <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
               <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
             </div>
