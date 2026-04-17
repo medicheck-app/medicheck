@@ -1724,7 +1724,7 @@ async function processPDFFile(file) {
 }
 
 function processCUFText(text, status, out) {
-  const ELIGIBLE = new Set(['registado', 'em_falta', 'reclamado']);
+  const ELIGIBLE = new Set(['em_falta', 'reclamado']);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
 
@@ -2309,12 +2309,15 @@ function simulateDemoPDF() {
   // — processos 131644, 618851, 727643, 123834, 729311 → serão cruzados (registado recente)
   // — processos 481203, 394817, 562940 NÃO incluídos → aparecerão como em falta (>3 meses)
   // — processos pagos/reclamados incluídos mas ignorados pelo filtro (status !== 'registado')
+  // Linhas do PDF demo: reclamado e em_falta → transitam para pago
+  // Registos já pago (712572, 556906) incluídos mas ignorados pelo filtro ELIGIBLE
+  // Registos registado antigos (481203, 394817, 562940) ausentes → sweep marca-os em_falta
   const fakeText = [
-    '131644 GONÇALO NUNES MURTA DUARTE 25/03/2026 URO0041 Cirurgia de hidrocele 35.00',
-    '618851 ISABEL MARIA FERREIRA MARTINHO 26/03/2026 ORT0012 Tratamento de doença de Morton 28.50',
-    '727643 BELMIRO AURÉLIO DE SOUSA 02/04/2026 CIR0018 Apendicectomia laparoscópica 42.00',
-    '123834 SANTIAGO FERREIRA MANUEL 07/04/2026 ORL0009 Rino-septoplastia 31.00',
-    '729311 LUÍSA DE FREITAS CARDOSO 10/04/2026 ORT0033 Tectoplastia cotiloideia 55.00',
+    '726725 BÁRBARA FILIPA PIRES BÁRBARA 18/02/2026 GIN0031 Histeroscopia diagnóstica 120.00',
+    '357545 JOÃO PEDRO ANTUNES DAS EIRAS 25/02/2026 URO0018 Ressecção endoscópica da próstata 310.00',
+    '131268 AIRES DANIEL FARIA DA SILVA 10/03/2026 NEU0005 Laminectomia descompressiva 185.00',
+    '199505 CARLOS ALBERTO PINTO 12/03/2026 OFT0011 Crioterapia retiniana 75.00',
+    '234175 HELENA MARIA BRANCO RODRIGUES 18/03/2026 ORL0014 Turbinectomia bilateral 95.00',
     '712572 PAULO FRANCISCO VIEIRA DE SOUSA 08/01/2026 ORT0044 Artroplastia total 180.00',
     '556906 CAETANA ALVES LOURENÇO 15/01/2026 ORL0022 Amigdalectomia 95.00',
   ].join('\n');
