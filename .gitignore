@@ -6,3 +6,6 @@ medicheck - claude.txt
 .claude/
 exemplo vinheta.jpg
 listagem_honorarios.pdf
+gastro *.jpg
+obsidian medicheck/
+.obsidian/
