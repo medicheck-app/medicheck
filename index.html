@@ -170,8 +170,9 @@
     .cal-nav-selects { display: flex; gap: 6px; }
     .cal-nav-sel { background: var(--bg3); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: 6px 8px; font-size: 0.9rem; font-family: inherit; cursor: pointer; }
     .cal-grid-wrap { padding: 4px 0; flex-shrink: 0; }
-    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); grid-template-rows: auto; grid-auto-rows: 44px; row-gap: 2px; }
-    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 0 8px; border-bottom: 1px solid var(--border); }
+    .cal-wd-row { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); }
+    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 0 8px; }
+    .cal-days { display: grid; grid-template-columns: repeat(7,1fr); grid-auto-rows: 44px; row-gap: 2px; padding-top: 2px; }
     .cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 44px; cursor: pointer; gap: 4px; -webkit-tap-highlight-color: transparent; }
     .cal-cell.empty { cursor: default; pointer-events: none; }
     .cal-cell-num { font-size: 0.85rem; color: var(--ink3); line-height: 1; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
@@ -587,6 +588,7 @@
       <div class="dash-body-split">
         <div class="cal-left">
           <div class="cal-grid-wrap">
+            <div class="cal-wd-row" id="cal-wd-row"></div>
             <div class="cal-days" id="cal-days"></div>
           </div>
         </div>
@@ -1265,10 +1267,11 @@ function renderCalGrid() {
   selMonth.value = mo;
   selYear.value = y;
 
-  // Grelha — cabeçalhos e dias no mesmo grid para alinhamento perfeito
-  let cells = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
-    .map(d => `<div class="cal-wd">${d}</div>`).join('');
-  cells += '<div class="cal-cell empty"></div>'.repeat(firstDow);
+  document.getElementById('cal-wd-row').innerHTML =
+    ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+      .map(d => `<div class="cal-wd">${d}</div>`).join('');
+
+  let cells = '<div class="cal-cell empty"></div>'.repeat(firstDow);
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${currentMonth}-${String(d).padStart(2,'0')}`;
     const cls = ['cal-cell',
