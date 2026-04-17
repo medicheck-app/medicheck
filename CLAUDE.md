@@ -50,6 +50,10 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
 - Demo mode funcional (incompleto — falta caso de ambiguidade e cruzamento gastro)
 - Calendário com espaçamentos corrigidos
+- Google login funciona à primeira tentativa (botão desabilitado até SDK carregar)
+- Account picker Google sempre visível (prompt: 'select_account')
+- Sem flash de ecrã de login após autenticação
+- Desktop: calendário e lista de actos do dia lado a lado
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
@@ -61,8 +65,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 | # | Bug | Notas |
 |---|-----|-------|
-| 1 | Google login falha à primeira tentativa (requer 2–3 tries) | — |
-| 2 | Gemini 429 rate limit errors (frequente desde cortes no free tier, Abril 2026) | — |
+| 1 | Gemini 429 rate limit errors (frequente desde cortes no free tier, Abril 2026) | — |
 
 ---
 
