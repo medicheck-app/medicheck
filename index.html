@@ -1683,109 +1683,266 @@ async function handlePDF(e) {
   if (file) processPDFFile(file);
 }
 
+function normProc(s) {
+  return String(s || '').replace(/\D/g, '');
+}
+
 async function processPDFFile(file) {
   if (!file) return;
   const status = document.getElementById('cruzar-status');
   const out    = document.getElementById('cruzar-out');
   status.innerHTML = '<div class="info-box">A ler PDF…</div>';
   out.innerHTML = '';
-
   try {
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const arrayBuf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-    let fullText = '';
+    const lines = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const tc = await page.getTextContent();
-      fullText += tc.items.map(it => it.str).join(' ') + '\n';
+      const tc   = await page.getTextContent();
+      const rows = {};
+      for (const item of tc.items) {
+        const y = Math.round(item.transform[5] / 3) * 3;
+        if (!rows[y]) rows[y] = [];
+        rows[y].push({ x: item.transform[4], str: item.str });
+      }
+      const sortedYs = Object.keys(rows).map(Number).sort((a, b) => b - a);
+      for (const y of sortedYs) {
+        const rowStr = rows[y].sort((a, b) => a.x - b.x).map(it => it.str).join(' ').trim();
+        if (rowStr) lines.push(rowStr);
+      }
+      lines.push('');
     }
-    processCUFText(fullText, status, out);
-  } catch(err) {
-    status.innerHTML = `<div class="info-box" style="color:var(--red)">Erro ao ler PDF: ${esc(err.message)}</div>`;
+    processCUFText(lines.join('\n'), status, out);
+  } catch (err) {
+    status.innerHTML =
+      `<div class="info-box" style="color:var(--red)">Erro ao ler PDF: ${esc(err.message)}</div>`;
   }
 }
 
 function processCUFText(text, status, out) {
-  // Extrair nºs de processo: no PDF da CUF o nº está colado ao nome (ex: "134556CLARA")
-  const cufProcs = new Set();
-  const cufNomes = {};
-  const cufValores = {};
-  // pdf.js mistura colunas — extrair todos os números de exactamente 6 dígitos
-  // (processos=6 dígitos; códigos acto=8; prestador=9; anos=4 → sem colisão)
-  let m;
-  const simpleRe = /\b(\d{6})\b/g;
-  while ((m = simpleRe.exec(text)) !== null) cufProcs.add(m[1]);
-
-  // Extrair nomes: palavras em maiúsculas após cada número de processo
-  for (const proc of cufProcs) {
-    const nameRe = new RegExp('\\b' + proc + '\\b\\s+([A-ZÁÉÍÓÚÀÂÊÔÃÕÇÜ][A-ZÁÉÍÓÚÀÂÊÔÃÕÇÜ\\s]{4,40})');
-    const nm = text.match(nameRe);
-    if (nm) cufNomes[proc] = nm[1].trim().split(/\s+/).slice(0,3).join(' ');
-  }
-  const valRe = /(\d{5,7})(?=[A-Z])[\s\S]+?(\d+\.\d{2})\s*\n/g;
-  while ((m = valRe.exec(text)) !== null) {
-    const v = parseFloat(m[2]);
-    if (!isNaN(v) && v > 0) cufValores[m[1]] = (cufValores[m[1]] || 0) + v;
-  }
-
+  const ELIGIBLE = new Set(['registado', 'em_falta', 'reclamado']);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
 
-  // Calcular preview sem aplicar
-  const matches = procedimentos.filter(p => p.status === 'registado' && cufProcs.has(p.processo));
-  const futureFalta = procedimentos.filter(p => p.status === 'registado' && !cufProcs.has(p.processo) && new Date(p.data) < cutoff);
+  // Extrair por linha: proc (6 dígitos) + data (DD/MM/YYYY) obrigatórios
+  const lineRe = /\b(\d{6})\b.*?\b(\d{2}\/\d{2}\/\d{4})\b/;
+  const cufLines = [];
+  for (const raw of text.split('\n')) {
+    const lm = lineRe.exec(raw);
+    if (!lm) continue;
+    const proc = lm[1];
+    const [dd, mm, yyyy] = lm[2].split('/');
+    const date = `${yyyy}-${mm}-${dd}`;
+    // Último número decimal da linha = valor
+    const allNums = [...raw.matchAll(/(\d+[.,]\d{2})/g)];
+    let value = null;
+    if (allNums.length) {
+      const parsed = parseFloat(allNums[allNums.length - 1][1].replace(',', '.'));
+      if (!isNaN(parsed) && parsed > 0 && parsed < 100000) value = parsed;
+    }
+    // Nome: texto entre proc e primeiro número, sem data e sem decimais
+    const afterProc = raw.slice(raw.indexOf(lm[1]) + 6).trim();
+    const name = afterProc
+      .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, '')
+      .replace(/\b\d{6,}\b/g, '')
+      .replace(/\d+[.,]\d{2}/g, '')
+      .replace(/\s{2,}/g, ' ').trim() || null;
+    cufLines.push({ proc, date, name, value });
+  }
 
-  // 4 exemplos de actos da BD que foram encontrados no PDF
-  const exemploItems = matches.slice(0, 4).map(p =>
+  // Set de processos para sweep de cutoff (fallback se PDF sem datas)
+  const cufProcs = new Set(cufLines.map(l => l.proc));
+
+  // Indexar BD por chave normProc(processo)|data
+  const dbByKey = {};
+  for (const p of procedimentos) {
+    if (!ELIGIBLE.has(p.status)) continue;
+    const key = normProc(p.processo) + '|' + p.data;
+    if (!dbByKey[key]) dbByKey[key] = [];
+    dbByKey[key].push(p);
+  }
+
+  // Indexar PDF por mesma chave
+  const pdfByKey = {};
+  for (const line of cufLines) {
+    const key = line.proc + '|' + line.date;
+    if (!pdfByKey[key]) pdfByKey[key] = [];
+    pdfByKey[key].push(line);
+  }
+
+  // Classificar: correspondência directa 1:1 vs ambiguidade n:m
+  const clearMatches    = [];
+  const ambiguousGroups = [];
+  for (const key of Object.keys(pdfByKey)) {
+    const records = dbByKey[key] || [];
+    const lines   = pdfByKey[key];
+    if (!records.length) continue;
+    if (records.length === 1 && lines.length === 1) {
+      clearMatches.push({ record: records[0], line: lines[0] });
+    } else {
+      ambiguousGroups.push({ key, records, lines });
+    }
+  }
+
+  // Registos 'registado' sem match e com data anterior ao cutoff
+  const futureFalta = procedimentos.filter(p =>
+    p.status === 'registado' &&
+    !cufProcs.has(normProc(p.processo)) &&
+    new Date(p.data) < cutoff
+  );
+
+  // Montar preview HTML
+  const exemploItems = clearMatches.slice(0, 4).map(({ record: p, line }) =>
     `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.82rem">
-      <span style="color:var(--ink)">${esc(p.paciente||'—')}</span>
-      <span style="color:var(--ink3)"> · ${fmtDate(p.data)} · ${esc(p.procedimento||'—')}</span>
+      <span style="color:var(--ink)">${esc(p.paciente || '—')}</span>
+      <span style="color:var(--ink3)"> · ${fmtDate(p.data)} · ${esc(line.name || p.procedimento || '—')}
+        ${line.value != null ? ' · <strong style="color:var(--green)">' + line.value.toFixed(2) + ' €</strong>' : ''}
+      </span>
     </div>`
   ).join('');
 
   status.innerHTML = '';
   out.innerHTML = `
     <div class="info-box">
-      <strong>PDF lido:</strong> ${cufProcs.size} registos encontrados no PDF.<br>
-      <strong style="color:var(--green)">✓ ${matches.length} acto${matches.length!==1?'s':''} cruzados com a tua base de dados:</strong>
+      <strong>PDF lido:</strong> ${cufLines.length} linha${cufLines.length !== 1 ? 's' : ''} com doente+data encontradas.<br>
+      <strong style="color:var(--green)">✓ ${clearMatches.length} correspondência${clearMatches.length !== 1 ? 's' : ''} directas:</strong>
       <div style="margin-top:8px">${exemploItems}</div>
-      ${matches.length > 4 ? `<div style="font-size:0.75rem;color:var(--ink3);margin-top:6px">…e mais ${matches.length-4}</div>` : ''}
+      ${clearMatches.length > 4 ? `<div style="font-size:0.75rem;color:var(--ink3);margin-top:6px">…e mais ${clearMatches.length - 4}</div>` : ''}
     </div>
-    ${futureFalta.length ? `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
-      <span style="color:var(--red)">✗ ${futureFalta.length} acto${futureFalta.length!==1?'s':''} com +3 meses para marcar como <strong>em falta</strong></span>
+    ${ambiguousGroups.length ? `<div class="info-box" style="border-color:rgba(245,158,11,0.4)">
+      <span style="color:var(--accent)">⚠ ${ambiguousGroups.length} grupo${ambiguousGroups.length !== 1 ? 's' : ''} com ambiguidade — resolução necessária abaixo.</span>
     </div>` : ''}
-    <div style="display:flex;gap:10px">
-      <button class="btn-p" onclick="applyCUF()">Aplicar</button>
+    ${futureFalta.length ? `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
+      <span style="color:var(--red)">✗ ${futureFalta.length} acto${futureFalta.length !== 1 ? 's' : ''} com +3 meses para marcar como <strong>em falta</strong></span>
+    </div>` : ''}
+    <div id="ambiguity-ui"></div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()"
+        ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>Aplicar</button>
       <button class="btn-s" onclick="cancelCUF()">Cancelar</button>
     </div>`;
 
-  // Guardar estado pendente
-  window._pendingCUF = { cufProcs, cufValores, cutoff };
+  window._pendingCUF = {
+    cufLines, cufProcs,
+    clearMatches, ambiguousGroups,
+    resolved: {},
+    cutoff,
+  };
+
+  if (ambiguousGroups.length) renderAmbiguityUI();
+}
+
+function renderAmbiguityUI() {
+  if (!window._pendingCUF) return;
+  const { ambiguousGroups, resolved } = window._pendingCUF;
+  const container = document.getElementById('ambiguity-ui');
+  if (!container) return;
+  let html = `<div style="margin-top:8px">
+    <div style="font-size:0.85rem;font-weight:600;margin-bottom:10px;color:var(--ink)">
+      Ambiguidade: mesmo doente, mesma data, vários actos registados.<br>
+      <span style="font-size:0.78rem;color:var(--ink3);font-weight:400">
+        Escolhe qual acto da base de dados corresponde a cada linha do PDF.
+      </span>
+    </div>`;
+  ambiguousGroups.forEach((group, gi) => {
+    const allSlotsFilled = group.lines.every((_, li) => !!resolved[`${group.key}|${li}`]);
+    html += `<div style="border:1px solid ${allSlotsFilled ? 'var(--green)' : 'rgba(245,158,11,0.4)'};
+      border-radius:var(--radius);padding:14px;margin-bottom:12px;background:var(--bg2)">
+      <div style="font-size:0.78rem;color:var(--ink3);margin-bottom:8px">
+        Doente proc. ${group.lines[0].proc} · ${fmtDate(group.lines[0].date)}
+        ${allSlotsFilled ? ' <span style="color:var(--green)">✓ Resolvido</span>' : ''}
+      </div>`;
+    group.lines.forEach((line, li) => {
+      const selKey = `${group.key}|${li}`;
+      html += `<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <div style="font-size:0.82rem;color:var(--ink2);margin-bottom:6px">
+          PDF linha ${li + 1}: <strong>${esc(line.name || '—')}</strong>
+          ${line.value != null ? ' · <strong style="color:var(--green)">' + line.value.toFixed(2) + ' €</strong>' : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">`;
+      group.records.forEach((rec, ri) => {
+        const isSelected = resolved[selKey]?.record.id === rec.id;
+        html += `<button class="btn-s"
+          style="text-align:left;padding:8px 12px;font-size:0.8rem;width:auto;${isSelected ? 'border-color:var(--green);color:var(--green);' : ''}"
+          onclick="resolveAmbiguity(${gi},${li},${ri})">
+          ${isSelected ? '✓ ' : ''}${esc(rec.procedimento || rec.acto || '—')}
+          <span style="color:var(--ink3);font-size:0.74rem"> · ${esc(rec.status)}</span>
+        </button>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
+  if (!window._pendingCUF) return;
+  const { ambiguousGroups, resolved } = window._pendingCUF;
+  const group  = ambiguousGroups[groupIdx];
+  const line   = group.lines[lineIdx];
+  const record = group.records[recordIdx];
+  resolved[`${group.key}|${lineIdx}`] = { record, line };
+  renderAmbiguityUI();
+  const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
+  const resolvedCount = Object.keys(resolved).length;
+  if (resolvedCount >= totalSlots) {
+    const btn = document.getElementById('btn-apply-cuf');
+    if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
+  }
 }
 
 function applyCUF() {
   if (!window._pendingCUF) return;
-  const { cufProcs, cufValores, cutoff } = window._pendingCUF;
+  const { cufProcs, clearMatches, ambiguousGroups, resolved, cutoff } = window._pendingCUF;
   const now = new Date().toISOString();
-  let pagos = 0, emFalta = 0;
+  let pagos = 0, emFalta = 0, totalRecuperado = 0;
+
+  // Aplicar correspondências directas
+  for (const { record: p, line } of clearMatches) {
+    p.status = 'pago'; p.pagoEm = now;
+    if (line.value != null) p.valor = line.value;
+    if (line.name)          p.procedimento = line.name;
+    p.pagoViaReconciliacao = true;
+    totalRecuperado += (p.valor || 0);
+    pagos++;
+  }
+
+  // Aplicar ambiguidades resolvidas
+  for (const selKey of Object.keys(resolved)) {
+    const { record: p, line } = resolved[selKey];
+    if (p.status === 'pago' && p.pagoViaReconciliacao) continue;
+    p.status = 'pago'; p.pagoEm = now;
+    if (line.value != null) p.valor = line.value;
+    if (line.name)          p.procedimento = line.name;
+    p.pagoViaReconciliacao = true;
+    totalRecuperado += (p.valor || 0);
+    pagos++;
+  }
+
+  // Sweep cutoff: apenas 'registado' sem match e com data anterior ao cutoff
   for (const p of procedimentos) {
     if (p.status !== 'registado') continue;
-    if (cufProcs.has(p.processo)) {
-      p.status = 'pago'; p.pagoEm = now;
-      if (cufValores[p.processo]) p.valor = cufValores[p.processo];
-      pagos++;
-    } else if (new Date(p.data) < cutoff) {
+    if (!cufProcs.has(normProc(p.processo)) && new Date(p.data) < cutoff) {
       p.status = 'em_falta'; emFalta++;
     }
   }
+
   window._pendingCUF = null;
   autoSave(); renderDashboard();
   const out = document.getElementById('cruzar-out');
   let html = '<div class="info-box" style="color:var(--green)">Cruzamento aplicado.<br>';
-  if (pagos)   html += `${pagos} acto${pagos!==1?'s':''} marcado${pagos!==1?'s':''} como pago. `;
-  if (emFalta) html += `<span style="color:var(--red)">${emFalta} acto${emFalta!==1?'s':''} marcado${emFalta!==1?'s':''} como em falta.</span>`;
+  if (pagos) {
+    html += `${pagos} acto${pagos !== 1 ? 's' : ''} marcado${pagos !== 1 ? 's' : ''} como pago`;
+    if (totalRecuperado > 0) html += ` · <strong>Total recuperado: ${totalRecuperado.toFixed(2)} €</strong>`;
+    html += '.<br>';
+  }
+  if (emFalta) html += `<span style="color:var(--red)">${emFalta} acto${emFalta !== 1 ? 's' : ''} marcado${emFalta !== 1 ? 's' : ''} como em falta.</span>`;
   html += '</div>';
   out.innerHTML = html;
   toast('Cruzamento concluído');
@@ -1844,10 +2001,16 @@ function renderPagamentos() {
   }
   const nRec  = lista.filter(p => p.status === 'reclamado').length;
   const nPago = lista.filter(p => p.status === 'pago').length;
+  const totalPago  = lista.filter(p => p.status === 'pago').reduce((s, p) => s + (p.valor || 0), 0);
+  const totalRecon = lista.filter(p => p.status === 'pago' && p.pagoViaReconciliacao).reduce((s, p) => s + (p.valor || 0), 0);
   let html = `<div class="info-box">
     ${nRec  ? `<span style="color:var(--accent)">● ${nRec} reclamado${nRec!==1?'s':''}</span>` : ''}
     ${nRec && nPago ? '&nbsp;&nbsp;' : ''}
     ${nPago ? `<span style="color:var(--green)">● ${nPago} pago${nPago!==1?'s':''}</span>` : ''}
+    ${totalPago > 0 ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--ink2)">
+      Total pago: <strong style="color:var(--green)">${totalPago.toFixed(2)} €</strong>
+      ${totalRecon > 0 ? `<br><span style="font-size:0.76rem;color:var(--ink3)">dos quais ${totalRecon.toFixed(2)} € via reconciliação PDF</span>` : ''}
+    </div>` : ''}
   </div>`;
   lista.forEach(p => {
     const isPago = p.status === 'pago';
@@ -2147,13 +2310,13 @@ function simulateDemoPDF() {
   // — processos 481203, 394817, 562940 NÃO incluídos → aparecerão como em falta (>3 meses)
   // — processos pagos/reclamados incluídos mas ignorados pelo filtro (status !== 'registado')
   const fakeText = [
-    '131644 GONÇALO NUNES MURTA DUARTE  35.00',
-    '618851 ISABEL MARIA FERREIRA MARTINHO  28.50',
-    '727643 BELMIRO AURÉLIO DE SOUSA  42.00',
-    '123834 SANTIAGO FERREIRA MANUEL  31.00',
-    '729311 LUÍSA DE FREITAS CARDOSO  55.00',
-    '712572 PAULO FRANCISCO VIEIRA DE SOUSA  180.00',
-    '556906 CAETANA ALVES LOURENÇO  95.00',
+    '131644 GONÇALO NUNES MURTA DUARTE 25/03/2026 URO0041 Cirurgia de hidrocele 35.00',
+    '618851 ISABEL MARIA FERREIRA MARTINHO 26/03/2026 ORT0012 Tratamento de doença de Morton 28.50',
+    '727643 BELMIRO AURÉLIO DE SOUSA 02/04/2026 CIR0018 Apendicectomia laparoscópica 42.00',
+    '123834 SANTIAGO FERREIRA MANUEL 07/04/2026 ORL0009 Rino-septoplastia 31.00',
+    '729311 LUÍSA DE FREITAS CARDOSO 10/04/2026 ORT0033 Tectoplastia cotiloideia 55.00',
+    '712572 PAULO FRANCISCO VIEIRA DE SOUSA 08/01/2026 ORT0044 Artroplastia total 180.00',
+    '556906 CAETANA ALVES LOURENÇO 15/01/2026 ORL0022 Amigdalectomia 95.00',
   ].join('\n');
   setTimeout(() => processCUFText(fakeText, status, out), 600);
 }
