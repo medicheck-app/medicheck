@@ -1,33 +1,108 @@
-# MediCheck — Instruções para Claude Code
+# MEDICHECK — CONTEXTO PARA CLAUDE CODE
 
-## Contexto
-MediCheck é uma PWA para médicos do CUF Torres Vedras registarem actos médicos.
-Suporta 3 especialidades: Anestesiologia, Cirurgia (9 sub-especialidades) e Gastroenterologia.
-Fluxo: fotografar vinheta → OCR → registar acto → reconciliar com honorários CUF → relatório de reclamação.
+> Este ficheiro é lido automaticamente pelo Claude Code antes de cada sessão.
+> Mantém-no actualizado. A fonte de verdade para estratégia e produto é a conversa principal com o Claude (claude.ai).
 
-## Regras obrigatórias
-- Todas as alterações devem ser feitas APENAS em `index.html` (é um single-file app)
-- NUNCA tocar em `dev.html`, `apikey.txt`, ficheiros `.jpg`, `.pdf` ou `privacy.html`
-- Manter o estilo de código existente: CSS custom properties (--bg, --ink, --accent, etc.), sem frameworks
-- Respeitar as 3 especialidades e os seus temas de cor (amber/azul/verde)
-- O HTML deve ser válido — verificar antes de fazer commit
-- Mensagens de commit em português
-- Não quebrar a encriptação Google Drive (AES-256-GCM via PBKDF2)
+---
 
-## Arquitectura
-- Single file HTML/CSS/JS (~3500 linhas)
-- CSS custom properties para theming (dark theme, specialty colors)
-- OCR via Cloudflare Worker proxy → Claude Vision API
-- Dados encriptados no Google Drive do utilizador (AES-256-GCM, PIN via PBKDF2)
-- localStorage como fallback/cache
-- Deploy automático via GitHub Pages (branch main)
-- Libs externas: XLSX.js, Google OAuth 2.0 (loaded via CDN)
+## PROJECTO
 
-## Status dos actos
-registado → em_falta (≥3 meses) → reclamado → pago / arquivado
+PWA mobile-first para médicos registarem actos operatórios e reconciliarem com listagens de honorários da CUF — recuperando pagamentos em falta.
 
-## Ao criar PRs
-- Título curto em português
-- Descrever o que mudou e porquê no corpo do PR
-- Se tocou em CSS, mencionar se afecta layout mobile
-- Se tocou em JS de dados/sync, confirmar que não quebra a encriptação
+- **Produção:** https://medicheck-app.github.io/medicheck/
+- **Google Cloud Project:** medicheck-489414
+- **Limite actual:** 100 utilizadores de teste (OAuth não publicado)
+
+---
+
+## STACK TÉCNICA
+
+- **Ficheiro principal:** `index.html` (~3300 linhas, vanilla JS + HTML + CSS inline)
+- `dev.html` é cópia local para testes — nunca é publicada directamente
+- **OCR:** Gemini Flash via Cloudflare Worker (chave API segura, não exposta no cliente)
+- **Auth:** Google Sign-in → PIN → encriptação AES-256-GCM com chave derivada via PBKDF2
+- **Storage:** Google Drive (appDataFolder) para dados encriptados; localStorage como cache (sincronização entre dispositivos não confirmada — risco activo)
+- **Importação:** XLSX.js para mapas CUF + paste de PDF/texto
+- **Deploy:** editar `dev.html` → copiar para `index.html` → `git push` → GitHub Pages
+
+---
+
+## REGRAS INVIOLÁVEIS
+
+- Só modificar `index.html` — **nunca** tocar em `dev.html`, `apikey.txt`, ficheiros `.jpg`, `.pdf`, ou `privacy.html`
+- Commits Git escritos em **português**
+- Não fazer perguntas de diagnóstico — implementar com base no contexto disponível
+
+---
+
+## ESTADO ACTUAL
+
+### Funciona
+- Onboarding completo (Google Sign-in → PIN → Especialidade)
+- Registo de actos
+- OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
+- Reconciliação com listagem CUF (upload/paste PDF ou texto)
+- Status flow: Registado → Em Falta → Reclamado → Pago
+- Regra dos 3 meses para marcar "Em Falta"
+- Painel de Recuperação
+- Relatório de reclamação (exporta para `.txt` e clipboard)
+- Dados separados por utilizador
+- Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
+- Demo mode funcional (incompleto — falta caso de ambiguidade e cruzamento gastro)
+- Calendário com espaçamentos corrigidos
+
+### Não funciona / falta
+- **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
+- **Demo mode incompleto** — falta caso de ambiguidade (2 actos mesmo doente+data) e caso gastro no cruzamento
+
+---
+
+## BUGS ACTIVOS
+
+| # | Bug | Notas |
+|---|-----|-------|
+| 1 | Google login falha à primeira tentativa (requer 2–3 tries) | — |
+| 2 | Gemini 429 rate limit errors (frequente desde cortes no free tier, Abril 2026) | — |
+
+---
+
+## MELHORIAS PENDENTES
+
+| # | Melhoria | Prioridade |
+|---|----------|------------|
+| 1 | Demo mode — adicionar caso de ambiguidade (2 actos mesmo doente+data) e caso gastro no cruzamento | Alta |
+| 2 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
+
+---
+
+## DECISÕES DE PRODUTO TOMADAS
+
+- Match por nº processo, não por nome (CUF não confirma linha a linha)
+- Copy-paste é aceitável (CUF protege o Sheets contra download)
+- `pagos[]` mantido apesar de redundante — reservado para analytics/monetização futura
+- `panel-relatorio` só acessível via CTA do Reconciliar — aceite por design
+- PDF reading: funcional mas limitado — apenas PDFs pesquisáveis, apenas extrai nº processo
+- OCR: Gemini API via Cloudflare Worker (não Claude Haiku)
+
+---
+
+## ARQUITECTURA OCR
+
+```
+[Cliente] → foto → [Cloudflare Worker] → Gemini Flash API → resultado OCR → [Cliente]
+```
+A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
+
+---
+
+## BACKLOG PÓS-MVP
+
+- Breakdown mensal do valor recuperado no Painel de Recuperação (total por mês + total acumulado)
+- Mais especialidades (gastroenterologia, cirurgia, consulta)
+- Auth real com whitelist + publicação OAuth
+
+---
+
+## RISCO CRÍTICO ACTIVO
+
+**Reconciliação nunca testada com dados reais.** Primeiro teste real esperado Junho/Julho 2026. É o item de risco mais crítico do MVP — tudo o resto é secundário até isto estar validado.
