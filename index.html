@@ -169,11 +169,11 @@
     .cal-nav-btn:active { color: var(--ink); }
     .cal-nav-selects { display: flex; gap: 6px; }
     .cal-nav-sel { background: var(--bg3); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: 6px 8px; font-size: 0.9rem; font-family: inherit; cursor: pointer; }
-    .cal-grid-wrap { padding: 4px 0; flex-shrink: 0; }
-    .cal-wd-row { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); }
-    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 0 8px; }
+    .cal-grid-wrap { padding: 4px 0; flex-shrink: 0; width: 100%; overflow: hidden; }
+    .cal-wd-row { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); min-width: 0; }
+    .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 0 8px; min-width: 0; }
     .cal-days { display: grid; grid-template-columns: repeat(7,1fr); grid-auto-rows: 44px; row-gap: 2px; padding-top: 2px; }
-    .cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 44px; cursor: pointer; gap: 4px; -webkit-tap-highlight-color: transparent; }
+    .cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 44px; cursor: pointer; gap: 4px; -webkit-tap-highlight-color: transparent; min-width: 0; }
     .cal-cell.empty { cursor: default; pointer-events: none; }
     .cal-cell-num { font-size: 0.85rem; color: var(--ink3); line-height: 1; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
     .cal-cell.has-acts .cal-cell-num { color: var(--ink); font-weight: 600; }
@@ -439,7 +439,7 @@
 
     /* ── Mobile: scroll na lista de doentes ── */
     .dash-body-split { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .cal-left { flex-shrink: 0; }
+    .cal-left { flex-shrink: 0; width: 100%; overflow: hidden; }
 
     /* ══════════════════════════════════════════
        DESKTOP / TABLET  (≥ 768px)
