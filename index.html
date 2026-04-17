@@ -1975,7 +1975,7 @@ function cancelCUF() {
 // RECLAMAR
 // ═══════════════════════════════════════════════════
 function renderReclamar() {
-  const emFalta = procedimentos.filter(p => p.status === 'em_falta').sort((a,b) => a.data.localeCompare(b.data));
+  const emFalta = procedimentos.filter(p => p.status === 'em_falta').sort((a,b) => (a.data||'').localeCompare(b.data||''));
   const body = document.getElementById('reclamar-body');
   if (!emFalta.length) {
     body.innerHTML = '<div class="info-box">Nenhum acto em falta. Cruza os dados primeiro.</div>'; return;
@@ -2012,7 +2012,7 @@ function markAllReclaimed() {
 function renderPagamentos() {
   const lista = procedimentos
     .filter(p => p.status === 'reclamado' || p.status === 'pago')
-    .sort((a,b) => a.data.localeCompare(b.data));
+    .sort((a,b) => (a.data||'').localeCompare(b.data||''));
   const body = document.getElementById('pagamentos-body');
   if (!lista.length) {
     body.innerHTML = '<div class="info-box">Nenhum acto reclamado ou pago.</div>'; return;
@@ -2151,7 +2151,7 @@ function renderRelatorio() {
     if (m) porMes[m] = (porMes[m] || 0) + 1;
   }
   const mesSorted = Object.entries(porMes).sort((a,b) => a[0].localeCompare(b[0])).slice(-12);
-  const maxMes = Math.max(...mesSorted.map(x => x[1]));
+  const maxMes = mesSorted.length ? Math.max(...mesSorted.map(x => x[1])) : 1;
   const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   body.innerHTML = `
