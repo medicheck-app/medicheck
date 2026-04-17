@@ -863,6 +863,7 @@ let tokenClient   = null;
 let userProfile   = { name: '', email: '' };
 let procedimentos = [];
 let editingActId  = null;
+let lastUsedDate  = null;
 let currentTab    = null;
 let currentMonth  = today().slice(0, 7);
 let selectedDay   = null;
@@ -1498,7 +1499,7 @@ function openNewAct(ocr) {
   document.getElementById('f-pac').value          = ocr?.paciente || '';
   document.getElementById('f-proc').value         = proc;
   document.getElementById('f-seg').value          = ocr?.seguradora || '';
-  document.getElementById('f-data').value         = today();
+  document.getElementById('f-data').value         = lastUsedDate || today();
   const _fEsp = document.getElementById('f-especialidade');
   _fEsp.value = ''; _fEsp._prevValue = '';
   document.getElementById('f-procedimento').value  = '';
@@ -1564,6 +1565,7 @@ function saveAct() {
     saveLocal(); autoSave(); renderDashboard();
     toast('Acto actualizado'); showDetail(id);
   } else {
+    lastUsedDate = document.getElementById('f-data').value;
     procedimentos.push({
       id:           crypto.randomUUID(),
       paciente,
