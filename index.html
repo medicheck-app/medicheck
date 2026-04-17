@@ -862,6 +862,7 @@ let encKey        = null;
 let tokenClient   = null;
 let userProfile   = { name: '', email: '' };
 let procedimentos = [];
+let editingActId  = null;
 let currentTab    = null;
 let currentMonth  = today().slice(0, 7);
 let selectedDay   = null;
@@ -1507,6 +1508,34 @@ function openNewAct(ocr) {
   initProcSuggestions();
 }
 
+function editAct(id) {
+  const p = procedimentos.find(x => x.id === id);
+  if (!p) return;
+  editingActId = id;
+  document.getElementById('f-pac').value          = p.paciente || '';
+  document.getElementById('f-proc').value         = p.processo || '';
+  document.getElementById('f-seg').value          = p.seguradora || '';
+  document.getElementById('f-data').value         = p.data || '';
+  document.getElementById('f-notas').value        = p.notas || '';
+  const _fEsp = document.getElementById('f-especialidade');
+  _fEsp.value = p.especialidade || ''; _fEsp._prevValue = p.especialidade || '';
+  document.getElementById('f-procedimento').value = p.tipo === 'cirurgica' ? (p.procedimento || '') : '';
+  setTipo(p.tipo || 'cirurgica');
+  document.querySelector('#screen-new-act h1').textContent = 'Editar acto';
+  document.querySelector('#screen-new-act .hdr-back').setAttribute('onclick', `cancelEdit('${id}')`);
+  document.querySelector('#screen-new-act .btn-p').textContent = 'Guardar alterações';
+  showScreen('screen-new-act');
+  initProcSuggestions();
+}
+
+function cancelEdit(id) {
+  editingActId = null;
+  document.querySelector('#screen-new-act h1').textContent = 'Novo acto';
+  document.querySelector('#screen-new-act .hdr-back').setAttribute('onclick', "showScreen('screen-dashboard')");
+  document.querySelector('#screen-new-act .btn-p').textContent = 'Guardar acto';
+  showDetail(id);
+}
+
 function saveAct() {
   const paciente     = document.getElementById('f-pac').value.trim();
   const tipo         = document.getElementById('f-tipo').value;
@@ -1514,25 +1543,46 @@ function saveAct() {
   if (!paciente) { toast('Preenche o nome do paciente'); return; }
   if (tipo === 'cirurgica' && !procedimento) { toast('Preenche o procedimento'); return; }
 
-  procedimentos.push({
-    id:           crypto.randomUUID(),
-    paciente,
-    processo:     document.getElementById('f-proc').value.trim(),
-    data:         document.getElementById('f-data').value,
-    tipo,
-    especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
-    procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
-    seguradora:   document.getElementById('f-seg').value.trim() || null,
-    notas:        document.getElementById('f-notas').value.trim() || null,
-    valor:        null,
-    status:       'registado',
-    criadoEm:     new Date().toISOString(),
-    reclamadoEm:  null,
-    pagoEm:       null,
-  });
-
-  saveLocal(); autoSave(); renderDashboard();
-  toast('Acto guardado'); showScreen('screen-dashboard');
+  if (editingActId) {
+    const p = procedimentos.find(x => x.id === editingActId);
+    if (p) {
+      p.paciente      = paciente;
+      p.processo      = document.getElementById('f-proc').value.trim();
+      p.data          = document.getElementById('f-data').value;
+      p.tipo          = tipo;
+      p.especialidade = tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '';
+      p.procedimento  = tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro';
+      p.seguradora    = document.getElementById('f-seg').value.trim() || null;
+      p.notas         = document.getElementById('f-notas').value.trim() || null;
+      // id · valor · status · criadoEm · reclamadoEm · pagoEm: intactos
+    }
+    const id = editingActId;
+    editingActId = null;
+    document.querySelector('#screen-new-act h1').textContent = 'Novo acto';
+    document.querySelector('#screen-new-act .hdr-back').setAttribute('onclick', "showScreen('screen-dashboard')");
+    document.querySelector('#screen-new-act .btn-p').textContent = 'Guardar acto';
+    saveLocal(); autoSave(); renderDashboard();
+    toast('Acto actualizado'); showDetail(id);
+  } else {
+    procedimentos.push({
+      id:           crypto.randomUUID(),
+      paciente,
+      processo:     document.getElementById('f-proc').value.trim(),
+      data:         document.getElementById('f-data').value,
+      tipo,
+      especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
+      procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
+      seguradora:   document.getElementById('f-seg').value.trim() || null,
+      notas:        document.getElementById('f-notas').value.trim() || null,
+      valor:        null,
+      status:       'registado',
+      criadoEm:     new Date().toISOString(),
+      reclamadoEm:  null,
+      pagoEm:       null,
+    });
+    saveLocal(); autoSave(); renderDashboard();
+    toast('Acto guardado'); showScreen('screen-dashboard');
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1566,6 +1616,7 @@ function showDetail(id) {
     ${p.pagoEm ? `<div class="det-sec"><div class="det-lbl">Pago em</div><div class="det-val" style="color:var(--green)">${fmtDate(p.pagoEm.slice(0,10))}</div></div>` : ''}
     <div class="det-actions">
       ${actions}
+      <button class="btn-s" onclick="editAct('${id}')">Editar acto</button>
       <button class="btn-d" onclick="deleteAct('${id}')">Apagar acto</button>
     </div>
   `;
