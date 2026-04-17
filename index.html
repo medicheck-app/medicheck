@@ -44,8 +44,8 @@
       display: none; flex-direction: column;
       height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
-    @keyframes screenIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    .screen.active { display: flex; animation: screenIn 0.18s ease; }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .screen.active { display: flex; animation: screenIn 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
 
     /* ── Header ── */
     .hdr {
@@ -469,7 +469,7 @@
 
       /* Layout 2 colunas: calendário | painel */
       .dash-body-split {
-        display: flex; flex: 1; overflow: hidden;
+        display: flex; flex-direction: row; flex: 1; overflow: hidden;
       }
       .cal-left {
         width: 320px; flex-shrink: 0;
@@ -1035,13 +1035,14 @@ function requestGoogleLogin() {
   }
   const btn = document.getElementById('btn-google');
   btn.disabled = true; btn.textContent = 'A ligar…';
-  tokenClient.requestAccessToken({ prompt: '' });
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
 async function onToken(resp) {
   const btn = document.getElementById('btn-google');
   btn.disabled = false; btn.textContent = 'Entrar com Google';
   if (resp.error) { setLoginStatus('Erro: ' + resp.error); return; }
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   googleToken = resp.access_token;
   setSyncing(true, 'A verificar conta…');
   try {
@@ -1054,6 +1055,7 @@ async function onToken(resp) {
   setSyncing(false, '');
   if (driveResult.error === 'network') {
     setLoginStatus('Erro de ligação — verifica a internet e tenta novamente.');
+    showScreen('screen-login');
     return;
   }
   driveFileId = driveResult.id;
