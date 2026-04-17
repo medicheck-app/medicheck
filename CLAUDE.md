@@ -24,6 +24,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - **Storage:** Google Drive (appDataFolder) para dados encriptados; localStorage como cache (sincronização entre dispositivos não confirmada — risco activo)
 - **Importação:** XLSX.js para mapas CUF + paste de PDF/texto
 - **Deploy:** editar `dev.html` → copiar para `index.html` → `git push` → GitHub Pages
+- **Notas:** `CLAUDE.md` editável no Obsidian (vault = pasta `Medicheck`). Editar entre sessões para manter contexto actualizado.
 
 ---
 
