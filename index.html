@@ -712,6 +712,13 @@
     </div>
   </div>
 
+  <!-- ══════════════ LOGOUT ══════════════ -->
+  <div id="screen-logout" class="screen" style="align-items:center; justify-content:center; text-align:center; padding:20px;">
+    <h2 style="color:var(--ink); margin-bottom:12px;">Sessão Terminada</h2>
+    <p style="color:var(--ink2); margin-bottom:24px;">A tua sessão foi encerrada com segurança.</p>
+    <button onclick="location.reload()" class="btn-primary" style="width:200px;">Voltar ao Login</button>
+  </div>
+
   <!-- ══════════════ DETALHE ══════════════ -->
   <div id="screen-detail" class="screen">
     <div class="hdr">
@@ -734,7 +741,7 @@
         <h3>Conta</h3>
         <div style="font-size:0.9rem;color:var(--ink2);margin-bottom:14px" id="s-user"></div>
         <button class="btn-s" style="margin-bottom:10px" onclick="changePIN()">🔒 Alterar PIN</button>
-        <button class="btn-logout" onclick="exitApp()">Sair</button>
+        <button class="btn-logout" onclick="handleLogout()">Sair da aplicação</button>
       </div>
       <div class="settings-section" style="padding-top:16px;border-top:1px solid var(--border)">
         <h3>Privacidade</h3>
@@ -1184,9 +1191,12 @@ function toast(msg) {
   clearTimeout(_toastT); _toastT = setTimeout(() => el.classList.remove('on'), 2500);
 }
 
-function exitApp() {
-  window.close();
-  setTimeout(() => { if (!window.closed) toast('Para sair, feche esta janela'); }, 300);
+function handleLogout() {
+  localStorage.removeItem('medicheck_auth');
+  const url = new URL(window.location);
+  url.searchParams.delete('dev');
+  window.history.replaceState({}, '', url.pathname);
+  showScreen('screen-logout');
 }
 
 function setSyncing(on, msg) {
