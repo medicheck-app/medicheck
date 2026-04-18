@@ -2505,49 +2505,59 @@ function renderRecuperacao() {
 // Os dados são fictícios e NUNCA são guardados (autoSave é no-op quando isDemoMode=true)
 // ═══════════════════════════════════════════════════
 function _buildDemoData() {
-  const _d = (data, proc, pac, esp, proc_nome, status, tipo='cirurgica') => ({
+  const _d = (data, proc, pac, esp, proc_nome, status, tipo = 'cirurgica', valor = null) => ({
     id: crypto.randomUUID(), paciente: pac, processo: proc, data,
-    tipo, especialidade: tipo==='gastro' ? '' : esp,
-    procedimento: tipo==='gastro' ? 'Anestesia Gastro' : proc_nome,
-    status, criadoEm: new Date().toISOString(),
-    reclamadoEm: status==='reclamado' ? '2026-04-01T10:00:00.000Z'
-               : status==='pago'      ? '2026-02-01T10:00:00.000Z' : null,
-    pagoEm: status==='pago' ? '2026-03-15T10:00:00.000Z' : null,
+    tipo, especialidade: tipo === 'gastro' ? '' : esp,
+    procedimento: tipo === 'gastro' ? 'Anestesia Gastroenterologia' : proc_nome,
+    status, valor, criadoEm: new Date().toISOString(),
+    reclamadoEm: status === 'reclamado' ? '2026-02-10T09:00:00.000Z' : null,
+    pagoEm: status === 'pago' ? '2026-03-15T10:00:00.000Z' : null,
+    rejeitadoEm: null, motivoRejeicao: null,
   });
   return [
-    // PAGO — Jan/Fev 2026
-    _d('2026-01-08','712572','PAULO FRANCISCO VIEIRA DE SOUSA','Ortopedia','Artroplastia total — artrose','pago'),
-    _d('2026-01-15','556906','CAETANA ALVES LOURENÇO','Otorrinolaringologia','Amigdalectomia com anestesia geral','pago'),
-    _d('2026-01-22','709167','MARIA DE LURDES ALBINO FRANCISCO SILVA','Cirurgia Vascular','Excisão veia safena com laqueação','pago'),
-    _d('2026-02-05','707507','OCTAVIANO NETO PESSOA DE AMORIM','Neurocirurgia','Foraminectomia','pago'),
-    _d('2026-02-12','533072','ALICE MARIANNE LEMOS GARCIA DE OLIVEIRA','Oftalmologia','Facoemulsificação do cristalino com LIO','pago'),
-    // RECLAMADO — Fev/Mar 2026
-    _d('2026-02-18','726725','BÁRBARA FILIPA PIRES BÁRBARA','Ginecologia/Obstetrícia','Histeroscopia diagnóstica','reclamado'),
-    _d('2026-02-25','357545','JOÃO PEDRO ANTUNES DAS EIRAS','Urologia','Ressecção endoscópica da próstata (RTUP)','reclamado'),
-    _d('2026-03-04','643393','ANTÓNIO JOSÉ RODRIGUES FERRAZ','Cirurgia Geral','Colecistectomia laparoscópica','reclamado'),
-    _d('2026-03-04','435780','CÁTIA ISABEL DOS SANTOS GOMES','','','reclamado','gastro'),
-    // EM FALTA — Mar 2026 (presentes nos registos mas ausentes do PDF CUF)
-    _d('2026-03-10','131268','AIRES DANIEL FARIA DA SILVA','Neurocirurgia','Laminectomia descompressiva (até 2 vértebras)','em_falta'),
-    _d('2026-03-10','602370','FERNANDO SANTOS PEREIRA','Ortopedia','Artroscopia com tratamento de lesões articulares','em_falta'),
-    _d('2026-03-12','199505','CARLOS ALBERTO PINTO','Oftalmologia','Crioterapia ou diatermia retiniana','em_falta'),
-    _d('2026-03-12','134556','CLARA ISABEL BARROSO RAMOS CAMPOS','','','em_falta','gastro'),
-    _d('2026-03-14','305548','CARLA ALEXANDRA GOMES DOS SANTOS','Cirurgia Vascular','Safenectomia laser endovenosa','em_falta'),
-    _d('2026-03-18','234175','HELENA MARIA BRANCO RODRIGUES','Otorrinolaringologia','Turbinectomia bilateral','em_falta'),
-    // REGISTADO — Out/Dez 2025 (antigos, >3 meses — em falta na simulação PDF)
-    _d('2025-10-14','481203','RUTE MARGARIDA FARIA PEREIRA','Cirurgia Geral','Herniorrafia inguinal laparoscópica','registado'),
-    _d('2025-11-06','394817','DAVID MIGUEL SANTOS BAPTISTA','Ortopedia','Osteossíntese de fractura do antebraço','registado'),
-    _d('2025-12-03','562940','FERNANDA EMÍLIA NOBRE LOURENÇO','Ginecologia/Obstetrícia','Laparoscopia diagnóstica','registado'),
-    // REGISTADO — Mar/Abr 2026 (recentes, ainda não cruzados)
-    _d('2026-03-25','131644','GONÇALO NUNES MURTA DUARTE','Urologia','Cirurgia de hidrocele','registado'),
-    _d('2026-03-26','618851','ISABEL MARIA FERREIRA MARTINHO','Ortopedia','Tratamento de doença de Morton','registado'),
-    _d('2026-03-27','735323','MARIA IDALINA DOS SANTOS PAULINO','Ginecologia/Obstetrícia','Suspensão uretral por incontinência','registado'),
-    _d('2026-03-28','297992','NUNO MANUEL RIBEIRO CLEMENTE','','','registado','gastro'),
-    _d('2026-04-02','727643','BELMIRO AURÉLIO DE SOUSA','Cirurgia Geral','Apendicectomia laparoscópica','registado'),
-    _d('2026-04-03','183593','GREGÓRIO JOAQUIM CLAUDINO ALFREDO','Neurocirurgia','Neurólise','registado'),
-    _d('2026-04-07','123834','SANTIAGO FERREIRA MANUEL','Otorrinolaringologia','Rino-septoplastia','registado'),
-    _d('2026-04-08','583639','TIAGO DANIEL NEVES CARVALHO','Cirurgia Vascular','Excisão veia safena com laqueação','registado'),
-    _d('2026-04-09','738646','DONATELLA FERRARI','Oftalmologia','Blefaroplastia bilateral','registado'),
-    _d('2026-04-10','729311','LUÍSA DE FREITAS CARDOSO','Ortopedia','Tectoplastia cotiloideia','registado'),
+    // PAGO — Novembro 2025 (reconciliação anterior)
+    _d('2025-11-05','712572','PAULO FRANCISCO VIEIRA DE SOUSA','Ortopedia','Artroplastia total do joelho','pago','cirurgica',180),
+    _d('2025-11-08','556906','CAETANA ALVES LOURENÇO','Otorrinolaringologia','Amigdalectomia com adenoidectomia','pago','cirurgica',95),
+    _d('2025-11-12','709167','MARIA DE LURDES ALBINO SILVA','Cirurgia Vascular','Safenectomia com laqueação da crossa','pago','cirurgica',150),
+    _d('2025-11-15','707507','OCTAVIANO NETO PESSOA DE AMORIM','Neurocirurgia','Foraminectomia lombar','pago','cirurgica',220),
+    _d('2025-11-19','533072','ALICE MARIANNE GARCIA DE OLIVEIRA','Oftalmologia','Facoemulsificação com implante LIO','pago','cirurgica',120),
+    _d('2025-11-22','445231','CARLOS MANUEL RIBEIRO FIGUEIREDO','Ortopedia','Artroscopia do joelho com meniscectomia','pago','cirurgica',145),
+    _d('2025-11-26','318654','FERNANDA EMÍLIA NOBRE LOURENÇO','','','pago','gastro',65),
+    _d('2025-12-03','621847','RUTE MARGARIDA FARIA PEREIRA','Cirurgia Geral','Colectomia direita laparoscópica','pago','cirurgica',310),
+    // REJEITADO — Outubro 2025 (CUF recusou)
+    Object.assign(_d('2025-10-14','481203','DAVID MIGUEL SANTOS BAPTISTA','Ortopedia','Osteossíntese de fractura do fémur','rejeitado','cirurgica',185),
+      { rejeitadoEm: '2026-03-05T10:00:00.000Z', motivoRejeicao: 'Código incorrecto' }),
+    Object.assign(_d('2025-10-28','394817','ANABELA CRISTINA MORAIS TAVARES','Ginecologia/Obstetrícia','Laparotomia exploradora','rejeitado','cirurgica',240),
+      { rejeitadoEm: '2026-03-12T10:00:00.000Z', motivoRejeicao: 'Doente não CUF' }),
+    // REGISTADO antigo — clock marcará em_falta ao entrar (datas < 18 Jan 2026)
+    _d('2025-12-10','562940','MARGARIDA SOFIA TEIXEIRA LOPES','Cirurgia Geral','Herniorrafia inguinal bilateral','registado'),
+    _d('2025-12-17','445128','GONÇALO NUNES MURTA DUARTE','Urologia','Prostatectomia radical laparoscópica','registado'),
+    _d('2026-01-05','318992','TERESA CRISTINA FONSECA MATOS','Ortopedia','Artroplastia total da anca','registado'),
+    _d('2026-01-12','724415','ADELINO SEBASTIÃO FERREIRA','','','registado','gastro'),
+    // RECLAMADO — Dez 2025 / Jan 2026 (8 aparecem na fatura → pago)
+    _d('2025-12-05','726725','BÁRBARA FILIPA PIRES BÁRBARA','Ginecologia/Obstetrícia','Histeroscopia operatória','reclamado'),
+    _d('2025-12-12','357545','JOÃO PEDRO ANTUNES DAS EIRAS','Urologia','Ressecção endoscópica da próstata','reclamado'),
+    _d('2025-12-18','643393','ANTÓNIO JOSÉ RODRIGUES FERRAZ','Cirurgia Geral','Colecistectomia laparoscópica','reclamado'),
+    _d('2025-12-22','435780','CÁTIA ISABEL DOS SANTOS GOMES','','','reclamado','gastro'),
+    _d('2026-01-08','131268','AIRES DANIEL FARIA DA SILVA','Neurocirurgia','Laminectomia descompressiva','reclamado'),
+    _d('2026-01-15','602370','FERNANDO SANTOS PEREIRA','Ortopedia','Artroscopia com tratamento de lesões','reclamado'),
+    _d('2026-01-20','199505','CARLOS ALBERTO PINTO MACHADO','Oftalmologia','Crioterapia retiniana','reclamado'),
+    _d('2026-01-25','234175','HELENA MARIA BRANCO RODRIGUES','Otorrinolaringologia','Turbinectomia bilateral','reclamado'),
+    // RECLAMADO residual — Fevereiro 2026 (não estão na fatura, ficam reclamado)
+    _d('2026-02-03','305548','CARLA ALEXANDRA GOMES DOS SANTOS','Cirurgia Vascular','Safenectomia laser endovenosa','reclamado'),
+    _d('2026-02-10','183593','GREGÓRIO JOAQUIM CLAUDINO ALFREDO','Neurocirurgia','Neurólise do nervo mediano','reclamado'),
+    _d('2026-02-15','617284','JOÃO RODRIGUES FERREIRA CARDOSO','Ortopedia','Tratamento da doença de Morton','reclamado'),
+    _d('2026-02-18','435629','SOFIA ALEXANDRA PINHEIRO CARDOSO','','','reclamado','gastro'),
+    // REGISTADO recente — na fatura (4 → pago via 3ª via)
+    _d('2026-03-05','131644','NUNO MANUEL RIBEIRO CLEMENTE','Urologia','Cirurgia de hidrocele','registado'),
+    _d('2026-03-12','618851','SANTIAGO FERREIRA MANUEL','Otorrinolaringologia','Rino-septoplastia','registado'),
+    _d('2026-03-18','727643','BELMIRO AURÉLIO DE SOUSA','Cirurgia Geral','Apendicectomia laparoscópica','registado'),
+    _d('2026-03-25','123834','LUÍSA DE FREITAS CARDOSO','','','registado','gastro'),
+    // REGISTADO recente — não na fatura (ficam registado)
+    _d('2026-04-03','583639','TIAGO DANIEL NEVES CARVALHO','Cirurgia Vascular','Excisão endovenosa safena','registado'),
+    _d('2026-04-07','738646','DONATELLA FERRARI','Oftalmologia','Blefaroplastia bilateral','registado'),
+    _d('2026-04-10','729311','MARIA IDALINA DOS SANTOS PAULINO','Ginecologia/Obstetrícia','Suspensão uretral por incontinência','registado'),
+    _d('2026-04-14','297992','JOAQUIM AUGUSTO MOREIRA FONSECA','','','registado','gastro'),
   ];
 }
 
@@ -2555,6 +2565,7 @@ function activateDemo() {
   isDemoMode  = true;
   userProfile = { name: 'Dr. Gonçalo Paulino Pereira', email: 'goncalo.pereira@cuf.pt' };
   procedimentos = _buildDemoData();
+  checkEmFaltaByTime();
   renderDashboard(); showScreen('screen-dashboard');
   document.getElementById('demo-banner').style.display = 'block';
   document.getElementById('settings-demo-section').style.display = 'block';
@@ -2565,6 +2576,7 @@ function activateDemo() {
 
 function resetDemo() {
   procedimentos = _buildDemoData();
+  checkEmFaltaByTime();
   renderDashboard(); showScreen('screen-dashboard');
   toast('Demonstração reiniciada');
 }
@@ -2579,21 +2591,22 @@ function simulateDemoPDF() {
   const out    = document.getElementById('cruzar-out');
   status.innerHTML = '<div class="info-box">A ler PDF… (simulação demo)</div>';
   out.innerHTML = '';
-  // Texto sintético com layout do PDF CUF:
-  // — processos 131644, 618851, 727643, 123834, 729311 → serão cruzados (registado recente)
-  // — processos 481203, 394817, 562940 NÃO incluídos → aparecerão como em falta (>3 meses)
-  // — processos pagos/reclamados incluídos mas ignorados pelo filtro (status !== 'registado')
-  // Linhas do PDF demo: reclamado e em_falta → transitam para pago
-  // Registos já pago (712572, 556906) incluídos mas ignorados pelo filtro ELIGIBLE
-  // Registos registado antigos (481203, 394817, 562940) ausentes → sweep marca-os em_falta
+  // 8 reclamado → pago | 4 registado recente → pago (3ª via) | 2 já pagos → linhas sem match
   const fakeText = [
-    '726725 BÁRBARA FILIPA PIRES BÁRBARA 18/02/2026 GIN0031 Histeroscopia diagnóstica 120.00',
-    '357545 JOÃO PEDRO ANTUNES DAS EIRAS 25/02/2026 URO0018 Ressecção endoscópica da próstata 310.00',
-    '131268 AIRES DANIEL FARIA DA SILVA 10/03/2026 NEU0005 Laminectomia descompressiva 185.00',
-    '199505 CARLOS ALBERTO PINTO 12/03/2026 OFT0011 Crioterapia retiniana 75.00',
-    '234175 HELENA MARIA BRANCO RODRIGUES 18/03/2026 ORL0014 Turbinectomia bilateral 95.00',
-    '712572 PAULO FRANCISCO VIEIRA DE SOUSA 08/01/2026 ORT0044 Artroplastia total 180.00',
-    '556906 CAETANA ALVES LOURENÇO 15/01/2026 ORL0022 Amigdalectomia 95.00',
+    '726725 BÁRBARA FILIPA PIRES BÁRBARA 05/12/2025 GIN0031 Histeroscopia operatória 120.00',
+    '357545 JOÃO PEDRO ANTUNES DAS EIRAS 12/12/2025 URO0018 Ressecção endoscópica próstata 310.00',
+    '643393 ANTÓNIO RODRIGUES FERRAZ 18/12/2025 CIR0024 Colecistectomia laparoscópica 175.00',
+    '435780 CÁTIA ISABEL DOS SANTOS GOMES 22/12/2025 GAS0005 Anestesia Gastroenterologia 65.00',
+    '131268 AIRES DANIEL FARIA DA SILVA 08/01/2026 NEU0005 Laminectomia descompressiva 185.00',
+    '602370 FERNANDO SANTOS PEREIRA 15/01/2026 ORT0021 Artroscopia tratamento lesões 150.00',
+    '199505 CARLOS ALBERTO PINTO MACHADO 20/01/2026 OFT0011 Crioterapia retiniana 75.00',
+    '234175 HELENA MARIA BRANCO RODRIGUES 25/01/2026 ORL0014 Turbinectomia bilateral 95.00',
+    '131644 NUNO MANUEL RIBEIRO CLEMENTE 05/03/2026 URO0044 Cirurgia de hidrocele 240.00',
+    '618851 SANTIAGO FERREIRA MANUEL 12/03/2026 ORL0022 Rino-septoplastia 185.00',
+    '727643 BELMIRO AURÉLIO DE SOUSA 18/03/2026 CIR0011 Apendicectomia laparoscópica 120.00',
+    '123834 LUÍSA DE FREITAS CARDOSO 25/03/2026 GAS0003 Anestesia Gastroenterologia 65.00',
+    '712572 PAULO FRANCISCO VIEIRA DE SOUSA 05/11/2025 ORT0044 Artroplastia total joelho 180.00',
+    '556906 CAETANA ALVES LOURENÇO 08/11/2025 ORL0022 Amigdalectomia adenoidectomia 95.00',
   ].join('\n');
   setTimeout(() => processCUFText(fakeText, status, out), 600);
 }
