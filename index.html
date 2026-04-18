@@ -195,6 +195,7 @@
     .s-em_falta  { background: var(--red); }
     .s-reclamado { background: var(--accent); }
     .s-pago      { background: var(--green); }
+    .s-rejeitado { background: var(--ink3); }
     .empty {
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; padding: 60px 40px; gap: 10px;
@@ -331,6 +332,7 @@
     .ds-em_falta  { background: rgba(239,68,68,0.15); color: var(--red); }
     .ds-reclamado { background: rgba(245,158,11,0.15); color: var(--accent); }
     .ds-pago      { background: rgba(34,197,94,0.15); color: var(--green); }
+    .ds-rejeitado { background: rgba(100,100,100,0.12); color: var(--ink3); }
     .det-actions { padding: 20px; display: flex; flex-direction: column; gap: 10px; padding-bottom: calc(var(--sb) + 20px); }
 
     /* ── Reconcile / Report ── */
@@ -1213,6 +1215,7 @@ const STATUS_META = {
   em_falta:  { label: 'Em falta',  cls: 's-em_falta'  },
   reclamado: { label: 'Reclamado', cls: 's-reclamado' },
   pago:      { label: 'Pago',      cls: 's-pago'      },
+  rejeitado: { label: 'Rejeitado', cls: 's-rejeitado' },
 };
 
 // ═══════════════════════════════════════════════════
@@ -1616,6 +1619,10 @@ function showDetail(id) {
     actions += `<button class="btn-p" onclick="changeStatus('${id}','reclamado','Marcado como reclamado')">Marcar como reclamado</button>`;
   if (p.status === 'registado')
     actions += `<button class="btn-p" style="background:var(--red);color:#fff" onclick="changeStatus('${id}','em_falta','Marcado como em falta')">Marcar como em falta</button>`;
+  if (p.status === 'reclamado')
+    actions += `<button class="btn-s" style="color:var(--ink3)" onclick="promptRejeicao('${id}')">CUF rejeitou reclamação</button>`;
+  if (p.status === 'rejeitado')
+    actions += `<button class="btn-s" onclick="revertRejeicao('${id}')">Reverter rejeição</button>`;
 
   document.getElementById('det-content').innerHTML = `
     <div class="det-sec">
@@ -1632,6 +1639,8 @@ function showDetail(id) {
     ${p.notas ? `<div class="det-sec"><div class="det-lbl">Notas</div><div class="det-val" style="color:var(--ink2)">${esc(p.notas)}</div></div>` : ''}
     ${p.reclamadoEm ? `<div class="det-sec"><div class="det-lbl">Reclamado em</div><div class="det-val">${fmtDate(p.reclamadoEm.slice(0,10))}</div></div>` : ''}
     ${p.pagoEm ? `<div class="det-sec"><div class="det-lbl">Pago em</div><div class="det-val" style="color:var(--green)">${fmtDate(p.pagoEm.slice(0,10))}</div></div>` : ''}
+    ${p.rejeitadoEm ? `<div class="det-sec"><div class="det-lbl">Rejeitado em</div><div class="det-val" style="color:var(--ink3)">${fmtDate(p.rejeitadoEm.slice(0,10))}</div></div>` : ''}
+    ${p.motivoRejeicao ? `<div class="det-sec"><div class="det-lbl">Motivo</div><div class="det-val" style="color:var(--ink3)">${esc(p.motivoRejeicao)}</div></div>` : ''}
     <div class="det-actions">
       ${actions}
       <button class="btn-s" onclick="editAct('${id}')">Editar acto</button>
@@ -1639,6 +1648,62 @@ function showDetail(id) {
     </div>
   `;
   showScreen('screen-detail');
+}
+
+function promptRejeicao(id) {
+  const el = document.querySelector('.det-actions');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="margin-bottom:8px;font-size:0.85rem;font-weight:500">Motivo da rejeição:</div>
+    <select id="rej-motivo" class="input-field" onchange="toggleRejOutro()" style="margin-bottom:8px;width:100%">
+      <option value="Código incorrecto">Código incorrecto</option>
+      <option value="Doente não CUF">Doente não CUF</option>
+      <option value="Fora de prazo">Fora de prazo</option>
+      <option value="Outro">Outro</option>
+    </select>
+    <input type="text" id="rej-outro" class="input-field" placeholder="Especifica o motivo"
+      style="display:none;margin-bottom:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-p" style="background:var(--red);color:#fff"
+        onclick="confirmRejeicao('${id}')">Confirmar rejeição</button>
+      <button class="btn-s" onclick="showDetail('${id}')">Cancelar</button>
+    </div>`;
+}
+
+function toggleRejOutro() {
+  const sel = document.getElementById('rej-motivo');
+  const inp = document.getElementById('rej-outro');
+  if (sel && inp) inp.style.display = sel.value === 'Outro' ? '' : 'none';
+}
+
+function confirmRejeicao(id) {
+  const sel = document.getElementById('rej-motivo');
+  const inp = document.getElementById('rej-outro');
+  if (!sel) return;
+  const motivo = sel.value === 'Outro' ? (inp?.value.trim() || 'Outro') : sel.value;
+  markRejected(id, motivo);
+}
+
+function markRejected(id, motivo) {
+  const p = procedimentos.find(x => x.id === id);
+  if (!p) return;
+  p.status = 'rejeitado';
+  p.rejeitadoEm = new Date().toISOString();
+  p.motivoRejeicao = motivo;
+  autoSave(); renderDashboard();
+  toast('Reclamação marcada como rejeitada');
+  showDetail(id);
+}
+
+function revertRejeicao(id) {
+  const p = procedimentos.find(x => x.id === id);
+  if (!p) return;
+  p.status = 'reclamado';
+  delete p.rejeitadoEm;
+  delete p.motivoRejeicao;
+  autoSave(); renderDashboard();
+  toast('Rejeição revertida');
+  showDetail(id);
 }
 
 function changeStatus(id, newStatus, msg, isPago) {
@@ -2424,7 +2489,15 @@ function renderRecuperacao() {
     <div class="rel-section" style="margin-top:16px">
       <h3>Casos mais antigos por resolver</h3>
       <div class="rel-box" style="padding:0">${listHTML}</div>
-    </div>` : '<div class="info-box" style="margin-top:16px">Nenhum acto em falta ou reclamado.</div>'}`;
+    </div>` : '<div class="info-box" style="margin-top:16px">Nenhum acto em falta ou reclamado.</div>'}
+    ${(() => {
+      const rejeitados = procedimentos.filter(p => p.status === 'rejeitado');
+      if (!rejeitados.length) return '';
+      const totalRej = rejeitados.reduce((s, p) => s + (p.valor || 0), 0);
+      return `<div style="margin-top:16px;font-size:0.8rem;color:var(--ink3)">
+        Rejeitados: ${rejeitados.length} caso${rejeitados.length !== 1 ? 's' : ''}${totalRej > 0 ? ' · ' + totalRej.toFixed(2) + ' €' : ''}
+      </div>`;
+    })()}`;
 }
 
 // ═══════════════════════════════════════════════════
