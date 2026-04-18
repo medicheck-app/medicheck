@@ -2089,16 +2089,28 @@ function renderReclamar() {
   ).join('\n');
   const emailText = `Exmo(s). Sr(s).,\n\nVenho solicitar a regularização dos seguintes actos de anestesia realizados há mais de 3 meses e sem registo de liquidação:\n\n${lines}\n\nAgradeço a atenção e aguardo confirmação.\n\nCom os melhores cumprimentos`;
 
+  window._relatorioCopiado = false;
   body.innerHTML = `
     <div class="info-box">${emFalta.length} acto${emFalta.length!==1?'s':''} em falta.</div>
     <textarea class="big-ta" id="reclamar-ta" style="min-height:200px">${esc(emailText)}</textarea>
+    <div class="info-box" style="font-size:0.85rem;color:var(--ink2)">
+      Copia o email e envia à CUF. Só depois de enviares é que deves marcar como reclamado.
+    </div>
     <button class="btn-p" onclick="copyReclamar()">Copiar email</button>
-    <button class="btn-s" onclick="markAllReclaimed()">Marcar todos como reclamados</button>`;
+    <button class="btn-s" id="btn-mark-reclaimed" onclick="markAllReclaimed()"
+      disabled style="opacity:0.5">Confirmar envio e marcar como reclamado</button>`;
 }
 
 function copyReclamar() {
   const txt = document.getElementById('reclamar-ta').value;
-  navigator.clipboard?.writeText(txt).then(() => toast('Texto copiado!')).catch(() => toast('Copia o texto manualmente'));
+  const enableBtn = () => {
+    window._relatorioCopiado = true;
+    const btn = document.getElementById('btn-mark-reclaimed');
+    if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
+  };
+  navigator.clipboard?.writeText(txt)
+    .then(() => { toast('Texto copiado!'); enableBtn(); })
+    .catch(() => { toast('Copia o texto manualmente'); enableBtn(); });
 }
 
 function markAllReclaimed() {
