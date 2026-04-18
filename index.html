@@ -575,7 +575,8 @@
       <button class="main-tab"        id="mtab-cruzar"       onclick="switchTab('cruzar')">Cruzar dados</button>
       <button class="main-tab"        id="mtab-reclamar"     onclick="switchTab('reclamar')">Reclamar</button>
       <button class="main-tab"        id="mtab-pagamentos"   onclick="switchTab('pagamentos')">Pagamentos</button>
-      <button class="main-tab"        id="mtab-relatorio"    onclick="switchTab('relatorio')">Relatório</button>
+      <button class="main-tab"        id="mtab-recuperacao"  onclick="switchTab('recuperacao')">Recuperação</button>
+      <button class="main-tab"        id="mtab-casuistica"   onclick="switchTab('casuistica')">Casuística</button>
     </div>
 
     <!-- ── TAB: REGISTAR ── -->
@@ -621,9 +622,14 @@
       <div class="sc-body" id="pagamentos-body"></div>
     </div>
 
-    <!-- ── TAB: RELATÓRIO ── -->
-    <div class="tab-pane" id="tab-relatorio">
-      <div class="sc-body" id="relatorio-body"></div>
+    <!-- ── TAB: RECUPERAÇÃO ── -->
+    <div class="tab-pane" id="tab-recuperacao">
+      <div class="sc-body" id="recuperacao-body"></div>
+    </div>
+
+    <!-- ── TAB: CASUÍSTICA ── -->
+    <div class="tab-pane" id="tab-casuistica">
+      <div class="sc-body" id="casuistica-body"></div>
     </div>
   </div>
 
@@ -1672,7 +1678,8 @@ function switchTab(tab) {
     renderReclamar();
   }
   if (tab === 'pagamentos')  renderPagamentos();
-  if (tab === 'relatorio')   renderRelatorio();
+  if (tab === 'casuistica')  renderCasuistica();
+  if (tab === 'recuperacao') renderRecuperacao();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2235,8 +2242,8 @@ function fmtDate(iso) {
 // ═══════════════════════════════════════════════════
 // RELATÓRIO + EXPORT
 // ═══════════════════════════════════════════════════
-function renderRelatorio() {
-  const body = document.getElementById('relatorio-body');
+function renderCasuistica() {
+  const body = document.getElementById('casuistica-body');
   if (!procedimentos.length) {
     body.innerHTML = '<div class="info-box">Sem dados para apresentar.</div>'; return;
   }
@@ -2358,6 +2365,66 @@ function exportXLSX() {
   a.click();
   URL.revokeObjectURL(url);
   toast('Ficheiro exportado');
+}
+
+// ═══════════════════════════════════════════════════
+// RECUPERAÇÃO
+// ═══════════════════════════════════════════════════
+function renderRecuperacao() {
+  const body = document.getElementById('recuperacao-body');
+
+  const emFalta   = procedimentos.filter(p => p.status === 'em_falta');
+  const reclamado = procedimentos.filter(p => p.status === 'reclamado');
+  const pago      = procedimentos.filter(p => p.status === 'pago');
+
+  const totalEmFalta   = emFalta.reduce((s, p) => s + (p.valor || 0), 0);
+  const totalReclamado = reclamado.reduce((s, p) => s + (p.valor || 0), 0);
+  const totalPago      = pago.reduce((s, p) => s + (p.valor || 0), 0);
+
+  const ano = new Date().getFullYear().toString();
+  const totalPagoAno = pago
+    .filter(p => (p.pagoEm || p.data || '').startsWith(ano))
+    .reduce((s, p) => s + (p.valor || 0), 0);
+
+  const pendentes = [...emFalta, ...reclamado]
+    .sort((a, b) => (a.data || '').localeCompare(b.data || ''))
+    .slice(0, 10);
+
+  const listHTML = pendentes.map(p => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer"
+      onclick="showDetail('${p.id}')">
+      <div>
+        <div style="font-size:0.85rem;font-weight:500">${esc(p.paciente || '—')}</div>
+        <div style="font-size:0.75rem;color:var(--ink3)">${fmtDate(p.data)} · Proc. ${esc(p.processo || '—')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        ${p.valor ? `<span style="font-size:0.82rem;color:var(--green);font-weight:600">${p.valor.toFixed(2)} €</span>` : ''}
+        <span class="ds-${p.status}" style="font-size:0.72rem">${STATUS_META[p.status]?.label || p.status}</span>
+      </div>
+    </div>`).join('');
+
+  body.innerHTML = `
+    <div class="rel-cards">
+      <div class="rel-card c-falta">
+        <div class="rel-card-val">${(totalEmFalta + totalReclamado).toFixed(2)} €</div>
+        <div class="rel-card-lbl">Em falta</div>
+      </div>
+      <div class="rel-card c-reclamado">
+        <div class="rel-card-val">${totalReclamado.toFixed(2)} €</div>
+        <div class="rel-card-lbl">Em reclamação activa</div>
+      </div>
+      <div class="rel-card c-pago">
+        <div class="rel-card-val">${totalPago.toFixed(2)} €</div>
+        <div class="rel-card-lbl">Total recuperado</div>
+        ${totalPagoAno > 0 ? `<div style="font-size:0.72rem;color:var(--ink3)">${totalPagoAno.toFixed(2)} € em ${ano}</div>` : ''}
+      </div>
+    </div>
+    ${pendentes.length ? `
+    <div class="rel-section" style="margin-top:16px">
+      <h3>Casos mais antigos por resolver</h3>
+      <div class="rel-box" style="padding:0">${listHTML}</div>
+    </div>` : '<div class="info-box" style="margin-top:16px">Nenhum acto em falta ou reclamado.</div>'}`;
 }
 
 // ═══════════════════════════════════════════════════
