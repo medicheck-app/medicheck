@@ -75,7 +75,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ## MELHORIAS PENDENTES
 
-### Refactor de estados (REFACTOR-ESTADOS.md — ver prompts prontos no ficheiro)
+### Refactor de estados (ESTADOS.md — ver prompts prontos no ficheiro)
 
 | Gap | Descrição | Prioridade |
 |-----|-----------|------------|
