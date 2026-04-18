@@ -78,9 +78,11 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | Gap | Descrição | Prioridade |
 |-----|-----------|------------|
 | ~~1~~ | ~~Terceira via Registado → Pago~~ | ~~Crítico~~ — ✅ feito (f7f975d) |
+| ~~9~~ | ~~Reconciliação sobrescreve `procedimento` com lixo~~ | ~~Alto~~ — ✅ feito (0c7b2c3) |
+| ~~10~~ | ~~Match falha quando data fatura ≠ data acto~~ | ~~Médio~~ — ✅ feito (0c7b2c3) |
+| 7 | Contador de linhas da fatura sem match | Baixo |
 | 2 | Clock temporal autónomo para marcar `em_falta` (criar `checkEmFaltaByTime()`) | Alto |
 | 3 | Sequência obrigatória na reclamação (botão só activo após copiar email) | Alto |
-| 7 | Contador de linhas da fatura sem match | Baixo |
 | 4 | Painel de Recuperação real (separado da Casuística/Relatório) | Alto |
 | 6 | Estado `rejeitado` para reclamações recusadas | Médio |
 
