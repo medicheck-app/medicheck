@@ -1112,6 +1112,7 @@ async function handlePin() {
     const result = await loadFromDrive(pinBuf);
     setSyncing(false, '');
     if (result.ok) {
+      checkEmFaltaByTime();
       toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
       renderDashboard(); showScreen('screen-dashboard');
     } else {
@@ -1665,7 +1666,11 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'cruzar')      setTimeout(initDropZone, 0);
-  if (tab === 'reclamar')    renderReclamar();
+  if (tab === 'reclamar') {
+    const n = checkEmFaltaByTime();
+    if (n > 0) { autoSave(); renderDashboard(); }
+    renderReclamar();
+  }
   if (tab === 'pagamentos')  renderPagamentos();
   if (tab === 'relatorio')   renderRelatorio();
 }
@@ -1967,6 +1972,20 @@ function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
     const btn = document.getElementById('btn-apply-cuf');
     if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
   }
+}
+
+function checkEmFaltaByTime() {
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(today);
+  cutoff.setMonth(cutoff.getMonth() - 3);
+  let changed = 0;
+  for (const p of procedimentos) {
+    if (p.status === 'registado' && new Date(p.data) < cutoff) {
+      p.status = 'em_falta';
+      changed++;
+    }
+  }
+  return changed;
 }
 
 function applyCUF() {
