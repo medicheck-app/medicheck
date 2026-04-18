@@ -44,9 +44,11 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
 - Status flow: Registado → Em Falta → Reclamado → Pago
-- Regra dos 3 meses para marcar "Em Falta" (só corre durante reconciliação — clock temporal autónomo ainda não implementado)
-- Painel de Recuperação
-- Relatório de reclamação (exporta para `.txt` e clipboard)
+- Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Reclamar"
+- Painel de Recuperação (separador próprio — totais em euros, lista 10 casos mais antigos)
+- Relatório de reclamação (exporta para `.txt` e clipboard; botão de confirmar envio só activo após copiar)
+- Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
+- Separador "Casuística" (ex-Relatório) com estatísticas históricas
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
 - Demo mode funcional (incompleto — falta caso de ambiguidade e cruzamento gastro)
@@ -80,11 +82,11 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | ~~1~~ | ~~Terceira via Registado → Pago~~ | ~~Crítico~~ — ✅ feito (f7f975d) |
 | ~~9~~ | ~~Reconciliação sobrescreve `procedimento` com lixo~~ | ~~Alto~~ — ✅ feito (0c7b2c3) |
 | ~~10~~ | ~~Match falha quando data fatura ≠ data acto~~ | ~~Médio~~ — ✅ feito (0c7b2c3) |
-| 7 | Contador de linhas da fatura sem match | Baixo |
-| 2 | Clock temporal autónomo para marcar `em_falta` (criar `checkEmFaltaByTime()`) | Alto |
-| 3 | Sequência obrigatória na reclamação (botão só activo após copiar email) | Alto |
-| 4 | Painel de Recuperação real (separado da Casuística/Relatório) | Alto |
-| 6 | Estado `rejeitado` para reclamações recusadas | Médio |
+| ~~7~~ | ~~Contador de linhas da fatura sem match~~ | ~~Baixo~~ — ✅ feito (8cf2ace) |
+| ~~2~~ | ~~Clock temporal autónomo para marcar `em_falta` (`checkEmFaltaByTime()`)~~ | ~~Alto~~ — ✅ feito (c78aac9) |
+| ~~3~~ | ~~Sequência obrigatória na reclamação (botão só activo após copiar email)~~ | ~~Alto~~ — ✅ feito (9953707) |
+| ~~4~~ | ~~Painel de Recuperação real (separado da Casuística/Relatório)~~ | ~~Alto~~ — ✅ feito (dfea837) |
+| ~~6~~ | ~~Estado `rejeitado` para reclamações recusadas~~ | ~~Médio~~ — ✅ feito (eaa8033) |
 
 ### Outros
 
