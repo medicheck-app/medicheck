@@ -61,7 +61,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
-- **Demo mode incompleto** — falta caso de ambiguidade (2 actos mesmo doente+data) e caso gastro no cruzamento
+- **Demo mode** — 34 actos realistas (Nov 2025–Abr 2026), clock activo, 2 rejeitados, 8 reclamados pagos na reconciliação, 4 em_falta, 4 registados pagos via 3ª via. Falta caso de ambiguidade (2 actos mesmo doente+data)
 
 ---
 
@@ -92,7 +92,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 | # | Melhoria | Prioridade |
 |---|----------|------------|
-| 1 | Demo mode — adicionar caso de ambiguidade (2 actos mesmo doente+data) e caso gastro no cruzamento | Alta |
+| ~~1~~ | ~~Demo mode redesenhado com dados realistas~~ | ~~Alta~~ — ✅ feito (6d38dc0) |
+| 1 | Demo mode — adicionar caso de ambiguidade (2 actos mesmo doente+data) | Média |
 | 2 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
 
 ---
