@@ -42,9 +42,9 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Onboarding completo (Google Sign-in → PIN → Especialidade)
 - Registo de actos
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
-- Reconciliação com listagem CUF (upload/paste PDF ou texto)
+- Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
 - Status flow: Registado → Em Falta → Reclamado → Pago
-- Regra dos 3 meses para marcar "Em Falta"
+- Regra dos 3 meses para marcar "Em Falta" (só corre durante reconciliação — clock temporal autónomo ainda não implementado)
 - Painel de Recuperação
 - Relatório de reclamação (exporta para `.txt` e clipboard)
 - Dados separados por utilizador
@@ -55,6 +55,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Account picker Google sempre visível (prompt: 'select_account')
 - Sem flash de ecrã de login após autenticação
 - Desktop: calendário e lista de actos do dia lado a lado
+- Teclado PIN sem delay de 300ms em mobile (`touch-action: manipulation`)
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
@@ -71,6 +72,19 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 ---
 
 ## MELHORIAS PENDENTES
+
+### Refactor de estados (REFACTOR-ESTADOS.md — ver prompts prontos no ficheiro)
+
+| Gap | Descrição | Prioridade |
+|-----|-----------|------------|
+| ~~1~~ | ~~Terceira via Registado → Pago~~ | ~~Crítico~~ — ✅ feito (f7f975d) |
+| 2 | Clock temporal autónomo para marcar `em_falta` (criar `checkEmFaltaByTime()`) | Alto |
+| 3 | Sequência obrigatória na reclamação (botão só activo após copiar email) | Alto |
+| 7 | Contador de linhas da fatura sem match | Baixo |
+| 4 | Painel de Recuperação real (separado da Casuística/Relatório) | Alto |
+| 6 | Estado `rejeitado` para reclamações recusadas | Médio |
+
+### Outros
 
 | # | Melhoria | Prioridade |
 |---|----------|------------|
