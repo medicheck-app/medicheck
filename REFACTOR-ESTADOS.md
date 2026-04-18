@@ -150,12 +150,12 @@ Acessível pela navegação principal — não via CTA do Reconciliar.
 
 1. **Gap 9** — procedimento preservado (15 min, protege dados) ✅ feito
 2. **Gap 1** — bug terceira via (1-2h) ✅ feito (f7f975d)
-3. **Gap 7** — contador de linhas sem match (30 min)
-4. **Gap 2** — clock temporal autónomo (1-2h)
-5. **Gap 3** — sequência reclamação (2-3h)
+3. **Gap 7** — contador de linhas sem match (30 min) ✅ feito (8cf2ace)
+4. **Gap 2** — clock temporal autónomo (1-2h) ✅ feito (c78aac9)
+5. **Gap 3** — sequência reclamação (2-3h) ✅ feito (9953707)
 6. **Gap 10** — tolerância de datas ±3 dias (2-3h) ✅ feito
-7. **Gap 4** — Painel de Recuperação real (4-6h)
-8. **Gap 6** — estado Rejeitado (3-4h)
+7. **Gap 4** — Painel de Recuperação real (4-6h) ✅ feito (dfea837)
+8. **Gap 6** — estado Rejeitado (3-4h) ✅ feito (eaa8033)
 
 ### Pós-MVP
 
