@@ -1734,7 +1734,7 @@ async function processPDFFile(file) {
 }
 
 function processCUFText(text, status, out) {
-  const ELIGIBLE = new Set(['em_falta', 'reclamado']);
+  const ELIGIBLE = new Set(['registado', 'em_falta', 'reclamado']);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
 
