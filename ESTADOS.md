@@ -364,4 +364,13 @@ Regras: só index.html. Commit: "Fix: preservar procedimento e adicionar tolerâ
 
 ---
 
-**Próximo passo:** guardar no vault Medicheck. Começar pelo Gap 1 em Claude Code (mais barato e mais crítico).
+---
+
+## 10. Estado de implementação (Abril 2026)
+
+Todos os gaps MVP estão implementados. Ver commits em `CLAUDE.md`.
+
+**Pendente pós-MVP:**
+- Gap 5 — `canTransition` validado
+- Gap 8 — UI de edição manual de estado com regras
+- Demo mode — caso de ambiguidade (2 actos mesmo doente+data)
