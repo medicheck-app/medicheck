@@ -45,13 +45,18 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
 - Status flow: Registado → Em Falta → Reclamado → Pago
 - Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Reclamar"
-- Painel de Recuperação (separador próprio — totais em euros, lista 10 casos mais antigos)
+- Painel de Recuperação (separador próprio — totais em euros; lista de casos antigos removida)
 - Relatório de reclamação (exporta para `.txt` e clipboard; botão de confirmar envio só activo após copiar)
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
 - Separador "Casuística" (ex-Relatório) com estatísticas históricas
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
-- Demo mode funcional (incompleto — falta caso de ambiguidade e cruzamento gastro)
+- Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
+- Reconciliação: tolerâncias ±3 dias aplicadas automaticamente; aviso discreto no preview
+- Reconciliação: após aplicar, mostra "X doentes em falta" a vermelho se houver em_falta não resolvidos
+- Reconciliação: `totalRecuperado` conta só `reclamado→pago` (não registado→pago)
+- Pagamentos: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)
+- Demo mode: exercita tolerância ±3 dias (FERNANDO SANTOS PEREIRA, diff=2 dias); linha de consulta na fatura simulada; todos os registos com `valor` preenchido
 - Calendário com espaçamentos corrigidos
 - Google login funciona à primeira tentativa (botão desabilitado até SDK carregar)
 - Account picker Google sempre visível (prompt: 'select_account')
@@ -61,7 +66,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
-- **Demo mode** — 34 actos realistas (Nov 2025–Abr 2026), clock activo, 2 rejeitados, 8 reclamados pagos na reconciliação, 4 em_falta, 4 registados pagos via 3ª via. Falta caso de ambiguidade (2 actos mesmo doente+data)
+- **Demo mode** — falta caso de ambiguidade (2 actos mesmo doente+data)
 
 ---
 
@@ -93,6 +98,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | # | Melhoria | Prioridade |
 |---|----------|------------|
 | ~~1~~ | ~~Demo mode redesenhado com dados realistas~~ | ~~Alta~~ — ✅ feito (6d38dc0) |
+| ~~2~~ | ~~Demo mode — tolerância ±3 dias e regra de consultas ignoradas~~ | ~~Média~~ — ✅ feito (esta sessão) |
 | 1 | Demo mode — adicionar caso de ambiguidade (2 actos mesmo doente+data) | Média |
 | 2 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
 
