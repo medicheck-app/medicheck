@@ -1755,7 +1755,8 @@ function switchTab(tab) {
     setTimeout(initDropZone, 0);
     const n = checkEmFaltaByTime();
     if (n > 0) { autoSave(); renderDashboard(); }
-    renderDebtBlock();
+    const db = document.getElementById('debt-block');
+    if (db) db.innerHTML = '';
   }
   if (tab === 'pagamentos')  renderPagamentos();
   if (tab === 'recuperacao') renderRecuperacao();
