@@ -36,6 +36,38 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ---
 
+## WORKFLOW CONVENTIONS
+
+- **Após qualquer tarefa concluída**, executar automaticamente sem esperar instrução:
+  1. Preview para verificar (se aplicável)
+  2. `git add index.html && git commit` com mensagem convencional em português
+  3. `git push`
+  4. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades
+  5. Actualizar `REFACTOR-ESTADOS.md` se lógica de estados mudou
+  6. Gerar handoff prompt pronto a colar na próxima sessão
+- Excepção: se o utilizador disser "só rascunho" ou "draft only", não commitar.
+
+---
+
+## ARQUITECTURA DO PROJECTO
+
+- **Single-file PWA** — toda a lógica está em `index.html`, sem build step
+- **Sistema de vistas:** usa classes `.screen` + `.active` para mostrar/esconder ecrãs — **nunca usar `display:` inline** que conflitue com este sistema
+- **Ao adicionar um novo ecrã:** actualizar SEMPRE o HTML/CSS **e** o handler JS correspondente (ex: `showScreen('nome')`, `handleLogout`) — omitir o handler faz o ecrã nunca aparecer
+- **Ao adicionar botões/acções:** verificar se existe um event listener ou se é preciso criar um novo
+- **Preview:** usar `mcp__Claude_Preview__preview_eval` — não arrancar servidores manuais
+
+---
+
+## REGRAS DE DEBUGGING
+
+- **Antes de editar qualquer bug:** reformular o bug em palavras próprias + descrever comportamento esperado vs actual numa frase. Se houver ambiguidade, fazer UMA pergunta de esclarecimento.
+- **Bugs de sync/persistência:** NUNCA sobrescrever dados locais com remotos — sempre fazer merge (remote → local) para evitar perda de dados (incidente anterior: pacientes apagados por overwrite do Drive)
+- **Bugs CSS mobile:** antes de tentar corrigir, inspecionar o template grid (`minmax`, `fr`, `auto`) e `touch-action` — não adivinhar valores sem ler o CSS existente
+- **Bugs de layout que falham 2+ vezes:** entrar em Plan mode, listar hipótese + linhas exactas a tocar + riscos, aguardar aprovação antes de editar
+
+---
+
 ## ESTADO ACTUAL
 
 ### Funciona
