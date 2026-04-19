@@ -44,10 +44,11 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
 - Status flow: Registado → Em Falta → Reclamado → Pago
-- Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Reclamar"
+- Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Cruzar dados"
 - Painel de Recuperação (separador próprio — totais em euros; lista de casos antigos removida)
-- Relatório de reclamação (exporta para `.txt` e clipboard; botão de confirmar envio só activo após copiar)
+- Fluxo de reclamação integrado no separador "Cruzar dados": bloco "Actos em dívida" com lista de em_falta+reclamado, email gerado, botão de confirmar só activo após copiar
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
+- UI de 3 categorias visuais: "Recente" (registado), "Em dívida" (em_falta+reclamado), "Recebido" (pago); rejeitados visíveis com estilo cinza; separador "Reclamar" removido da navegação
 - Separador "Casuística" (ex-Relatório) com estatísticas históricas
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)

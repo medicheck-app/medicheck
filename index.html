@@ -196,6 +196,10 @@
     .s-reclamado { background: var(--accent); }
     .s-pago      { background: var(--green); }
     .s-rejeitado { background: var(--ink3); }
+    .ui-b-recente   { background: var(--ink3); }
+    .ui-b-em_divida { background: var(--red); }
+    .ui-b-recebido  { background: var(--green); }
+    .tag-enviado { font-size:0.68rem; padding:2px 6px; border-radius:8px; background:rgba(245,158,11,0.15); color:var(--accent); white-space:nowrap; }
     .empty {
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; padding: 60px 40px; gap: 10px;
@@ -575,7 +579,6 @@
     <div class="main-tabs">
       <button class="main-tab active" id="mtab-registar"     onclick="switchTab('registar')">Registar</button>
       <button class="main-tab"        id="mtab-cruzar"       onclick="switchTab('cruzar')">Cruzar dados</button>
-      <button class="main-tab"        id="mtab-reclamar"     onclick="switchTab('reclamar')">Reclamar</button>
       <button class="main-tab"        id="mtab-pagamentos"   onclick="switchTab('pagamentos')">Pagamentos</button>
       <button class="main-tab"        id="mtab-recuperacao"  onclick="switchTab('recuperacao')">Recuperação</button>
       <button class="main-tab"        id="mtab-casuistica"   onclick="switchTab('casuistica')">Casuística</button>
@@ -611,12 +614,8 @@
         </div>
         <div id="cruzar-status"></div>
         <div id="cruzar-out"></div>
+        <div id="debt-block"></div>
       </div>
-    </div>
-
-    <!-- ── TAB: RECLAMAR ── -->
-    <div class="tab-pane" id="tab-reclamar">
-      <div class="sc-body" id="reclamar-body"></div>
     </div>
 
     <!-- ── TAB: PAGAMENTOS ── -->
@@ -1218,6 +1217,19 @@ const STATUS_META = {
   rejeitado: { label: 'Rejeitado', cls: 's-rejeitado' },
 };
 
+function getUIBucket(status) {
+  if (status === 'pago')      return 'recebido';
+  if (status === 'em_falta' || status === 'reclamado') return 'em_divida';
+  if (status === 'registado') return 'recente';
+  return 'rejeitado';
+}
+
+function fmtMonthShort(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return MONTHS_PT[d.getMonth()].slice(0,3) + '/' + String(d.getFullYear()).slice(2);
+}
+
 // ═══════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════
@@ -1314,15 +1326,23 @@ function renderDayPanel() {
   if (!acts.length) {
     html += '<div style="padding:14px 16px;color:var(--ink3);font-size:0.85rem">Sem actos neste dia</div>';
   } else {
+    const BUCKET_LABEL = { recebido: 'Recebido', em_divida: 'Em dívida', recente: 'Recente' };
     acts.forEach(p => {
+      const bucket   = getUIBucket(p.status);
+      const dotCls   = bucket === 'rejeitado' ? 's-rejeitado' : `ui-b-${bucket}`;
+      const labelTxt = bucket === 'rejeitado' ? (STATUS_META[p.status]?.label || '') : BUCKET_LABEL[bucket];
+      const tagHtml  = p.status === 'reclamado'
+        ? `<span class="tag-enviado">enviado em ${fmtMonthShort(p.reclamadoEm)}</span>`
+        : '';
       html += `<div class="cal-act-item" onclick="showDetail('${esc(p.id)}')">
         <div class="cal-act-info">
           <div class="cal-act-pac">${esc(p.paciente || '—')}</div>
           <div class="cal-act-proc">${esc(p.especialidade ? p.especialidade+' — ' : '')}${esc(p.procedimento || p.acto || '—')}</div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
-          <div class="sdot ${STATUS_META[p.status]?.cls || ''}"></div>
-          <span style="font-size:0.72rem;color:var(--ink3)">${STATUS_META[p.status]?.label || ''}</span>
+          <div class="sdot ${dotCls}"></div>
+          <span style="font-size:0.72rem;color:var(--ink3)">${labelTxt}</span>
+          ${tagHtml}
         </div>
       </div>`;
     });
@@ -1736,11 +1756,11 @@ function switchTab(tab) {
   document.getElementById('mtab-' + tab).classList.add('active');
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'cruzar')      setTimeout(initDropZone, 0);
-  if (tab === 'reclamar') {
+  if (tab === 'cruzar') {
+    setTimeout(initDropZone, 0);
     const n = checkEmFaltaByTime();
     if (n > 0) { autoSave(); renderDashboard(); }
-    renderReclamar();
+    renderDebtBlock();
   }
   if (tab === 'pagamentos')  renderPagamentos();
   if (tab === 'casuistica')  renderCasuistica();
@@ -2102,6 +2122,7 @@ function applyCUF() {
     html += `<div style="margin-top:8px;font-size:0.85rem;color:var(--red)">${aindaEmFalta} doente${aindaEmFalta !== 1 ? 's' : ''} em falta</div>`;
   }
   out.innerHTML = html;
+  renderDebtBlock();
   toast('Cruzamento concluído');
 }
 
@@ -2141,6 +2162,55 @@ function applyToleranceCUF() {
   const btn = document.querySelector('[onclick="applyToleranceCUF()"]');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
   toast('Correspondências por proximidade aplicadas');
+}
+
+// ═══════════════════════════════════════════════════
+// BLOCO EM DÍVIDA (integrado no separador Cruzar dados)
+// ═══════════════════════════════════════════════════
+function renderDebtBlock() {
+  const container = document.getElementById('debt-block');
+  if (!container) return;
+  const acts = procedimentos
+    .filter(p => p.status === 'em_falta' || p.status === 'reclamado')
+    .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
+  if (!acts.length) {
+    container.innerHTML = '<div class="info-box" style="color:var(--green);margin-top:16px">Estás em dia. Nada por reclamar.</div>';
+    return;
+  }
+
+  const lines = acts.map(p =>
+    `• ${fmtDate(p.data)}  |  ${p.paciente || '—'}  |  Proc. ${p.processo || '—'}  |  ${p.procedimento || '—'}`
+  ).join('\n');
+  const emailText = `Exmo(s). Sr(s).,\n\nVenho solicitar a regularização dos seguintes actos realizados sem registo de liquidação:\n\n${lines}\n\nAgradeço a atenção e aguardo confirmação.\n\nCom os melhores cumprimentos`;
+
+  window._relatorioCopiado = false;
+
+  const listHtml = acts.map(p => {
+    const tag = p.status === 'reclamado'
+      ? `<span class="tag-enviado">enviado em ${fmtMonthShort(p.reclamadoEm)}</span>`
+      : '';
+    return `<div class="cal-act-item" onclick="showDetail('${esc(p.id)}')">
+      <div class="cal-act-info">
+        <div class="cal-act-pac">${esc(p.paciente || '—')}</div>
+        <div class="cal-act-proc">${fmtDate(p.data)} · ${esc(p.procedimento || '—')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">${tag}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+      <div class="rel-card-label" style="margin-bottom:10px">Actos em dívida · ${acts.length}</div>
+      ${listHtml}
+      <div class="info-box" style="font-size:0.85rem;color:var(--ink2);margin-top:12px">
+        Copia primeiro o email e envia à CUF. Só depois de enviares é que deves marcar como reclamado.
+      </div>
+      <textarea class="big-ta" id="reclamar-ta" style="min-height:160px;margin-top:8px">${esc(emailText)}</textarea>
+      <button class="btn-p" onclick="copyReclamar()" style="margin-top:8px">Copiar email</button>
+      <button class="btn-s" id="btn-mark-reclaimed" onclick="markAllReclaimed()"
+        disabled style="opacity:0.5;margin-top:8px">Confirmar envio e marcar como reclamado</button>
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════
@@ -2186,7 +2256,7 @@ function markAllReclaimed() {
   if (!em.length) return;
   const now = new Date().toISOString();
   em.forEach(p => { p.status = 'reclamado'; p.reclamadoEm = now; });
-  autoSave(); renderDashboard(); renderReclamar();
+  autoSave(); renderDashboard(); renderDebtBlock();
   toast(`${em.length} acto${em.length>1?'s':''} marcados como reclamado`);
 }
 
