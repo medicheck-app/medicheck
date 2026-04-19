@@ -372,12 +372,14 @@ Todos os gaps MVP estão implementados. Ver commits em `CLAUDE.md`.
 
 **Camada UI (backend inalterado):**
 Os 5 estados internos continuam exactamente como definidos. A UI expõe 3 categorias visuais via `getUIBucket(status)`:
-- `registado` → "Recente" (dot cinza neutro)
+- `registado` → "Registado" (dot cinza neutro)
 - `em_falta` / `reclamado` → "Em dívida" (dot vermelho; reclamado mostra tag "enviado em MM/AA")
 - `pago` → "Recebido" (dot verde)
 - `rejeitado` → visível com estilo cinza existente (label "Rejeitado")
 
-Separador "Reclamar" removido da navegação. Fluxo de reclamação integrado no separador "Cruzar dados" via `renderDebtBlock()`.
+Navegação final: **Registar · Cruzar dados · Pagamentos · Relatório** (4 separadores).
+
+Separador "Reclamar" removido. Fluxo integrado em "Cruzar dados" via `renderDebtBlock()` — bloco aparece só após cruzamento. Email por defeito inclui só `em_falta`; checkbox opcional inclui `reclamado` anteriores. Separadores "Recuperação" e "Casuística" fundidos em "Relatório".
 
 **Pendente pós-MVP:**
 - Gap 5 — `canTransition` validado
