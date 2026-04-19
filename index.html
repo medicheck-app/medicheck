@@ -1321,7 +1321,7 @@ function renderDayPanel() {
   if (!acts.length) {
     html += '<div style="padding:14px 16px;color:var(--ink3);font-size:0.85rem">Sem actos neste dia</div>';
   } else {
-    const BUCKET_LABEL = { recebido: 'Recebido', em_divida: 'Em dívida', recente: 'Recente' };
+    const BUCKET_LABEL = { recebido: 'Recebido', em_divida: 'Em dívida', recente: 'Registado' };
     acts.forEach(p => {
       const bucket   = getUIBucket(p.status);
       const dotCls   = bucket === 'rejeitado' ? 's-rejeitado' : `ui-b-${bucket}`;
