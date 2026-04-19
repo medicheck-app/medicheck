@@ -370,6 +370,15 @@ Regras: só index.html. Commit: "Fix: preservar procedimento e adicionar tolerâ
 
 Todos os gaps MVP estão implementados. Ver commits em `CLAUDE.md`.
 
+**Camada UI (backend inalterado):**
+Os 5 estados internos continuam exactamente como definidos. A UI expõe 3 categorias visuais via `getUIBucket(status)`:
+- `registado` → "Recente" (dot cinza neutro)
+- `em_falta` / `reclamado` → "Em dívida" (dot vermelho; reclamado mostra tag "enviado em MM/AA")
+- `pago` → "Recebido" (dot verde)
+- `rejeitado` → visível com estilo cinza existente (label "Rejeitado")
+
+Separador "Reclamar" removido da navegação. Fluxo de reclamação integrado no separador "Cruzar dados" via `renderDebtBlock()`.
+
 **Pendente pós-MVP:**
 - Gap 5 — `canTransition` validado
 - Gap 8 — UI de edição manual de estado com regras
