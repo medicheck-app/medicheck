@@ -581,7 +581,6 @@
       <button class="main-tab"        id="mtab-cruzar"       onclick="switchTab('cruzar')">Cruzar dados</button>
       <button class="main-tab"        id="mtab-pagamentos"   onclick="switchTab('pagamentos')">Pagamentos</button>
       <button class="main-tab"        id="mtab-recuperacao"  onclick="switchTab('recuperacao')">Recuperação</button>
-      <button class="main-tab"        id="mtab-casuistica"   onclick="switchTab('casuistica')">Casuística</button>
     </div>
 
     <!-- ── TAB: REGISTAR ── -->
@@ -628,10 +627,6 @@
       <div class="sc-body" id="recuperacao-body"></div>
     </div>
 
-    <!-- ── TAB: CASUÍSTICA ── -->
-    <div class="tab-pane" id="tab-casuistica">
-      <div class="sc-body" id="casuistica-body"></div>
-    </div>
   </div>
 
   <!-- ══════════════ OCR ══════════════ -->
@@ -1763,7 +1758,6 @@ function switchTab(tab) {
     renderDebtBlock();
   }
   if (tab === 'pagamentos')  renderPagamentos();
-  if (tab === 'casuistica')  renderCasuistica();
   if (tab === 'recuperacao') renderRecuperacao();
 }
 
@@ -2528,6 +2522,85 @@ function renderRecuperacao() {
         Rejeitados: ${rejeitados.length} caso${rejeitados.length !== 1 ? 's' : ''}${totalRej > 0 ? ' · ' + totalRej.toFixed(2) + ' €' : ''}
       </div>`;
     })()}`;
+
+  if (!procedimentos.length) return;
+
+  // Casuística — por mês, tipo e especialidade
+  const porTipo = { cirurgica: 0, gastro: 0, anestesia: 0 };
+  for (const p of procedimentos) { if (porTipo[p.tipo] !== undefined) porTipo[p.tipo]++; }
+  const tipoLabels  = { cirurgica: 'Cirurgia', gastro: 'Gastroenterologia', anestesia: 'Anestesiologia' };
+  const tipoEntries = Object.entries(porTipo).filter(([,n]) => n > 0);
+  const maxTipo     = tipoEntries.length ? Math.max(...tipoEntries.map(([,n]) => n)) : 1;
+
+  const porEsp = {};
+  for (const p of procedimentos) {
+    if (p.tipo !== 'cirurgica') continue;
+    const k = p.especialidade || 'Outra';
+    porEsp[k] = (porEsp[k] || 0) + 1;
+  }
+  const espSorted = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
+  const maxEsp    = espSorted.length ? Math.max(...espSorted.map(x => x[1])) : 1;
+
+  const porMes = {};
+  for (const p of procedimentos) {
+    const m = (p.data || '').slice(0, 7);
+    if (m) porMes[m] = (porMes[m] || 0) + 1;
+  }
+  const mesSorted  = Object.entries(porMes).sort((a,b) => a[0].localeCompare(b[0])).slice(-12);
+  const maxMes     = mesSorted.length ? Math.max(...mesSorted.map(x => x[1])) : 1;
+  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  body.insertAdjacentHTML('beforeend', `
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--line)">
+      <div class="rel-section">
+        <h3>Actos por mês</h3>
+        <div class="rel-box">
+          ${mesSorted.map(([mes, n]) => {
+            const [y, m] = mes.split('-');
+            const label = mesesNomes[parseInt(m,10)-1] + ' ' + y;
+            const pct = Math.round((n / maxMes) * 100);
+            return `<div class="rel-row" style="gap:10px">
+              <span class="rel-row-lbl" style="min-width:64px">${label}</span>
+              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+              </div>
+              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="rel-section">
+        <h3>Por tipo de acto</h3>
+        <div class="rel-box">
+          ${tipoEntries.map(([tipo, n]) => {
+            const pct = Math.round((n / maxTipo) * 100);
+            return `<div class="rel-row" style="gap:10px">
+              <span class="rel-row-lbl" style="min-width:120px">${tipoLabels[tipo]}</span>
+              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+              </div>
+              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      ${espSorted.length ? `<div class="rel-section">
+        <h3>Por especialidade cirúrgica</h3>
+        <div class="rel-box">
+          ${espSorted.map(([esp, n]) => {
+            const pct = Math.round((n / maxEsp) * 100);
+            return `<div class="rel-row" style="gap:10px">
+              <span class="rel-row-lbl" style="min-width:120px">${esc(esp)}</span>
+              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+              </div>
+              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+      <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
+    </div>`);
 }
 
 // ═══════════════════════════════════════════════════
