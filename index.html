@@ -2107,7 +2107,6 @@ function applyCUF() {
   let html = '<div class="info-box" style="color:var(--green)">Cruzamento aplicado.<br>';
   if (pagos) {
     html += `${pagos} acto${pagos !== 1 ? 's' : ''} marcado${pagos !== 1 ? 's' : ''} como pago`;
-    if (totalRecuperado > 0) html += ` · <strong>Total recuperado: ${totalRecuperado.toFixed(2)} €</strong>`;
     html += '.<br>';
   }
   if (emFalta) html += `<span style="color:var(--red)">${emFalta} acto${emFalta !== 1 ? 's' : ''} marcado${emFalta !== 1 ? 's' : ''} como em falta.</span>`;
@@ -2145,9 +2144,7 @@ function applyToleranceCUF() {
   autoSave(); renderDashboard();
   const res = document.getElementById('tolerance-result');
   if (res) {
-    let msg = `<span style="color:var(--green)">${pagos} acto${pagos !== 1 ? 's' : ''} marcado${pagos !== 1 ? 's' : ''} como pago`;
-    if (totalRecuperado > 0) msg += ` · <strong>${totalRecuperado.toFixed(2)} €</strong>`;
-    res.innerHTML = msg + '</span>';
+    res.innerHTML = `<span style="color:var(--green)">${pagos} acto${pagos !== 1 ? 's' : ''} marcado${pagos !== 1 ? 's' : ''} como pago</span>`;
   }
   toleranceMatches.forEach((_, i) => {
     const cb = document.getElementById(`tol-${i}`);
