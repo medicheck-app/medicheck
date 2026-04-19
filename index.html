@@ -2156,6 +2156,23 @@ function applyToleranceCUF() {
   toast('Correspondências por proximidade aplicadas');
 }
 
+function _buildDebtEmail(incluirReclamados) {
+  const base = window._debtEmFalta || [];
+  const extra = incluirReclamados ? (window._debtReclamados || []) : [];
+  const all = [...base, ...extra].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  if (!all.length) return '';
+  const lines = all.map(p =>
+    `• ${fmtDate(p.data)}  |  ${p.paciente || '—'}  |  Proc. ${p.processo || '—'}  |  ${p.procedimento || '—'}`
+  ).join('\n');
+  return `Exmo(s). Sr(s).,\n\nVenho solicitar a regularização dos seguintes actos realizados sem registo de liquidação:\n\n${lines}\n\nAgradeço a atenção e aguardo confirmação.\n\nCom os melhores cumprimentos`;
+}
+
+function updateDebtEmail() {
+  const chk = document.getElementById('chk-incluir-reclamados');
+  const ta  = document.getElementById('reclamar-ta');
+  if (ta) ta.value = _buildDebtEmail(chk?.checked || false);
+}
+
 // ═══════════════════════════════════════════════════
 // BLOCO EM DÍVIDA (integrado no separador Cruzar dados)
 // ═══════════════════════════════════════════════════
@@ -2171,11 +2188,11 @@ function renderDebtBlock() {
     return;
   }
 
-  const lines = acts.map(p =>
-    `• ${fmtDate(p.data)}  |  ${p.paciente || '—'}  |  Proc. ${p.processo || '—'}  |  ${p.procedimento || '—'}`
-  ).join('\n');
-  const emailText = `Exmo(s). Sr(s).,\n\nVenho solicitar a regularização dos seguintes actos realizados sem registo de liquidação:\n\n${lines}\n\nAgradeço a atenção e aguardo confirmação.\n\nCom os melhores cumprimentos`;
+  const emFalta   = acts.filter(p => p.status === 'em_falta');
+  const reclamados = acts.filter(p => p.status === 'reclamado');
 
+  window._debtEmFalta   = emFalta;
+  window._debtReclamados = reclamados;
   window._relatorioCopiado = false;
 
   const listHtml = acts.map(p => {
@@ -2191,6 +2208,12 @@ function renderDebtBlock() {
     </div>`;
   }).join('');
 
+  const checkboxHtml = reclamados.length ? `
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--ink2);margin-top:12px;cursor:pointer">
+      <input type="checkbox" id="chk-incluir-reclamados" onchange="updateDebtEmail()">
+      Incluir ${reclamados.length} acto${reclamados.length !== 1 ? 's' : ''} já reclamados anteriormente
+    </label>` : '';
+
   container.innerHTML = `
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
       <div class="rel-card-label" style="margin-bottom:10px">Actos em dívida · ${acts.length}</div>
@@ -2198,7 +2221,8 @@ function renderDebtBlock() {
       <div class="info-box" style="font-size:0.85rem;color:var(--ink2);margin-top:12px">
         Copia primeiro o email e envia à CUF. Só depois de enviares é que deves marcar como reclamado.
       </div>
-      <textarea class="big-ta" id="reclamar-ta" style="min-height:160px;margin-top:8px">${esc(emailText)}</textarea>
+      ${checkboxHtml}
+      <textarea class="big-ta" id="reclamar-ta" style="min-height:160px;margin-top:8px">${esc(_buildDebtEmail(false))}</textarea>
       <button class="btn-p" onclick="copyReclamar()" style="margin-top:8px">Copiar email</button>
       <button class="btn-s" id="btn-mark-reclaimed" onclick="markAllReclaimed()"
         disabled style="opacity:0.5;margin-top:8px">Confirmar envio e marcar como reclamado</button>
