@@ -1808,7 +1808,7 @@ async function processPDFFile(file) {
       const tc   = await page.getTextContent();
       const rows = {};
       for (const item of tc.items) {
-        const y = Math.round(item.transform[5] / 3) * 3;
+        const y = Math.round(item.transform[5] / 10) * 10;
         if (!rows[y]) rows[y] = [];
         rows[y].push({ x: item.transform[4], str: item.str });
       }
@@ -1831,8 +1831,8 @@ function processCUFText(text, status, out) {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
 
-  // Extrair por linha: proc (6 dígitos) + data (DD/MM/YYYY) obrigatórios
-  const lineRe = /\b(\d{6})\b.*?\b(\d{2}\/\d{2}\/\d{4})\b/;
+  // Extrair por linha: proc (6 dígitos) + data (DD/MM/YYYY ou DD-MM-YY) obrigatórios
+  const lineRe = /\b(\d{6})\b.*?\b(\d{2}[\/\-]\d{2}[\/\-](\d{4}|\d{2}))\b/;
   const cufLines = [];
   let consultasIgnoradas = 0;
   for (const raw of text.split('\n')) {
@@ -1840,22 +1840,30 @@ function processCUFText(text, status, out) {
     const lm = lineRe.exec(raw);
     if (!lm) continue;
     const proc = lm[1];
-    const [dd, mm, yyyy] = lm[2].split('/');
+    const datePart = lm[2];
+    const sep = datePart.includes('/') ? '/' : '-';
+    const [dd, mm, yyOrYyyy] = datePart.split(sep);
+    const yyyy = yyOrYyyy.length === 2 ? '20' + yyOrYyyy : yyOrYyyy;
     const date = `${yyyy}-${mm}-${dd}`;
-    // Último número decimal da linha = valor
-    const allNums = [...raw.matchAll(/(\d+[.,]\d{2})/g)];
+    // Último número decimal da linha = valor (captura sinal negativo)
+    const allNums = [...raw.matchAll(/([-]?\d+[.,]\d{2})/g)];
     let value = null;
     if (allNums.length) {
       const parsed = parseFloat(allNums[allNums.length - 1][1].replace(',', '.'));
-      if (!isNaN(parsed) && parsed > 0 && parsed < 100000) value = parsed;
+      if (!isNaN(parsed) && Math.abs(parsed) < 100000) value = parsed;
     }
-    // Nome: texto entre proc e primeiro número, sem data e sem decimais
+    // Ignorar estornos (valor negativo) — não devem marcar actos como pagos
+    if (value !== null && value < 0) continue;
+    // Nome: palavras em maiúsculas após proc, sem datas/números/especialidades
     const afterProc = raw.slice(raw.indexOf(lm[1]) + 6).trim();
     const name = afterProc
-      .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, '')
-      .replace(/\b\d{6,}\b/g, '')
-      .replace(/\d+[.,]\d{2}/g, '')
-      .replace(/\s{2,}/g, ' ').trim() || null;
+      .replace(/\b\d{2}[\/\-]\d{2}[\/\-](\d{4}|\d{2})\b/g, '')
+      .replace(/[-]?\d+[.,]\d{2}/g, '')
+      .replace(/\b\d+\b/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 1 && w === w.toUpperCase())
+      .join(' ')
+      .trim() || null;
     cufLines.push({ proc, date, name, value });
   }
 
