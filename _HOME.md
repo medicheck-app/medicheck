@@ -22,6 +22,7 @@
 - **Todos os gaps MVP concluídos** — ver [[REFACTOR-ESTADOS]] para detalhes
 - **Risco activo:** reconciliação nunca testada com dados reais (teste esperado Jun/Jul 2026)
 - **Save Drive:** fiabilidade reforçada (commit 79e473e, Abril 2026)
+- **Calendário:** swipe lateral com animação (commit 9f478a1, Abril 2026)
 
 ---
 

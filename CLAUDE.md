@@ -96,6 +96,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Pagamentos: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)
 - Demo mode: exercita tolerância ±3 dias (FERNANDO SANTOS PEREIRA, diff=2 dias); linha de consulta na fatura simulada; todos os registos com `valor` preenchido
 - Calendário com espaçamentos corrigidos
+- Swipe lateral no calendário: dedo segue com `translateX` durante drag; no `touchend` mês actual anima para fora e novo mês entra do lado oposto (`transition: transform 300ms`); `touch-action: pan-y` evita conflito com scroll vertical
 - Google login funciona à primeira tentativa (botão desabilitado até SDK carregar)
 - Account picker Google sempre visível (prompt: 'select_account')
 - Sem flash de ecrã de login após autenticação
