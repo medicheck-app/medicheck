@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-04-24 | Feature + Fix | Swipe lateral no calendário com animação translateX; 3 bugs corrigidos (transform não resetado, animating não resetado, sem listener touchmove) |
 | 2026-04-24 | Fix | Fiabilidade save Drive: await pós-login, response.ok PATCH/POST, beforeunload guard, toast erro universal |
 | 2026-04-20 | Fix | 4 bugs extracção PDF CUF: regex data DD-MM-YY, estornos ignorados, Y-grouping ±5px, nomes só palavras CAPS |
 | 2026-04-20 | Documentação | Sincronização completa: criado REFACTOR-ESTADOS.md e _HOME.md; CLAUDE.md actualizado (anestesia sem UI, rename no backlog); memória consolidada de 8 para 4 ficheiros; wiki-links adicionados; CHANGELOG criado |
