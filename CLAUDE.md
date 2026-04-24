@@ -25,6 +25,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - **Importação:** XLSX.js para mapas CUF + paste de PDF/texto
 - **Deploy:** editar `dev.html` → copiar para `index.html` → `git push` → GitHub Pages
 - **Notas:** `CLAUDE.md` editável no Obsidian (vault = pasta `Medicheck`). Editar entre sessões para manter contexto actualizado.
+- **Docs no vault:** `CLAUDE.md` (contexto sessão), `REFACTOR-ESTADOS.md` (estado da máquina de estados), `ESTADOS.md` (design original), `_HOME.md` (painel de navegação Obsidian)
 
 ---
 
@@ -42,10 +43,13 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
   1. Preview para verificar (se aplicável)
   2. `git add index.html && git commit` com mensagem convencional em português
   3. `git push`
-  4. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades
-  5. Actualizar `REFACTOR-ESTADOS.md` se lógica de estados mudou
-  6. Gerar handoff prompt pronto a colar na próxima sessão
+  4. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades/stack
+  5. Actualizar [[REFACTOR-ESTADOS]] se lógica de estados mudou
+  6. Actualizar `_HOME.md` (secção "Estado do projecto") se o estado geral mudou
+  7. Acrescentar linha ao `CHANGELOG.md` (data + tipo + resumo 1 linha)
+  8. Gerar handoff prompt pronto a colar na próxima sessão
 - Excepção: se o utilizador disser "só rascunho" ou "draft only", não commitar.
+- Em sessões apenas de documentação (sem alterações ao `index.html`): saltar passos 1-3, executar 4-7.
 
 ---
 
@@ -75,6 +79,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Registo de actos
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
+- Parser PDF suporta formato real CUF: datas `DD-MM-YY` (traços + ano 2 dígitos), estornos negativos ignorados (não marcam actos como pagos), nomes extraídos só de palavras em CAPS, tolerância Y±5px para células com texto wrappado (commit ee63a7a)
 - Status flow: Registado → Em Falta → Reclamado → Pago
 - Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Cruzar dados"
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
@@ -96,10 +101,12 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Sem flash de ecrã de login após autenticação
 - Desktop: calendário e lista de actos do dia lado a lado
 - Teclado PIN sem delay de 300ms em mobile (`touch-action: manipulation`)
+- Save para Drive com fiabilidade reforçada: `await` no sync pós-login, `response.ok` em PATCH/POST, `beforeunload` guard durante save activo, toast de erro em qualquer falha (commit 79e473e)
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
 - **Demo mode** — falta caso de ambiguidade (2 actos mesmo doente+data)
+- **Tipo `anestesia` sem UI** — existe no modelo de dados e nos relatórios, mas não há botão na UI para criar actos de anestesia manualmente; actos deste tipo só surgem via reconciliação CUF
 
 ---
 
@@ -113,7 +120,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ## MELHORIAS PENDENTES
 
-### Refactor de estados (ESTADOS.md — ver prompts prontos no ficheiro)
+### Refactor de estados ([[ESTADOS]] — ver prompts prontos no ficheiro)
 
 | Gap | Descrição | Prioridade |
 |-----|-----------|------------|
@@ -162,6 +169,7 @@ A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
 - Breakdown mensal do valor recuperado no Painel de Recuperação (total por mês + total acumulado)
 - Mais especialidades (gastroenterologia, cirurgia, consulta)
 - Auth real com whitelist + publicação OAuth
+- Renomear o site (nome actual considerado pouco profissional para contexto CUF)
 
 ---
 
