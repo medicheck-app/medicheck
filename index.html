@@ -1406,6 +1406,8 @@ function renderCalGrid() {
         currentMonth = nextMonth;
         selectedDay = null;
         ghost.remove();
+        wrap.style.transition = 'none';
+        wrap.style.transform = '';
         renderDashboard();
       }, { once: true });
     }, { passive: true });
