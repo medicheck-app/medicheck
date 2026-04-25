@@ -1939,20 +1939,28 @@ function processCUFText(text, status, out) {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
 
-  // Extrair por linha: proc (6 dígitos) + data (DD/MM/YYYY ou DD-MM-YY) obrigatórios
-  const lineRe = /\b(\d{6})\b.*?\b(\d{2}[\/\-]\d{2}[\/\-](\d{4}|\d{2}))\b/;
+  // Extrair por linha: NP (5–10 dígitos) + data (DD-MM-YY ou DD/MM/YYYY), em qualquer ordem.
+  // Formato real CUF observado nos PDFs de honorários: "DD-MM-YY NP NOME ... VALOR".
+  // Suporta também NP→data (formato legado) sem alteração de comportamento.
+  // NP aceita 5–10 dígitos para cobrir transição CUF (6 antigos, 7–9 novos).
+  const dateRe = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4}|\d{2})\b/;
   const cufLines = [];
   let consultasIgnoradas = 0;
   for (const raw of text.split('\n')) {
     if (/\bconsulta\b/i.test(raw)) { consultasIgnoradas++; continue; }
-    const lm = lineRe.exec(raw);
-    if (!lm) continue;
-    const proc = lm[1];
-    const datePart = lm[2];
-    const sep = datePart.includes('/') ? '/' : '-';
-    const [dd, mm, yyOrYyyy] = datePart.split(sep);
-    const yyyy = yyOrYyyy.length === 2 ? '20' + yyOrYyyy : yyOrYyyy;
-    const date = `${yyyy}-${mm}-${dd}`;
+    const dm = dateRe.exec(raw);
+    if (!dm) continue;
+    const dateStart = dm.index;
+    const dateEnd   = dm.index + dm[0].length;
+    // Primeiro número de 5–10 dígitos fora do span da data → NP
+    let procMatch = null;
+    for (const m of raw.matchAll(/\b(\d{5,10})\b/g)) {
+      if (m.index < dateStart || m.index >= dateEnd) { procMatch = m; break; }
+    }
+    if (!procMatch) continue;
+    const proc = procMatch[1];
+    const yyyy = dm[3].length === 2 ? '20' + dm[3] : dm[3];
+    const date = `${yyyy}-${dm[2]}-${dm[1]}`;
     // Último número decimal da linha = valor (captura sinal negativo)
     const allNums = [...raw.matchAll(/([-]?\d+[.,]\d{2})/g)];
     let value = null;
@@ -1962,8 +1970,8 @@ function processCUFText(text, status, out) {
     }
     // Ignorar estornos (valor negativo) — não devem marcar actos como pagos
     if (value !== null && value < 0) continue;
-    // Nome: palavras em maiúsculas após proc, sem datas/números/especialidades
-    const afterProc = raw.slice(raw.indexOf(lm[1]) + 6).trim();
+    // Nome: palavras em maiúsculas após o NP, sem datas/números/especialidades
+    const afterProc = raw.slice(procMatch.index + proc.length);
     const name = afterProc
       .replace(/\b\d{2}[\/\-]\d{2}[\/\-](\d{4}|\d{2})\b/g, '')
       .replace(/[-]?\d+[.,]\d{2}/g, '')
