@@ -20,7 +20,8 @@
 - **4 separadores:** Registar · Cruzar dados · Pagamentos · Relatório
 - **5 estados internos:** `registado` → `em_falta` → `reclamado` → `pago` | `rejeitado`
 - **Todos os gaps MVP concluídos** — ver [[REFACTOR-ESTADOS]] para detalhes
-- **Risco activo:** reconciliação nunca testada com dados reais (teste esperado Jun/Jul 2026)
+- **Parser PDF validado** com 3 listagens reais da CUF (sessão 2026-04-25, fix crítico: 0→270 matches). _Matching_ propriamente dito ainda por validar (PDFs históricos têm NPs antigos, BD tem NPs novos — convergem em Jun/Jul)
+- **Risco activo:** matching BD↔fatura por testar com dados reais (esperado Jun/Jul 2026); 4 melhorias planeadas no `CLAUDE.md`
 - **Save Drive:** fiabilidade reforçada (commit 79e473e, Abril 2026)
 - **Calendário:** swipe lateral com animação (commit 9f478a1, Abril 2026)
 

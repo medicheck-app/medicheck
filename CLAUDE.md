@@ -80,6 +80,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
 - Parser PDF suporta formato real CUF: datas `DD-MM-YY` (traços + ano 2 dígitos), estornos negativos ignorados (não marcam actos como pagos), nomes extraídos só de palavras em CAPS, tolerância Y±5px para células com texto wrappado (commit ee63a7a)
+- Parser PDF: data e NP procurados independentemente (ordem real CUF é `DATA NP NOME`, não `NP ... DATA` como estava); NP aceita 5-10 dígitos (cobre transição CUF). Validado contra 3 PDFs reais (270 actos extraídos correctamente, 0 antes do fix) — sessão 2026-04-25
 - Status flow: Registado → Em Falta → Reclamado → Pago
 - Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Cruzar dados"
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
@@ -176,4 +177,10 @@ A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
 
 ## RISCO CRÍTICO ACTIVO
 
-**Reconciliação nunca testada com dados reais.** Primeiro teste real esperado Junho/Julho 2026. É o item de risco mais crítico do MVP — tudo o resto é secundário até isto estar validado.
+**Matching BD↔fatura nunca testado com dados reais.** Parser foi validado contra 3 PDFs históricos da CUF (sessão 2026-04-25, 270 actos extraídos correctamente), mas o **matching** propriamente dito não pôde ser testado: os PDFs históricos têm NPs de 6 dígitos (sistema antigo), a BD tem 7-9 dígitos (sistema novo). Em Junho/Julho convergem — é aí que se valida o matching.
+
+Melhorias do plano para o teste real (pendentes, ordenadas por ROI):
+1. Confirmação de nome em todos os matches (defesa contra falsos positivos por colisão de NPs durante transição) — ~1h
+2. Tolerância de datas ±7 dias (em vez de ±3); múltiplos candidatos vão para desambiguação manual em vez de descartados — ~30min
+3. Phase 3 de fallback: linhas sem match em NP+data → tentar fuzzy nome+janela 30 dias, sempre manual — ~1h
+4. Log/auditoria do método de match (`exact`/`tolerance`/`fuzzy_name` + similaridade) — ~15min
