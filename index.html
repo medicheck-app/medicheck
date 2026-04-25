@@ -1898,6 +1898,15 @@ function normProc(s) {
   return String(s || '').replace(/\D/g, '');
 }
 
+function nameSimilarity(a, b) {
+  if (!a || !b) return 0;
+  const wa = new Set(a.toUpperCase().split(/\s+/).filter(w => w.length > 1));
+  const wb = new Set(b.toUpperCase().split(/\s+/).filter(w => w.length > 1));
+  const inter = [...wa].filter(w => wb.has(w)).length;
+  const union = new Set([...wa, ...wb]).size;
+  return union ? inter / union : 0;
+}
+
 async function processPDFFile(file) {
   if (!file) return;
   const status = document.getElementById('cruzar-status');
@@ -2017,13 +2026,15 @@ function processCUFText(text, status, out) {
     }
   }
 
-  // Phase 2: tolerance matching (±3 dias) para linhas CUF sem match estrito
-  let linhasSemMatch = 0;
+  // Phase 2: tolerance matching (±7 dias) para linhas CUF sem match estrito
+  // 1:1 → aplicado automaticamente; 1:N → toleranceAmbiguous para resolução manual
   const matchedRecords = new Set([
     ...clearMatches.map(m => m.record),
     ...ambiguousGroups.flatMap(g => g.records)
   ]);
-  const toleranceMatches = [];
+  const toleranceMatches   = [];
+  const toleranceAmbiguous = [];
+  const unmatchedLines     = [];
   for (const key of Object.keys(pdfByKey)) {
     const records = dbByKey[key] || [];
     if (records.length) continue;
@@ -2035,16 +2046,40 @@ function processCUFText(text, status, out) {
         if (matchedRecords.has(p)) continue;
         if (normProc(p.processo) !== line.proc) continue;
         const daysDiff = Math.round(Math.abs(new Date(p.data) - lineDate) / 86400000);
-        if (daysDiff > 0 && daysDiff <= 3) candidates.push({ record: p, daysDiff });
+        if (daysDiff > 0 && daysDiff <= 7) candidates.push({ record: p, daysDiff });
       }
       if (candidates.length === 1) {
         toleranceMatches.push({ record: candidates[0].record, line, daysDiff: candidates[0].daysDiff });
         matchedRecords.add(candidates[0].record);
+      } else if (candidates.length > 1) {
+        toleranceAmbiguous.push({ line, candidates });
       } else {
-        linhasSemMatch++;
+        unmatchedLines.push(line);
       }
     }
   }
+
+  // Phase 3: fuzzy nome + janela 30 dias — sempre resolução manual
+  const fuzzyMatches = [];
+  for (const line of unmatchedLines) {
+    if (!line.name) continue;
+    const lineDate = new Date(line.date);
+    const candidates = [];
+    for (const p of procedimentos) {
+      if (!ELIGIBLE.has(p.status)) continue;
+      if (matchedRecords.has(p)) continue;
+      const daysDiff = Math.round(Math.abs(new Date(p.data) - lineDate) / 86400000);
+      if (daysDiff > 30) continue;
+      const sim = nameSimilarity(line.name, p.paciente);
+      if (sim < 0.3) continue;
+      candidates.push({ record: p, daysDiff, nameSim: sim });
+    }
+    if (candidates.length) {
+      candidates.sort((a, b) => b.nameSim - a.nameSim);
+      fuzzyMatches.push({ line, candidates });
+    }
+  }
+  const linhasSemMatch = unmatchedLines.length - fuzzyMatches.length;
 
   // Registos 'registado' sem match e com data anterior ao cutoff
   const futureFalta = procedimentos.filter(p =>
@@ -2054,36 +2089,44 @@ function processCUFText(text, status, out) {
   );
 
   // Montar preview HTML
-  const exemploItems = clearMatches.slice(0, 4).map(({ record: p, line }) =>
-    `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.82rem">
-      <span style="color:var(--ink)">${esc(p.paciente || '—')}</span>
-      <span style="color:var(--ink3)"> · ${fmtDate(p.data)} · ${esc(line.name || p.procedimento || '—')}
-        ${line.value != null ? ' · <strong style="color:var(--green)">' + line.value.toFixed(2) + ' €</strong>' : ''}
-      </span>
-    </div>`
-  ).join('');
+  // M1: comparar nome BD vs CUF — alerta amber se similaridade < 0.5
+  const SHOW_MAX = 6;
+  const exemploItems = clearMatches.slice(0, SHOW_MAX).map(({ record: p, line }) => {
+    const sim = nameSimilarity(p.paciente, line.name);
+    const mismatch = line.name && sim < 0.5;
+    const nameHTML = mismatch
+      ? `<span style="color:var(--ink)">${esc(p.paciente || '—')}</span>` +
+        `<span style="color:var(--accent);font-size:0.75rem"> ⚠ CUF: ${esc(line.name)}</span>`
+      : `<span style="color:var(--ink)">${esc(p.paciente || '—')}</span>`;
+    return `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:0.82rem">
+      ${nameHTML}
+      <span style="color:var(--ink3)"> · ${fmtDate(p.data)}${line.value != null ? ' · <strong style="color:var(--green)">' + line.value.toFixed(2) + ' €</strong>' : ''}</span>
+    </div>`;
+  }).join('');
 
-  const toleranceHTML = toleranceMatches.length ? `
+  const toleranceAutoHTML = toleranceMatches.length ? `
     <div style="font-size:0.8rem;color:var(--accent);margin-bottom:8px">
-      ⚠ ${toleranceMatches.length} data${toleranceMatches.length !== 1 ? 's' : ''} não correspond${toleranceMatches.length !== 1 ? 'em' : 'e'} exactamente
+      ⚠ ${toleranceMatches.length} correspondência${toleranceMatches.length !== 1 ? 's' : ''} por proximidade de data (±7 dias) — aplicadas automaticamente
     </div>` : '';
 
   status.innerHTML = '';
   out.innerHTML = `
     <div class="info-box">
       <strong>PDF lido:</strong> ${cufLines.length} linha${cufLines.length !== 1 ? 's' : ''} com doente+data encontradas.<br>
-      <strong style="color:var(--green)">✓ ${clearMatches.length} correspondência${clearMatches.length !== 1 ? 's' : ''} directas:</strong>
+      <strong style="color:var(--green)">✓ ${clearMatches.length} correspondência${clearMatches.length !== 1 ? 's' : ''} exactas:</strong>
       <div style="margin-top:8px">${exemploItems}</div>
-      ${clearMatches.length > 4 ? `<div style="font-size:0.75rem;color:var(--ink3);margin-top:6px">…e mais ${clearMatches.length - 4}</div>` : ''}
+      ${clearMatches.length > SHOW_MAX ? `<div style="font-size:0.75rem;color:var(--ink3);margin-top:6px">…e mais ${clearMatches.length - SHOW_MAX}</div>` : ''}
     </div>
     ${ambiguousGroups.length ? `<div class="info-box" style="border-color:rgba(245,158,11,0.4)">
-      <span style="color:var(--accent)">⚠ ${ambiguousGroups.length} grupo${ambiguousGroups.length !== 1 ? 's' : ''} com ambiguidade — resolução necessária abaixo.</span>
+      <span style="color:var(--accent)">⚠ ${ambiguousGroups.length} grupo${ambiguousGroups.length !== 1 ? 's' : ''} com ambiguidade exacta — resolução necessária abaixo.</span>
     </div>` : ''}
     ${futureFalta.length ? `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
       <span style="color:var(--red)">✗ ${futureFalta.length} acto${futureFalta.length !== 1 ? 's' : ''} com +3 meses para marcar como <strong>em falta</strong></span>
     </div>` : ''}
-    ${toleranceHTML}
+    ${toleranceAutoHTML}
     <div id="ambiguity-ui"></div>
+    <div id="tolerance-ambiguous-ui"></div>
+    <div id="fuzzy-match-ui"></div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()"
         ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>Aplicar</button>
@@ -2096,11 +2139,17 @@ function processCUFText(text, status, out) {
     resolved: {},
     cutoff,
     toleranceMatches,
+    toleranceAmbiguous,
+    resolvedTolerance: {},
+    fuzzyMatches,
+    resolvedFuzzy: {},
     linhasSemMatch,
     consultasIgnoradas,
   };
 
-  if (ambiguousGroups.length) renderAmbiguityUI();
+  if (ambiguousGroups.length)   renderAmbiguityUI();
+  if (toleranceAmbiguous.length) renderToleranceAmbiguousUI();
+  if (fuzzyMatches.length)       renderFuzzyMatchUI();
 }
 
 function renderAmbiguityUI() {
@@ -2164,6 +2213,97 @@ function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
   }
 }
 
+function renderToleranceAmbiguousUI() {
+  if (!window._pendingCUF) return;
+  const { toleranceAmbiguous, resolvedTolerance } = window._pendingCUF;
+  const container = document.getElementById('tolerance-ambiguous-ui');
+  if (!container || !toleranceAmbiguous.length) return;
+  let html = `<div style="margin-top:8px">
+    <div style="font-size:0.85rem;font-weight:600;margin-bottom:6px;color:var(--ink)">
+      Correspondências por proximidade de data — escolher ou ignorar
+      <span style="font-size:0.78rem;color:var(--ink3);font-weight:400"> (não bloqueiam o botão Aplicar)</span>
+    </div>`;
+  toleranceAmbiguous.forEach((group, gi) => {
+    const resolved = resolvedTolerance[gi];
+    html += `<div style="border:1px solid ${resolved ? 'var(--green)' : 'rgba(245,158,11,0.4)'};
+      border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--bg2)">
+      <div style="font-size:0.78rem;color:var(--ink3);margin-bottom:8px">
+        CUF: NP ${esc(group.line.proc)} · ${fmtDate(group.line.date)}
+        ${group.line.name ? ' · <strong>' + esc(group.line.name) + '</strong>' : ''}
+        ${group.line.value != null ? ' · <strong style="color:var(--green)">' + group.line.value.toFixed(2) + ' €</strong>' : ''}
+        ${resolved ? ' <span style="color:var(--green)">✓ Seleccionado</span>' : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">`;
+    group.candidates.forEach((c, ci) => {
+      const isSelected = resolved?.recordIdx === ci;
+      html += `<button class="btn-s"
+        style="text-align:left;padding:8px 12px;font-size:0.8rem;width:auto;${isSelected ? 'border-color:var(--green);color:var(--green);' : ''}"
+        onclick="resolveToleranceAmbiguity(${gi},${ci})">
+        ${isSelected ? '✓ ' : ''}${esc(c.record.paciente || '—')} · ${fmtDate(c.record.data)}
+        <span style="color:var(--ink3);font-size:0.74rem"> · ±${c.daysDiff} dia${c.daysDiff !== 1 ? 's' : ''} · ${esc(c.record.procedimento || '—')}</span>
+      </button>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function resolveToleranceAmbiguity(groupIdx, candidateIdx) {
+  if (!window._pendingCUF) return;
+  const { toleranceAmbiguous, resolvedTolerance } = window._pendingCUF;
+  const group = toleranceAmbiguous[groupIdx];
+  resolvedTolerance[groupIdx] = { record: group.candidates[candidateIdx].record, line: group.line, daysDiff: group.candidates[candidateIdx].daysDiff, recordIdx: candidateIdx };
+  renderToleranceAmbiguousUI();
+}
+
+function renderFuzzyMatchUI() {
+  if (!window._pendingCUF) return;
+  const { fuzzyMatches, resolvedFuzzy } = window._pendingCUF;
+  const container = document.getElementById('fuzzy-match-ui');
+  if (!container || !fuzzyMatches.length) return;
+  let html = `<div style="margin-top:8px">
+    <div style="font-size:0.85rem;font-weight:600;margin-bottom:6px;color:var(--ink)">
+      Possíveis correspondências por nome (sem match por NP+data)
+      <span style="font-size:0.78rem;color:var(--ink3);font-weight:400"> (opcionais — não bloqueiam Aplicar)</span>
+    </div>`;
+  fuzzyMatches.forEach((group, gi) => {
+    const resolved = resolvedFuzzy[gi];
+    html += `<div style="border:1px solid ${resolved ? 'var(--green)' : 'rgba(59,130,246,0.4)'};
+      border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--bg2)">
+      <div style="font-size:0.78rem;color:var(--ink3);margin-bottom:8px">
+        CUF: NP ${esc(group.line.proc)} · ${fmtDate(group.line.date)}
+        ${group.line.name ? ' · <strong>' + esc(group.line.name) + '</strong>' : ''}
+        ${group.line.value != null ? ' · <strong style="color:var(--green)">' + group.line.value.toFixed(2) + ' €</strong>' : ''}
+        ${resolved ? ' <span style="color:var(--green)">✓ Seleccionado</span>' : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">`;
+    group.candidates.forEach((c, ci) => {
+      const isSelected = resolved?.recordIdx === ci;
+      const pct = Math.round(c.nameSim * 100);
+      const bars = Math.round(c.nameSim * 5);
+      const simBar = '▓'.repeat(bars) + '░'.repeat(5 - bars) + ` ${pct}%`;
+      html += `<button class="btn-s"
+        style="text-align:left;padding:8px 12px;font-size:0.8rem;width:auto;${isSelected ? 'border-color:var(--green);color:var(--green);' : ''}"
+        onclick="resolveFuzzyMatch(${gi},${ci})">
+        ${isSelected ? '✓ ' : ''}${esc(c.record.paciente || '—')} · ${fmtDate(c.record.data)}
+        <span style="color:var(--ink3);font-size:0.74rem"> · ±${c.daysDiff}d · <span style="font-family:monospace">${simBar}</span> · ${esc(c.record.procedimento || '—')}</span>
+      </button>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function resolveFuzzyMatch(groupIdx, candidateIdx) {
+  if (!window._pendingCUF) return;
+  const { fuzzyMatches, resolvedFuzzy } = window._pendingCUF;
+  const group = fuzzyMatches[groupIdx];
+  resolvedFuzzy[groupIdx] = { record: group.candidates[candidateIdx].record, line: group.line, nameSim: group.candidates[candidateIdx].nameSim, recordIdx: candidateIdx };
+  renderFuzzyMatchUI();
+}
+
 function checkEmFaltaByTime() {
   const today = new Date().toISOString().slice(0, 10);
   const cutoff = new Date(today);
@@ -2180,21 +2320,23 @@ function checkEmFaltaByTime() {
 
 function applyCUF() {
   if (!window._pendingCUF) return;
-  const { cufProcs, clearMatches, ambiguousGroups, resolved, cutoff, toleranceMatches } = window._pendingCUF;
+  const { cufProcs, clearMatches, ambiguousGroups, resolved, cutoff,
+          toleranceMatches, resolvedTolerance, resolvedFuzzy } = window._pendingCUF;
   const now = new Date().toISOString();
   let pagos = 0, emFalta = 0, totalRecuperado = 0;
 
-  // Aplicar correspondências directas
+  // Correspondências exactas (M4: matchMethod='exact')
   for (const { record: p, line } of clearMatches) {
     const wasReclamado = p.status === 'reclamado';
     p.status = 'pago'; p.pagoEm = now;
     if (line.value != null) p.valor = line.value;
     p.pagoViaReconciliacao = true;
+    p.matchMethod = 'exact';
     if (wasReclamado) totalRecuperado += (p.valor || 0);
     pagos++;
   }
 
-  // Aplicar ambiguidades resolvidas
+  // Ambiguidades exactas resolvidas (M4: matchMethod='exact')
   for (const selKey of Object.keys(resolved)) {
     const { record: p, line } = resolved[selKey];
     if (p.status === 'pago' && p.pagoViaReconciliacao) continue;
@@ -2202,17 +2344,43 @@ function applyCUF() {
     p.status = 'pago'; p.pagoEm = now;
     if (line.value != null) p.valor = line.value;
     p.pagoViaReconciliacao = true;
+    p.matchMethod = 'exact';
     if (wasReclamado) totalRecuperado += (p.valor || 0);
     pagos++;
   }
 
-  // Aplicar tolerâncias automaticamente
-  for (const { record: p, line } of (toleranceMatches || [])) {
+  // Tolerância automática 1:1 (M4: matchMethod='tolerance')
+  for (const { record: p, line, daysDiff } of (toleranceMatches || [])) {
     if (p.status === 'pago') continue;
     const wasReclamado = p.status === 'reclamado';
     p.status = 'pago'; p.pagoEm = now;
     if (line.value != null) p.valor = line.value;
     p.pagoViaReconciliacao = true;
+    p.matchMethod = 'tolerance'; p.matchDaysDiff = daysDiff;
+    if (wasReclamado) totalRecuperado += (p.valor || 0);
+    pagos++;
+  }
+
+  // Tolerância manual 1:N resolvida (M2+M4)
+  for (const { record: p, line, daysDiff } of Object.values(resolvedTolerance || {})) {
+    if (p.status === 'pago') continue;
+    const wasReclamado = p.status === 'reclamado';
+    p.status = 'pago'; p.pagoEm = now;
+    if (line.value != null) p.valor = line.value;
+    p.pagoViaReconciliacao = true;
+    p.matchMethod = 'tolerance'; p.matchDaysDiff = daysDiff;
+    if (wasReclamado) totalRecuperado += (p.valor || 0);
+    pagos++;
+  }
+
+  // Fuzzy nome resolvido (M3+M4)
+  for (const { record: p, line, nameSim } of Object.values(resolvedFuzzy || {})) {
+    if (p.status === 'pago') continue;
+    const wasReclamado = p.status === 'reclamado';
+    p.status = 'pago'; p.pagoEm = now;
+    if (line.value != null) p.valor = line.value;
+    p.pagoViaReconciliacao = true;
+    p.matchMethod = 'fuzzy_name'; p.matchSimilarity = nameSim;
     if (wasReclamado) totalRecuperado += (p.valor || 0);
     pagos++;
   }
