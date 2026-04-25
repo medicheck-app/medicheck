@@ -21,7 +21,7 @@
 - **5 estados internos:** `registado` → `em_falta` → `reclamado` → `pago` | `rejeitado`
 - **Todos os gaps MVP concluídos** — ver [[REFACTOR-ESTADOS]] para detalhes
 - **Parser PDF validado** com 3 listagens reais da CUF (sessão 2026-04-25, fix crítico: 0→270 matches). _Matching_ propriamente dito ainda por validar (PDFs históricos têm NPs antigos, BD tem NPs novos — convergem em Jun/Jul)
-- **Risco activo:** matching BD↔fatura por testar com dados reais (esperado Jun/Jul 2026); 4 melhorias planeadas no `CLAUDE.md`
+- **Risco activo:** matching BD↔fatura por testar com dados reais (esperado Jun/Jul 2026); 4 melhorias implementadas (0c45a15): nome BD vs CUF, tolerância ±7d, fuzzy Phase 3, auditoria matchMethod
 - **Save Drive:** fiabilidade reforçada (commit 79e473e, Abril 2026)
 - **Calendário:** swipe lateral com animação (commit 9f478a1, Abril 2026)
 
