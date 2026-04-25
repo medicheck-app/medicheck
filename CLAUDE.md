@@ -179,8 +179,8 @@ A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
 
 **Matching BD↔fatura nunca testado com dados reais.** Parser foi validado contra 3 PDFs históricos da CUF (sessão 2026-04-25, 270 actos extraídos correctamente), mas o **matching** propriamente dito não pôde ser testado: os PDFs históricos têm NPs de 6 dígitos (sistema antigo), a BD tem 7-9 dígitos (sistema novo). Em Junho/Julho convergem — é aí que se valida o matching.
 
-Melhorias do plano para o teste real (pendentes, ordenadas por ROI):
-1. Confirmação de nome em todos os matches (defesa contra falsos positivos por colisão de NPs durante transição) — ~1h
-2. Tolerância de datas ±7 dias (em vez de ±3); múltiplos candidatos vão para desambiguação manual em vez de descartados — ~30min
-3. Phase 3 de fallback: linhas sem match em NP+data → tentar fuzzy nome+janela 30 dias, sempre manual — ~1h
-4. Log/auditoria do método de match (`exact`/`tolerance`/`fuzzy_name` + similaridade) — ~15min
+Melhorias implementadas (sessão 2026-04-25, commit 0c45a15):
+1. ✅ Confirmação de nome: preview mostra BD vs CUF com alerta amber se Jaccard < 50%
+2. ✅ Tolerância ±7 dias: 1:1 automático; 1:N → UI manual `toleranceAmbiguous` (não bloqueia Aplicar)
+3. ✅ Phase 3 fuzzy nome + janela 30 dias: sempre manual, com barra de confiança visual
+4. ✅ Auditoria: `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
