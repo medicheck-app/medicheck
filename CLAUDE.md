@@ -91,11 +91,14 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
 - Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
-- Reconciliação: tolerâncias ±3 dias aplicadas automaticamente; aviso discreto no preview
+- Reconciliação: tolerâncias ±7 dias (1:1 automático; 1:N → UI manual toleranceAmbiguous)
+- Reconciliação: Phase 3 fuzzy nome + janela 30 dias (sempre manual, com barra de confiança visual)
+- Reconciliação: confirmação de nome BD vs CUF no preview — alerta amber se similaridade Jaccard < 50%
+- Reconciliação: auditoria `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
 - Reconciliação: após aplicar, mostra "X doentes em falta" a vermelho se houver em_falta não resolvidos
 - Reconciliação: `totalRecuperado` conta só `reclamado→pago` (não registado→pago)
 - Pagamentos: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)
-- Demo mode: exercita tolerância ±3 dias (FERNANDO SANTOS PEREIRA, diff=2 dias); linha de consulta na fatura simulada; todos os registos com `valor` preenchido
+- Demo mode: exercita tolerância (FERNANDO SANTOS PEREIRA, diff=2 dias, dentro do novo limite ±7d); linha de consulta na fatura simulada; todos os registos com `valor` preenchido
 - Calendário com espaçamentos corrigidos
 - Swipe lateral no calendário: dedo segue com `translateX` durante drag; no `touchend` mês actual anima para fora e novo mês entra do lado oposto (`transition: transform 300ms`); `touch-action: pan-y` evita conflito com scroll vertical
 - Google login funciona à primeira tentativa (botão desabilitado até SDK carregar)
