@@ -6,5 +6,12 @@ medicheck - claude.txt
 .claude/
 exemplo vinheta.jpg
 listagem_honorarios.pdf
+listagem_honorarios*.pdf
+listagem_honorarios*.PDF
 gastro *.jpg
 .obsidian/
+github-recovery-codes.txt
+*.PDF
+medicheck_*.csv
+_dump_pdf.html
+REFACTOR-ESTADOS.md
