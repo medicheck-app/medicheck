@@ -2430,6 +2430,7 @@ function applyToleranceCUF() {
     p.status = 'pago'; p.pagoEm = now;
     if (m.line.value != null) p.valor = m.line.value;
     p.pagoViaReconciliacao = true;
+    p.matchMethod = 'tolerance'; p.matchDaysDiff = m.daysDiff;
     totalRecuperado += (p.valor || 0);
     pagos++;
   });
@@ -2507,7 +2508,7 @@ function renderDebtBlock() {
     </label>` : '';
 
   container.innerHTML = `
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
       <div class="rel-card-label" style="margin-bottom:10px">Actos em dívida · ${acts.length}</div>
       ${listHtml}
       <div class="info-box" style="font-size:0.85rem;color:var(--ink2);margin-top:12px">
@@ -2519,32 +2520,6 @@ function renderDebtBlock() {
       <button class="btn-s" id="btn-mark-reclaimed" onclick="markAllReclaimed()"
         disabled style="opacity:0.5;margin-top:8px">Confirmar envio e marcar como reclamado</button>
     </div>`;
-}
-
-// ═══════════════════════════════════════════════════
-// RECLAMAR
-// ═══════════════════════════════════════════════════
-function renderReclamar() {
-  const emFalta = procedimentos.filter(p => p.status === 'em_falta').sort((a,b) => (a.data||'').localeCompare(b.data||''));
-  const body = document.getElementById('reclamar-body');
-  if (!emFalta.length) {
-    body.innerHTML = '<div class="info-box">Nenhum acto em falta. Cruza os dados primeiro.</div>'; return;
-  }
-  const lines = emFalta.map(p =>
-    `• ${fmtDate(p.data)}  |  ${p.paciente||'—'}  |  Proc. ${p.processo||'—'}  |  ${p.procedimento||'—'}`
-  ).join('\n');
-  const emailText = `Exmo(s). Sr(s).,\n\nVenho solicitar a regularização dos seguintes actos de anestesia realizados há mais de 3 meses e sem registo de liquidação:\n\n${lines}\n\nAgradeço a atenção e aguardo confirmação.\n\nCom os melhores cumprimentos`;
-
-  window._relatorioCopiado = false;
-  body.innerHTML = `
-    <div class="info-box">${emFalta.length} acto${emFalta.length!==1?'s':''} em falta.</div>
-    <textarea class="big-ta" id="reclamar-ta" style="min-height:200px">${esc(emailText)}</textarea>
-    <div class="info-box" style="font-size:0.85rem;color:var(--ink2)">
-      Copia o email e envia à CUF. Só depois de enviares é que deves marcar como reclamado.
-    </div>
-    <button class="btn-p" onclick="copyReclamar()">Copiar email</button>
-    <button class="btn-s" id="btn-mark-reclaimed" onclick="markAllReclaimed()"
-      disabled style="opacity:0.5">Confirmar envio e marcar como reclamado</button>`;
 }
 
 function copyReclamar() {
@@ -2865,7 +2840,7 @@ function renderRecuperacao() {
   const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   body.insertAdjacentHTML('beforeend', `
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--line)">
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
       <div class="rel-section">
         <h3>Actos por mês</h3>
         <div class="rel-box">
