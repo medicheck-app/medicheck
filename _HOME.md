@@ -12,6 +12,7 @@
 | [[REFACTOR-ESTADOS]] | Estado actual da máquina de estados — actualizar quando a lógica mudar |
 | [[ESTADOS]] | Documento de design original completo — referência para decisões de arquitectura |
 | [[CHANGELOG]] | Log de sessões — historial de o que mudou e quando |
+| [[MEDICALC]] | Calculadora de doses pediátricas — projecto irmão (contexto Claude Code) |
 
 ---
 
@@ -33,6 +34,15 @@
 index.html   ← toda a lógica da app (única fonte de verdade para código)
 dev.html     ← cópia local para testes (nunca publicar)
 ```
+
+---
+
+## MediCalc (projecto irmão)
+
+Calculadora de doses pediátricas para anestesia — ficheiro único React sem build step.
+- **Localização:** `C:\Users\treta\OneDrive\Área de Trabalho\MediCalc\index.html`
+- **Contexto Claude Code:** [[MEDICALC]]
+- **Git:** inicializado localmente (2026-04-28), sem remote ainda
 
 ---
 
