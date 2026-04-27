@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-04-28 | Fix (MediCalc) | 2 bugs corrigidos: ageMax 0→0.99 (faixa "< 1 ano" nunca destacava) e ortografia Ondansetron; git init + primeiro commit; MEDICALC.md criado no vault |
 | 2026-04-25 | Feature | Motor matching: 4 melhorias pré-teste real — confirmação de nome BD vs CUF (Jaccard), tolerância ±7d com UI 1:N, Phase 3 fuzzy nome+30d, auditoria matchMethod gravada em cada procedimento |
 | 2026-04-25 | Fix crítico | Parser PDF reescrito (data e NP independentes, NP 5-10 dígitos) — antes 0 matches em 1.569 linhas reais, agora 270 actos recuperados nos 3 PDFs históricos; criado `_dump_pdf.html` para validação offline |
 | 2026-04-24 | Feature + Fix | Swipe lateral no calendário com animação translateX; 3 bugs corrigidos (transform não resetado, animating não resetado, sem listener touchmove) |
