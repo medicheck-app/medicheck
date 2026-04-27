@@ -10,8 +10,8 @@
 Calculadora mobile-first de doses de fármacos pediátricos e sinais vitais por faixa etária, para uso em bloco operatório.
 
 - **Localização:** `C:\Users\treta\OneDrive\Área de Trabalho\MediCalc\index.html`
-- **Git local:** inicializado (2026-04-28), sem remote configurado ainda
-- **Deploy:** a definir (GitHub Pages como o Medicheck é a opção natural)
+- **GitHub:** https://github.com/medicheck-app/MediCalc
+- **Deploy:** a definir (GitHub Pages como o Medicheck é a opção natural — activar em Settings → Pages → branch main)
 
 ---
 

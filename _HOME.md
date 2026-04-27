@@ -42,7 +42,7 @@ dev.html     ← cópia local para testes (nunca publicar)
 Calculadora de doses pediátricas para anestesia — ficheiro único React sem build step.
 - **Localização:** `C:\Users\treta\OneDrive\Área de Trabalho\MediCalc\index.html`
 - **Contexto Claude Code:** [[MEDICALC]]
-- **Git:** inicializado localmente (2026-04-28), sem remote ainda
+- **GitHub:** https://github.com/medicheck-app/MediCalc (commit 235764e, 2026-04-28)
 
 ---
 
