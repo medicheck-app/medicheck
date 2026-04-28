@@ -111,7 +111,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
-- **Demo mode** — falta caso de ambiguidade (2 actos mesmo doente+data)
+- **Demo mode** — falta caso de ambiguidade (2 actos mesmo doente+data) — necessário para testar Painel de Desempate
 - **Tipo `anestesia` sem UI** — existe no modelo de dados e nos relatórios, mas não há botão na UI para criar actos de anestesia manualmente; actos deste tipo só surgem via reconciliação CUF
 
 ---
@@ -147,6 +147,28 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | ~~2~~ | ~~Demo mode — tolerância ±3 dias e regra de consultas ignoradas~~ | ~~Média~~ — ✅ feito (esta sessão) |
 | 1 | Demo mode — adicionar caso de ambiguidade (2 actos mesmo doente+data) | Média |
 | 2 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
+| 3 | Painel de Desempate — implementar UI (design aprovado 2026-04-28) | Alta |
+
+---
+
+## PAINEL DE DESEMPATE — DESIGN (pendente implementação)
+
+UI para resolver matches por tolerância (±7d) e fuzzy (nome). Matches exactos por NP = automáticos, não entram no painel.
+
+**Layout:** Grid 3 colunas — Label | O que registei | Fatura CUF
+**Campos:** Doente · NP · Data · Acto
+**Divergência:** campo divergente marcado a amber na coluna CUF
+**Badge** (topo esquerdo): `Exacto` / `Tolerância ±7d` / `Fuzzy X%`
+**Barra de similaridade:** só visível em casos fuzzy
+**Navegação:** contador "1 / N" com setas ◀ ▶
+**Botão principal:** "Confirmar Pago" (verde) ou "Confirmar Em Falta" (amber) consoante clock
+**Botão secundário:** "Ignorar" (neutro, menor)
+
+**Comportamento Confirmar:** fecha o par definitivamente; registo não volta ao painel
+**Comportamento Ignorar:** preserva estado anterior; par pode reaparecer em reconciliações futuras
+**Múltiplos candidatos CUF:** fila linear — 1 par de cada vez; confirmar 1 fecha os outros automaticamente; ignorar avança para o próximo; se todos ignorados, registo volta ao estado anterior
+
+**Ainda por decidir:** UI da fila linear (lista de candidatos vs navegação sequencial) — confirmar na próxima sessão com exemplos visuais.
 
 ---
 
