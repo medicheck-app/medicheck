@@ -1920,14 +1920,17 @@ async function processPDFFile(file) {
     const arrayBuf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
     const lines = [];
+    const rawItems = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const tc   = await page.getTextContent();
+      const pageWidth = page.view[2];
       const rows = {};
       for (const item of tc.items) {
         const y = Math.round(item.transform[5] / 10) * 10;
         if (!rows[y]) rows[y] = [];
         rows[y].push({ x: item.transform[4], str: item.str });
+        rawItems.push({ x: item.transform[4], y: item.transform[5], str: item.str.trim(), pageWidth });
       }
       const sortedYs = Object.keys(rows).map(Number).sort((a, b) => b - a);
       for (const y of sortedYs) {
@@ -1936,17 +1939,20 @@ async function processPDFFile(file) {
       }
       lines.push('');
     }
-    processCUFText(lines.join('\n'), status, out);
+    processCUFText(lines.join('\n'), status, out, rawItems);
   } catch (err) {
     status.innerHTML =
       `<div class="info-box" style="color:var(--red)">Erro ao ler PDF: ${esc(err.message)}</div>`;
   }
 }
 
-function processCUFText(text, status, out) {
+function processCUFText(text, status, out, rawItems = []) {
   const ELIGIBLE = new Set(['registado', 'em_falta', 'reclamado']);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
+
+  const pageWidth = rawItems.length ? Math.max(...rawItems.map(i => i.x + 10)) : 600;
+  const procColX  = pageWidth * 0.52;
 
   // Extrair por linha: NP (5–10 dígitos) + data (DD-MM-YY ou DD/MM/YYYY), em qualquer ordem.
   // Formato real CUF observado nos PDFs de honorários: "DD-MM-YY NP NOME ... VALOR".
@@ -1989,7 +1995,29 @@ function processCUFText(text, status, out) {
       .filter(w => w.length > 1 && w === w.toUpperCase())
       .join(' ')
       .trim() || null;
-    cufLines.push({ proc, date, name, value });
+    // Extrair procedimento da coluna "Acto Médico" (metade direita da página)
+    const npItem = rawItems.find(i => i.str === proc || i.str.startsWith(proc + ' '));
+    const lineY  = npItem ? npItem.y : null;
+    let procedimento = null;
+    if (lineY !== null) {
+      for (const tol of [18, 35]) {
+        const hits = rawItems.filter(i =>
+          i.x > procColX &&
+          Math.abs(i.y - lineY) < tol &&
+          i.str &&
+          !/^\d+$/.test(i.str) &&
+          i.str !== 'Qtd' &&
+          i.str !== 'Valor'
+        );
+        if (hits.length) {
+          hits.sort((a, b) => b.y - a.y || a.x - b.x);
+          const raw60 = hits.map(i => i.str).join(' ').trim();
+          procedimento = raw60.length > 60 ? raw60.slice(0, 57) + '...' : raw60;
+          break;
+        }
+      }
+    }
+    cufLines.push({ proc, date, name, value, procedimento });
   }
 
   // Set de processos para sweep de cutoff (fallback se PDF sem datas)
