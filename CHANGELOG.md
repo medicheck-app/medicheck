@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-04-28 | Design | Painel de Desempate: layout 3 colunas + comportamento Confirmar/Ignorar/fila linear definidos; implementação pendente |
 | 2026-04-28 | Feature | Parser PDF extrai campo `procedimento` (Acto Médico) via coordenadas X/Y; threshold 52% largura página, janela ±18/35px; campo adicionado a cada `cufLine` sem tocar em matching |
 | 2026-04-28 | Fix | 4 bugs corrigidos: `var(--line)` indefinida→`var(--border)` (2 ocorrências), `applyToleranceCUF()` sem auditoria matchMethod, `renderReclamar()` código morto removida; `.gitignore` protege ficheiros sensíveis (recovery codes, PDFs, CSV) |
 | 2026-04-28 | Fix (MediCalc) | 2 bugs corrigidos: ageMax 0→0.99 (faixa "< 1 ano" nunca destacava) e ortografia Ondansetron; git init + primeiro commit; MEDICALC.md criado no vault |
