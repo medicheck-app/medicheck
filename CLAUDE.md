@@ -95,6 +95,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Reconciliação: Phase 3 fuzzy nome + janela 30 dias (sempre manual, com barra de confiança visual)
 - Reconciliação: confirmação de nome BD vs CUF no preview — alerta amber se similaridade Jaccard < 50%
 - Reconciliação: auditoria `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
+- Parser PDF: extrai `procedimento` (nome do Acto Médico, coluna direita) para cada `cufLine` — threshold dinâmico 52% da largura da página, janela Y ±18px (ou ±35px se vazio); campo disponível em `_pendingCUF.cufLines[n].procedimento` (commit db740fd)
 - Reconciliação: após aplicar, mostra "X doentes em falta" a vermelho se houver em_falta não resolvidos
 - Reconciliação: `totalRecuperado` conta só `reclamado→pago` (não registado→pago)
 - Pagamentos: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)

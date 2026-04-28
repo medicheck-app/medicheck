@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-04-28 | Feature | Parser PDF extrai campo `procedimento` (Acto Médico) via coordenadas X/Y; threshold 52% largura página, janela ±18/35px; campo adicionado a cada `cufLine` sem tocar em matching |
 | 2026-04-28 | Fix | 4 bugs corrigidos: `var(--line)` indefinida→`var(--border)` (2 ocorrências), `applyToleranceCUF()` sem auditoria matchMethod, `renderReclamar()` código morto removida; `.gitignore` protege ficheiros sensíveis (recovery codes, PDFs, CSV) |
 | 2026-04-28 | Fix (MediCalc) | 2 bugs corrigidos: ageMax 0→0.99 (faixa "< 1 ano" nunca destacava) e ortografia Ondansetron; git init + primeiro commit; MEDICALC.md criado no vault |
 | 2026-04-25 | Feature | Motor matching: 4 melhorias pré-teste real — confirmação de nome BD vs CUF (Jaccard), tolerância ±7d com UI 1:N, Phase 3 fuzzy nome+30d, auditoria matchMethod gravada em cada procedimento |
