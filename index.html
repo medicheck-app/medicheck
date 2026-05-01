@@ -509,6 +509,36 @@
       #app { max-width: 1100px; }
       .cal-left { width: 380px; }
     }
+
+    /* ── Painel Confirma (Desempate) ── */
+    .cfm-nav { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .cfm-nav-lbl { font-size:0.88rem; color:var(--ink2); }
+    .cfm-nav-btn { background:none; border:none; color:var(--accent); font-size:1.3rem; cursor:pointer; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; }
+    .cfm-nav-btn:disabled { color:var(--ink3); pointer-events:none; }
+    .cfm-wrap { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+    .cfm-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; padding-bottom:calc(var(--sb) + 16px); }
+    .cfm-badge-tol { display:inline-flex; align-items:center; gap:5px; background:rgba(245,158,11,0.12); color:var(--accent); font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:4px 10px; border-radius:20px; border:1px solid rgba(245,158,11,0.25); }
+    .cfm-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .cfm-grid { display:grid; grid-template-columns:72px 1fr 1fr; }
+    .cfm-gh { font-size:0.68rem; font-weight:700; color:var(--ink3); text-transform:uppercase; letter-spacing:0.08em; padding:8px 10px; border-bottom:1px solid var(--border); background:var(--bg); }
+    .cfm-gl { font-size:0.78rem; font-weight:500; color:var(--ink3); padding:10px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
+    .cfm-gc { font-size:0.85rem; color:var(--ink); padding:10px; border-bottom:1px solid var(--border); border-left:1px solid var(--border); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cfm-gc.amber { color:var(--accent); background:rgba(245,158,11,0.08); }
+    .cfm-gl.last, .cfm-gc.last { border-bottom:none; }
+    .cfm-sim { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+    .cfm-sim-row { display:flex; align-items:center; gap:10px; }
+    .cfm-sim-lbl { font-size:0.78rem; color:var(--ink2); min-width:110px; }
+    .cfm-sim-track { flex:1; height:5px; background:var(--bg3); border-radius:3px; overflow:hidden; }
+    .cfm-sim-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--red),var(--accent) 50%,#c084fc); transition:width 0.3s; }
+    .cfm-sim-pct { font-size:0.8rem; font-weight:700; color:var(--ink); min-width:32px; text-align:right; }
+    .cfm-actions { padding:0 16px 16px; display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+    .cfm-btn-ok { background:var(--green); color:#000; border:none; font-size:1rem; font-weight:700; padding:15px; border-radius:var(--radius); cursor:pointer; width:100%; min-height:52px; }
+    .cfm-btn-ok:active { opacity:0.8; }
+    .cfm-summary { padding:24px 16px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:0; }
+    .cfm-sum-row { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+    .cfm-sum-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .cfm-sum-lbl { flex:1; font-size:0.9rem; color:var(--ink2); }
+    .cfm-sum-val { font-size:1.15rem; font-weight:700; }
   </style>
 </head>
 <body>
@@ -846,6 +876,68 @@
     </div>
   </div>
 
+  <!-- ══════════════ CONFIRMA (Desempate) ══════════════ -->
+  <div id="screen-confirma" class="screen">
+    <div class="hdr">
+      <button class="hdr-back" onclick="closeConfirma()">← Cruzar dados</button>
+      <h1>Confirma</h1>
+      <span id="cfm-counter" style="font-size:0.85rem;color:var(--ink2)"></span>
+      <img src="Gemini_Generated_Image_l49wlul49wlul49w.png" alt="" style="width:20px;height:auto;opacity:0.35;flex-shrink:0;margin-left:4px">
+    </div>
+    <div class="cfm-nav" id="cfm-nav-row">
+      <button class="cfm-nav-btn" id="cfm-prev" onclick="confirmaNavigate(-1)">◀</button>
+      <span class="cfm-nav-lbl" id="cfm-nav-lbl">par 1 de 1</span>
+      <button class="cfm-nav-btn" id="cfm-next" onclick="confirmaNavigate(1)">▶</button>
+    </div>
+    <div class="cfm-wrap" id="cfm-main-wrap">
+      <div class="cfm-body">
+        <div id="cfm-badge-wrap" style="display:none">
+          <span class="cfm-badge-tol">⏱ Tolerância ±3d</span>
+        </div>
+        <div class="cfm-card">
+          <div class="cfm-grid">
+            <div class="cfm-gh"></div>
+            <div class="cfm-gh">O que registei</div>
+            <div class="cfm-gh">Fatura CUF</div>
+            <div class="cfm-gl">Doente</div>
+            <div class="cfm-gc" id="cfm-r-pac"></div>
+            <div class="cfm-gc" id="cfm-c-pac"></div>
+            <div class="cfm-gl">NP</div>
+            <div class="cfm-gc" id="cfm-r-np"></div>
+            <div class="cfm-gc" id="cfm-c-np"></div>
+            <div class="cfm-gl">Data</div>
+            <div class="cfm-gc" id="cfm-r-data"></div>
+            <div class="cfm-gc" id="cfm-c-data"></div>
+            <div class="cfm-gl last">Acto</div>
+            <div class="cfm-gc last" id="cfm-r-acto"></div>
+            <div class="cfm-gc last" id="cfm-c-acto"></div>
+          </div>
+        </div>
+        <div class="cfm-sim" id="cfm-sim-wrap" style="display:none">
+          <div class="cfm-sim-row">
+            <span class="cfm-sim-lbl">Nome</span>
+            <div class="cfm-sim-track"><div class="cfm-sim-fill" id="cfm-sim-name-bar"></div></div>
+            <span class="cfm-sim-pct" id="cfm-sim-name-pct"></span>
+          </div>
+          <div class="cfm-sim-row">
+            <span class="cfm-sim-lbl">Nº Processo</span>
+            <div class="cfm-sim-track"><div class="cfm-sim-fill" id="cfm-sim-np-bar"></div></div>
+            <span class="cfm-sim-pct" id="cfm-sim-np-pct"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cfm-actions">
+        <button class="cfm-btn-ok" onclick="confirmaPago()">✓ Confirmar Pago</button>
+        <button class="btn-s" onclick="confirmaIgnorar()">Ignorar</button>
+      </div>
+    </div>
+    <div class="cfm-summary" id="cfm-summary" style="display:none">
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:16px">Cruzamento concluído</h2>
+      <div id="cfm-sum-rows"></div>
+      <button class="btn-p" onclick="closeConfirma()" style="margin-top:20px">← Voltar ao painel</button>
+    </div>
+  </div>
+
   <div id="toast"></div>
 </div>
 
@@ -882,6 +974,10 @@ let pinBuf        = '';
 let pinMode       = 'enter';  // 'create' | 'enter'
 let pinConfirm    = '';
 let isDemoMode    = false;
+
+// ── Painel Confirma (Desempate) ──
+let _confirmaQueue = [];
+let _confirmaIdx   = 0;
 
 // ═══════════════════════════════════════════════════
 // CRYPTO
@@ -2074,7 +2170,7 @@ function processCUFText(text, status, out, rawItems = []) {
         if (matchedRecords.has(p)) continue;
         if (normProc(p.processo) !== line.proc) continue;
         const daysDiff = Math.round(Math.abs(new Date(p.data) - lineDate) / 86400000);
-        if (daysDiff > 0 && daysDiff <= 7) candidates.push({ record: p, daysDiff });
+        if (daysDiff > 0 && daysDiff <= 3) candidates.push({ record: p, daysDiff });
       }
       if (candidates.length === 1) {
         toleranceMatches.push({ record: candidates[0].record, line, daysDiff: candidates[0].daysDiff });
@@ -2134,7 +2230,7 @@ function processCUFText(text, status, out, rawItems = []) {
 
   const toleranceAutoHTML = toleranceMatches.length ? `
     <div style="font-size:0.8rem;color:var(--accent);margin-bottom:8px">
-      ⚠ ${toleranceMatches.length} correspondência${toleranceMatches.length !== 1 ? 's' : ''} por proximidade de data (±7 dias) — aplicadas automaticamente
+      ⚠ ${toleranceMatches.length} correspondência${toleranceMatches.length !== 1 ? 's' : ''} por proximidade de data (±3 dias) — aplicadas automaticamente
     </div>` : '';
 
   status.innerHTML = '';
@@ -2156,8 +2252,13 @@ function processCUFText(text, status, out, rawItems = []) {
     <div id="tolerance-ambiguous-ui"></div>
     <div id="fuzzy-match-ui"></div>
     <div style="display:flex;gap:10px;margin-top:4px">
-      <button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()"
-        ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>Aplicar</button>
+      ${(toleranceAmbiguous.length || fuzzyMatches.length)
+        ? `<button class="btn-p" onclick="openConfirmaPanel()"
+            ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>
+            Confirmar ${toleranceAmbiguous.length + fuzzyMatches.length} correspondência${(toleranceAmbiguous.length + fuzzyMatches.length) !== 1 ? 's' : ''} →
+           </button>`
+        : `<button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()"
+            ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>Aplicar</button>`}
       <button class="btn-s" onclick="cancelCUF()">Cancelar</button>
     </div>`;
 
@@ -2175,9 +2276,13 @@ function processCUFText(text, status, out, rawItems = []) {
     consultasIgnoradas,
   };
 
-  if (ambiguousGroups.length)   renderAmbiguityUI();
-  if (toleranceAmbiguous.length) renderToleranceAmbiguousUI();
-  if (fuzzyMatches.length)       renderFuzzyMatchUI();
+  window._confirmaLinhasSemMatch = linhasSemMatch;
+  if (ambiguousGroups.length) renderAmbiguityUI();
+  if (toleranceAmbiguous.length || fuzzyMatches.length) {
+    const taui = document.getElementById('tolerance-ambiguous-ui');
+    if (taui) taui.innerHTML = `<div style="font-size:0.82rem;color:var(--accent);padding:6px 0">
+      ${toleranceAmbiguous.length + fuzzyMatches.length} correspondência(s) por confirmar — usa o botão acima para rever.</div>`;
+  }
 }
 
 function renderAmbiguityUI() {
@@ -2330,6 +2435,192 @@ function resolveFuzzyMatch(groupIdx, candidateIdx) {
   const group = fuzzyMatches[groupIdx];
   resolvedFuzzy[groupIdx] = { record: group.candidates[candidateIdx].record, line: group.line, nameSim: group.candidates[candidateIdx].nameSim, recordIdx: candidateIdx };
   renderFuzzyMatchUI();
+}
+
+// ══════════════════════════════════════════════════════
+// PAINEL CONFIRMA — Desempate de matches por tolerância e fuzzy
+// ══════════════════════════════════════════════════════
+
+function npSimilarity(a, b) {
+  const da = String(a || '').replace(/\D/g, '');
+  const db = String(b || '').replace(/\D/g, '');
+  if (!da || !db) return 0;
+  let max = 0;
+  for (let i = 0; i < da.length; i++) {
+    for (let j = 0; j < db.length; j++) {
+      let len = 0;
+      while (da[i + len] && da[i + len] === db[j + len]) len++;
+      if (len > max) max = len;
+    }
+  }
+  return Math.round(max / Math.max(da.length, db.length) * 100);
+}
+
+function buildConfirmaQueue() {
+  if (!window._pendingCUF) return [];
+  const { toleranceAmbiguous, fuzzyMatches } = window._pendingCUF;
+  const queue = [];
+  (toleranceAmbiguous || []).forEach((group, gi) => {
+    group.candidates.forEach((cand, ci) => {
+      queue.push({ type: 'tolerance', line: group.line, record: cand.record,
+        daysDiff: cand.daysDiff, nameSim: null, simNp: null,
+        groupIdx: gi, candIdx: ci, status: 'pending' });
+    });
+  });
+  (fuzzyMatches || []).forEach((group, gi) => {
+    group.candidates.forEach((cand, ci) => {
+      const simNp = npSimilarity(group.line.proc, cand.record.processo);
+      if (simNp < 75) return;
+      queue.push({ type: 'fuzzy', line: group.line, record: cand.record,
+        daysDiff: cand.daysDiff, nameSim: Math.round(cand.nameSim * 100), simNp,
+        groupIdx: gi, candIdx: ci, status: 'pending' });
+    });
+  });
+  return queue;
+}
+
+function openConfirmaPanel() {
+  _confirmaQueue = buildConfirmaQueue();
+  _confirmaIdx   = 0;
+  if (!_confirmaQueue.length) { applyCUF(); return; }
+  document.getElementById('cfm-main-wrap').style.display = '';
+  document.getElementById('cfm-nav-row').style.display   = '';
+  document.getElementById('cfm-summary').style.display   = 'none';
+  showScreen('screen-confirma');
+  renderConfirma();
+}
+
+function _cfmVisible() {
+  return _confirmaQueue.filter(p => p.status !== 'auto-closed');
+}
+
+function renderConfirma() {
+  const q = _confirmaQueue;
+  while (_confirmaIdx < q.length && q[_confirmaIdx].status === 'auto-closed') _confirmaIdx++;
+  const visible = _cfmVisible();
+  const pos   = visible.findIndex(p => p === q[_confirmaIdx]) + 1;
+  const total = visible.length;
+  document.getElementById('cfm-counter').textContent = pos + '/' + total;
+  document.getElementById('cfm-nav-lbl').textContent  = 'par ' + pos + ' de ' + total;
+  const hasPrev = q.slice(0, _confirmaIdx).some(p => p.status !== 'auto-closed');
+  const hasNext = q.slice(_confirmaIdx + 1).some(p => p.status !== 'auto-closed');
+  document.getElementById('cfm-prev').disabled = !hasPrev;
+  document.getElementById('cfm-next').disabled = !hasNext;
+
+  const pair = q[_confirmaIdx];
+  if (!pair) return;
+  const { type, line, record, daysDiff, nameSim, simNp } = pair;
+  document.getElementById('cfm-badge-wrap').style.display = type === 'tolerance' ? '' : 'none';
+
+  const nameAmber = type === 'tolerance' && line.name ? nameSimilarity(line.name, record.paciente) < 0.5 : false;
+  _cfmSet('cfm-r-pac',  record.paciente  || '—', false, false);
+  _cfmSet('cfm-c-pac',  line.name        || '—', nameAmber, false);
+  _cfmSet('cfm-r-np',   record.processo  || '—', false, false);
+  _cfmSet('cfm-c-np',   line.proc        || '—', false, false);
+  _cfmSet('cfm-r-data', fmtDate(record.data), false, false);
+  _cfmSet('cfm-c-data', fmtDate(line.date),   daysDiff > 0, false);
+  _cfmSet('cfm-r-acto', record.procedimento || '—', false, true);
+  _cfmSet('cfm-c-acto', line.procedimento   || '—', false, true);
+
+  const simWrap = document.getElementById('cfm-sim-wrap');
+  if (type === 'fuzzy') {
+    simWrap.style.display = '';
+    _cfmBar('cfm-sim-name-bar', 'cfm-sim-name-pct', nameSim);
+    _cfmBar('cfm-sim-np-bar',   'cfm-sim-np-pct',   simNp);
+  } else {
+    simWrap.style.display = 'none';
+  }
+}
+
+function _cfmSet(id, text, amber, last) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'cfm-gc' + (amber ? ' amber' : '') + (last ? ' last' : '');
+}
+
+function _cfmBar(barId, pctId, pct) {
+  const fill = document.getElementById(barId);
+  const lbl  = document.getElementById(pctId);
+  if (fill) fill.style.width = (pct || 0) + '%';
+  if (lbl)  lbl.textContent  = (pct || 0) + '%';
+}
+
+function confirmaNavigate(dir) {
+  let idx = _confirmaIdx + dir;
+  while (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status === 'auto-closed') idx += dir;
+  if (idx >= 0 && idx < _confirmaQueue.length) { _confirmaIdx = idx; renderConfirma(); }
+}
+
+function confirmaPago() {
+  if (!window._pendingCUF) return;
+  const pair = _confirmaQueue[_confirmaIdx];
+  if (!pair) return;
+  const { type, line, record, daysDiff, nameSim, groupIdx, candIdx } = pair;
+  if (type === 'tolerance') {
+    window._pendingCUF.resolvedTolerance[groupIdx] = { record, line, daysDiff, recordIdx: candIdx };
+  } else {
+    window._pendingCUF.resolvedFuzzy[groupIdx] = { record, line, nameSim: (nameSim || 0) / 100, recordIdx: candIdx };
+  }
+  pair.status = 'confirmed';
+  _confirmaQueue.forEach((p, i) => {
+    if (p.type === type && p.groupIdx === groupIdx && i !== _confirmaIdx) p.status = 'auto-closed';
+  });
+  _cfmAvancar();
+}
+
+function confirmaIgnorar() {
+  const pair = _confirmaQueue[_confirmaIdx];
+  if (pair) pair.status = 'ignored';
+  _cfmAvancar();
+}
+
+function _cfmAvancar() {
+  _confirmaIdx++;
+  while (_confirmaIdx < _confirmaQueue.length && _confirmaQueue[_confirmaIdx].status === 'auto-closed') _confirmaIdx++;
+  if (_confirmaIdx >= _confirmaQueue.length) finalizarConfirma(); else renderConfirma();
+}
+
+function finalizarConfirma() {
+  const semMatch = window._pendingCUF ? window._pendingCUF.linhasSemMatch : (window._confirmaLinhasSemMatch || 0);
+  window._confirmaLinhasSemMatch = semMatch;
+  applyCUF();
+  const confirmed = _confirmaQueue.filter(p => p.status === 'confirmed').length;
+  const ignored   = _confirmaQueue.filter(p => p.status === 'ignored').length;
+  const emFalta   = procedimentos.filter(p => p.status === 'em_falta').length;
+  document.getElementById('cfm-nav-row').style.display   = 'none';
+  document.getElementById('cfm-main-wrap').style.display = 'none';
+  const sumEl = document.getElementById('cfm-summary');
+  sumEl.style.display = 'flex';
+  document.getElementById('cfm-sum-rows').innerHTML = `
+    <div class="cfm-sum-row">
+      <div class="cfm-sum-dot" style="background:var(--green)"></div>
+      <div class="cfm-sum-lbl">Confirmados como pagos</div>
+      <div class="cfm-sum-val" style="color:var(--green)">${confirmed}</div>
+    </div>
+    <div class="cfm-sum-row">
+      <div class="cfm-sum-dot" style="background:var(--red)"></div>
+      <div class="cfm-sum-lbl">Em falta → reclamação</div>
+      <div class="cfm-sum-val" style="color:var(--red)">${emFalta}</div>
+    </div>
+    <div class="cfm-sum-row">
+      <div class="cfm-sum-dot" style="background:var(--ink3)"></div>
+      <div class="cfm-sum-lbl">Ignorados no desempate</div>
+      <div class="cfm-sum-val" style="color:var(--ink3)">${ignored}</div>
+    </div>
+    <div class="cfm-sum-row">
+      <div class="cfm-sum-dot" style="background:var(--ink3)"></div>
+      <div class="cfm-sum-lbl">Linhas CUF sem registo</div>
+      <div class="cfm-sum-val" style="color:var(--ink3)">${window._confirmaLinhasSemMatch || 0}</div>
+    </div>`;
+}
+
+function closeConfirma() {
+  document.getElementById('cfm-nav-row').style.display   = '';
+  document.getElementById('cfm-main-wrap').style.display = '';
+  document.getElementById('cfm-summary').style.display   = 'none';
+  showScreen('screen-dashboard');
+  switchTab('cruzar');
 }
 
 function checkEmFaltaByTime() {
@@ -2978,6 +3269,11 @@ function _buildDemoData() {
     _d('2026-04-07','738646','DONATELLA FERRARI','Oftalmologia','Blefaroplastia bilateral','registado','cirurgica',130),
     _d('2026-04-10','729311','MARIA IDALINA DOS SANTOS PAULINO','Ginecologia/Obstetrícia','Suspensão uretral por incontinência','registado','cirurgica',195),
     _d('2026-04-14','297992','JOAQUIM AUGUSTO MOREIRA FONSECA','','','registado','gastro',65),
+    // TOLERÂNCIA 1:N — Hélder Rodrigues Baptista (2 candidatos para 1 linha CUF: 21/01)
+    _d('2026-01-20','7891234','HÉLDER RODRIGUES BAPTISTA','Ortopedia','Osteossíntese','em_falta','cirurgica',210),
+    _d('2026-01-22','7891234','HÉLDER RODRIGUES BAPTISTA','Ortopedia','Osteossíntese de fragmento','em_falta','cirurgica',210),
+    // FUZZY — Beatriz Marta Sousa (NP 9234518 vs CUF 9234519, simNp≈86%)
+    _d('2026-02-01','9234518','BEATRIZ MARTA SOUSA','Ginecologia/Obstetrícia','Histeroscopia diagnóstica','em_falta','cirurgica',165),
   ];
 }
 
@@ -3027,6 +3323,8 @@ function simulateDemoPDF() {
     '123834 LUÍSA DE FREITAS CARDOSO 25/03/2026 GAS0003 Anestesia Gastroenterologia 65.00',
     '712572 PAULO FRANCISCO VIEIRA DE SOUSA 05/11/2025 ORT0044 Artroplastia total joelho 180.00',
     '556906 CAETANA ALVES LOURENÇO 08/11/2025 ORL0022 Amigdalectomia adenoidectomia 95.00',
+    '7891234 HÉLDER RODRIGUES BAPTISTA 21/01/2026 ORT0033 Osteossíntese de fragmento 210.00',
+    '9234519 BEATRIZ SOUSA 01/02/2026 GIN0051 Histeroscopia diagnóstica 165.00',
     '999888 CARLOS SOUSA EXEMPLO 14/04/2026 CON0001 Consulta de Anestesia 45.00',
   ].join('\n');
   setTimeout(() => processCUFText(fakeText, status, out), 600);
