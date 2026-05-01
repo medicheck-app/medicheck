@@ -522,7 +522,7 @@
     .cfm-grid { display:grid; grid-template-columns:72px 1fr 1fr; }
     .cfm-gh { font-size:0.68rem; font-weight:700; color:var(--ink3); text-transform:uppercase; letter-spacing:0.08em; padding:8px 10px; border-bottom:1px solid var(--border); background:var(--bg); }
     .cfm-gl { font-size:0.78rem; font-weight:500; color:var(--ink3); padding:10px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
-    .cfm-gc { font-size:0.85rem; color:var(--ink); padding:10px; border-bottom:1px solid var(--border); border-left:1px solid var(--border); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cfm-gc { font-size:0.85rem; color:var(--ink); padding:10px; border-bottom:1px solid var(--border); border-left:1px solid var(--border); min-width:0; word-break:break-word; }
     .cfm-gc.amber { color:var(--accent); background:rgba(245,158,11,0.08); }
     .cfm-gl.last, .cfm-gc.last { border-bottom:none; }
     .cfm-sim { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
@@ -2504,8 +2504,8 @@ function renderConfirma() {
   const total      = _confirmaGroupCount;
   document.getElementById('cfm-counter').textContent = pos + '/' + total;
   document.getElementById('cfm-nav-lbl').textContent  = 'par ' + pos + ' de ' + total;
-  const hasPrev = q.slice(0, _confirmaIdx).some(p => p.status !== 'auto-closed');
-  const hasNext = q.slice(_confirmaIdx + 1).some(p => p.status !== 'auto-closed');
+  const hasPrev = q.slice(0, _confirmaIdx).some(p => p.status === 'pending');
+  const hasNext = q.slice(_confirmaIdx + 1).some(p => p.status === 'pending');
   document.getElementById('cfm-prev').disabled = !hasPrev;
   document.getElementById('cfm-next').disabled = !hasNext;
 
@@ -2550,8 +2550,8 @@ function _cfmBar(barId, pctId, pct) {
 
 function confirmaNavigate(dir) {
   let idx = _confirmaIdx + dir;
-  while (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status === 'auto-closed') idx += dir;
-  if (idx >= 0 && idx < _confirmaQueue.length) { _confirmaIdx = idx; renderConfirma(); }
+  while (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status !== 'pending') idx += dir;
+  if (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status === 'pending') { _confirmaIdx = idx; renderConfirma(); }
 }
 
 function confirmaPago() {
