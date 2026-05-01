@@ -534,11 +534,6 @@
     .cfm-actions { padding:0 16px 16px; display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
     .cfm-btn-ok { background:var(--green); color:#000; border:none; font-size:1rem; font-weight:700; padding:15px; border-radius:var(--radius); cursor:pointer; width:100%; min-height:52px; }
     .cfm-btn-ok:active { opacity:0.8; }
-    .cfm-summary { padding:24px 16px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:0; }
-    .cfm-sum-row { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
-    .cfm-sum-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-    .cfm-sum-lbl { flex:1; font-size:0.9rem; color:var(--ink2); }
-    .cfm-sum-val { font-size:1.15rem; font-weight:700; }
   </style>
 </head>
 <body>
@@ -930,11 +925,6 @@
         <button class="cfm-btn-ok" onclick="confirmaPago()">✓ Confirmar Pago</button>
         <button class="btn-s" onclick="confirmaIgnorar()">Ignorar</button>
       </div>
-    </div>
-    <div class="cfm-summary" id="cfm-summary" style="display:none">
-      <h2 style="font-size:1rem;font-weight:600;margin-bottom:16px">Cruzamento concluído</h2>
-      <div id="cfm-sum-rows"></div>
-      <button class="btn-p" onclick="closeConfirma()" style="margin-top:20px">← Voltar ao painel</button>
     </div>
   </div>
 
@@ -2486,7 +2476,6 @@ function openConfirmaPanel() {
   if (!_confirmaQueue.length) { applyCUF(); return; }
   document.getElementById('cfm-main-wrap').style.display = '';
   document.getElementById('cfm-nav-row').style.display   = '';
-  document.getElementById('cfm-summary').style.display   = 'none';
   showScreen('screen-confirma');
   renderConfirma();
 }
@@ -2587,40 +2576,12 @@ function finalizarConfirma() {
   const semMatch = window._pendingCUF ? window._pendingCUF.linhasSemMatch : (window._confirmaLinhasSemMatch || 0);
   window._confirmaLinhasSemMatch = semMatch;
   applyCUF();
-  const confirmed = _confirmaQueue.filter(p => p.status === 'confirmed').length;
-  const ignored   = _confirmaQueue.filter(p => p.status === 'ignored').length;
-  const emFalta   = procedimentos.filter(p => p.status === 'em_falta').length;
-  document.getElementById('cfm-nav-row').style.display   = 'none';
-  document.getElementById('cfm-main-wrap').style.display = 'none';
-  const sumEl = document.getElementById('cfm-summary');
-  sumEl.style.display = 'flex';
-  document.getElementById('cfm-sum-rows').innerHTML = `
-    <div class="cfm-sum-row">
-      <div class="cfm-sum-dot" style="background:var(--green)"></div>
-      <div class="cfm-sum-lbl">Confirmados como pagos</div>
-      <div class="cfm-sum-val" style="color:var(--green)">${confirmed}</div>
-    </div>
-    <div class="cfm-sum-row">
-      <div class="cfm-sum-dot" style="background:var(--red)"></div>
-      <div class="cfm-sum-lbl">Em falta → reclamação</div>
-      <div class="cfm-sum-val" style="color:var(--red)">${emFalta}</div>
-    </div>
-    <div class="cfm-sum-row">
-      <div class="cfm-sum-dot" style="background:var(--ink3)"></div>
-      <div class="cfm-sum-lbl">Ignorados no desempate</div>
-      <div class="cfm-sum-val" style="color:var(--ink3)">${ignored}</div>
-    </div>
-    <div class="cfm-sum-row">
-      <div class="cfm-sum-dot" style="background:var(--ink3)"></div>
-      <div class="cfm-sum-lbl">Linhas CUF sem registo</div>
-      <div class="cfm-sum-val" style="color:var(--ink3)">${window._confirmaLinhasSemMatch || 0}</div>
-    </div>`;
+  closeConfirma();
 }
 
 function closeConfirma() {
   document.getElementById('cfm-nav-row').style.display   = '';
   document.getElementById('cfm-main-wrap').style.display = '';
-  document.getElementById('cfm-summary').style.display   = 'none';
   showScreen('screen-dashboard');
   switchTab('cruzar');
   renderDebtBlock();
