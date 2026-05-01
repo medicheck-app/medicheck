@@ -976,8 +976,9 @@ let pinConfirm    = '';
 let isDemoMode    = false;
 
 // ── Painel Confirma (Desempate) ──
-let _confirmaQueue = [];
-let _confirmaIdx   = 0;
+let _confirmaQueue      = [];
+let _confirmaIdx        = 0;
+let _confirmaGroupCount = 0;
 
 // ═══════════════════════════════════════════════════
 // CRYPTO
@@ -2113,6 +2114,15 @@ function processCUFText(text, status, out, rawItems = []) {
         }
       }
     }
+    // Fallback texto simples (demo): código tipo ORT0033 → texto até ao valor
+    if (!procedimento) {
+      const codeMatch = /\b[A-Z]{2,4}\d{4}\b/.exec(raw);
+      if (codeMatch) {
+        const afterCode = raw.slice(codeMatch.index + codeMatch[0].length).trim();
+        const procText = afterCode.replace(/([-]?\d+[.,]\d{2})\s*$/, '').trim();
+        if (procText.length > 1) procedimento = procText.slice(0, 60);
+      }
+    }
     cufLines.push({ proc, date, name, value, procedimento });
   }
 
@@ -2172,10 +2182,7 @@ function processCUFText(text, status, out, rawItems = []) {
         const daysDiff = Math.round(Math.abs(new Date(p.data) - lineDate) / 86400000);
         if (daysDiff > 0 && daysDiff <= 3) candidates.push({ record: p, daysDiff });
       }
-      if (candidates.length === 1) {
-        toleranceMatches.push({ record: candidates[0].record, line, daysDiff: candidates[0].daysDiff });
-        matchedRecords.add(candidates[0].record);
-      } else if (candidates.length > 1) {
+      if (candidates.length >= 1) {
         toleranceAmbiguous.push({ line, candidates });
       } else {
         unmatchedLines.push(line);
@@ -2228,11 +2235,6 @@ function processCUFText(text, status, out, rawItems = []) {
     </div>`;
   }).join('');
 
-  const toleranceAutoHTML = toleranceMatches.length ? `
-    <div style="font-size:0.8rem;color:var(--accent);margin-bottom:8px">
-      ⚠ ${toleranceMatches.length} correspondência${toleranceMatches.length !== 1 ? 's' : ''} por proximidade de data (±3 dias) — aplicadas automaticamente
-    </div>` : '';
-
   status.innerHTML = '';
   out.innerHTML = `
     <div class="info-box">
@@ -2247,7 +2249,6 @@ function processCUFText(text, status, out, rawItems = []) {
     ${futureFalta.length ? `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
       <span style="color:var(--red)">✗ ${futureFalta.length} acto${futureFalta.length !== 1 ? 's' : ''} com +3 meses para marcar como <strong>em falta</strong></span>
     </div>` : ''}
-    ${toleranceAutoHTML}
     <div id="ambiguity-ui"></div>
     <div id="tolerance-ambiguous-ui"></div>
     <div id="fuzzy-match-ui"></div>
@@ -2255,7 +2256,7 @@ function processCUFText(text, status, out, rawItems = []) {
       ${(toleranceAmbiguous.length || fuzzyMatches.length)
         ? `<button class="btn-p" onclick="openConfirmaPanel()"
             ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>
-            Confirmar ${toleranceAmbiguous.length + fuzzyMatches.length} correspondência${(toleranceAmbiguous.length + fuzzyMatches.length) !== 1 ? 's' : ''} →
+            Desempatar (${toleranceAmbiguous.length + fuzzyMatches.length}) →
            </button>`
         : `<button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()"
             ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>Aplicar</button>`}
@@ -2267,7 +2268,6 @@ function processCUFText(text, status, out, rawItems = []) {
     clearMatches, ambiguousGroups,
     resolved: {},
     cutoff,
-    toleranceMatches,
     toleranceAmbiguous,
     resolvedTolerance: {},
     fuzzyMatches,
@@ -2464,7 +2464,7 @@ function buildConfirmaQueue() {
     group.candidates.forEach((cand, ci) => {
       queue.push({ type: 'tolerance', line: group.line, record: cand.record,
         daysDiff: cand.daysDiff, nameSim: null, simNp: null,
-        groupIdx: gi, candIdx: ci, status: 'pending' });
+        groupIdx: gi, candIdx: ci, groupKey: 'tol_' + gi, status: 'pending' });
     });
   });
   (fuzzyMatches || []).forEach((group, gi) => {
@@ -2473,15 +2473,16 @@ function buildConfirmaQueue() {
       if (simNp < 75) return;
       queue.push({ type: 'fuzzy', line: group.line, record: cand.record,
         daysDiff: cand.daysDiff, nameSim: Math.round(cand.nameSim * 100), simNp,
-        groupIdx: gi, candIdx: ci, status: 'pending' });
+        groupIdx: gi, candIdx: ci, groupKey: 'fuz_' + gi, status: 'pending' });
     });
   });
   return queue;
 }
 
 function openConfirmaPanel() {
-  _confirmaQueue = buildConfirmaQueue();
-  _confirmaIdx   = 0;
+  _confirmaQueue      = buildConfirmaQueue();
+  _confirmaIdx        = 0;
+  _confirmaGroupCount = new Set(_confirmaQueue.map(p => p.groupKey)).size;
   if (!_confirmaQueue.length) { applyCUF(); return; }
   document.getElementById('cfm-main-wrap').style.display = '';
   document.getElementById('cfm-nav-row').style.display   = '';
@@ -2497,9 +2498,10 @@ function _cfmVisible() {
 function renderConfirma() {
   const q = _confirmaQueue;
   while (_confirmaIdx < q.length && q[_confirmaIdx].status === 'auto-closed') _confirmaIdx++;
-  const visible = _cfmVisible();
-  const pos   = visible.findIndex(p => p === q[_confirmaIdx]) + 1;
-  const total = visible.length;
+  const allKeys    = [...new Set(q.map(p => p.groupKey))];
+  const currentKey = q[_confirmaIdx]?.groupKey;
+  const pos        = allKeys.indexOf(currentKey) + 1;
+  const total      = _confirmaGroupCount;
   document.getElementById('cfm-counter').textContent = pos + '/' + total;
   document.getElementById('cfm-nav-lbl').textContent  = 'par ' + pos + ' de ' + total;
   const hasPrev = q.slice(0, _confirmaIdx).some(p => p.status !== 'auto-closed');
@@ -2621,6 +2623,7 @@ function closeConfirma() {
   document.getElementById('cfm-summary').style.display   = 'none';
   showScreen('screen-dashboard');
   switchTab('cruzar');
+  renderDebtBlock();
 }
 
 function checkEmFaltaByTime() {
@@ -2640,7 +2643,7 @@ function checkEmFaltaByTime() {
 function applyCUF() {
   if (!window._pendingCUF) return;
   const { cufProcs, clearMatches, ambiguousGroups, resolved, cutoff,
-          toleranceMatches, resolvedTolerance, resolvedFuzzy } = window._pendingCUF;
+          resolvedTolerance, resolvedFuzzy } = window._pendingCUF;
   const now = new Date().toISOString();
   let pagos = 0, emFalta = 0, totalRecuperado = 0;
 
@@ -2668,19 +2671,7 @@ function applyCUF() {
     pagos++;
   }
 
-  // Tolerância automática 1:1 (M4: matchMethod='tolerance')
-  for (const { record: p, line, daysDiff } of (toleranceMatches || [])) {
-    if (p.status === 'pago') continue;
-    const wasReclamado = p.status === 'reclamado';
-    p.status = 'pago'; p.pagoEm = now;
-    if (line.value != null) p.valor = line.value;
-    p.pagoViaReconciliacao = true;
-    p.matchMethod = 'tolerance'; p.matchDaysDiff = daysDiff;
-    if (wasReclamado) totalRecuperado += (p.valor || 0);
-    pagos++;
-  }
-
-  // Tolerância manual 1:N resolvida (M2+M4)
+  // Tolerância resolvida manualmente no painel (M2+M4)
   for (const { record: p, line, daysDiff } of Object.values(resolvedTolerance || {})) {
     if (p.status === 'pago') continue;
     const wasReclamado = p.status === 'reclamado';
@@ -2736,37 +2727,6 @@ function cancelCUF() {
   document.getElementById('cruzar-out').innerHTML = '<div class="info-box">Cancelado — nenhuma alteração foi feita.</div>';
 }
 
-function applyToleranceCUF() {
-  if (!window._pendingCUF) return;
-  const { toleranceMatches } = window._pendingCUF;
-  if (!toleranceMatches || !toleranceMatches.length) return;
-  const now = new Date().toISOString();
-  let pagos = 0, totalRecuperado = 0;
-  toleranceMatches.forEach((m, i) => {
-    const cb = document.getElementById(`tol-${i}`);
-    if (!cb || !cb.checked) return;
-    const p = m.record;
-    p.status = 'pago'; p.pagoEm = now;
-    if (m.line.value != null) p.valor = m.line.value;
-    p.pagoViaReconciliacao = true;
-    p.matchMethod = 'tolerance'; p.matchDaysDiff = m.daysDiff;
-    totalRecuperado += (p.valor || 0);
-    pagos++;
-  });
-  if (!pagos) { toast('Nenhuma correspondência seleccionada'); return; }
-  autoSave(); renderDashboard();
-  const res = document.getElementById('tolerance-result');
-  if (res) {
-    res.innerHTML = `<span style="color:var(--green)">${pagos} acto${pagos !== 1 ? 's' : ''} marcado${pagos !== 1 ? 's' : ''} como pago</span>`;
-  }
-  toleranceMatches.forEach((_, i) => {
-    const cb = document.getElementById(`tol-${i}`);
-    if (cb) { cb.disabled = true; cb.style.opacity = '0.5'; }
-  });
-  const btn = document.querySelector('[onclick="applyToleranceCUF()"]');
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
-  toast('Correspondências por proximidade aplicadas');
-}
 
 function _buildDebtEmail(incluirReclamados) {
   const base = window._debtEmFalta || [];
@@ -3293,7 +3253,13 @@ function activateDemo() {
 function resetDemo() {
   procedimentos = _buildDemoData();
   checkEmFaltaByTime();
-  renderDashboard(); showScreen('screen-dashboard');
+  window._pendingCUF = null;
+  _confirmaQueue = [];
+  _confirmaIdx   = 0;
+  _confirmaGroupCount = 0;
+  document.getElementById('cruzar-out').innerHTML    = '';
+  document.getElementById('cruzar-status').innerHTML = '';
+  renderDashboard(); showScreen('screen-dashboard'); switchTab('registar');
   toast('Demonstração reiniciada');
 }
 
