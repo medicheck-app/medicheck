@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-02 | Fix | Sync automático ao Drive após login com dados registados offline (loadFromDrive merge → saveToDrive imediato) |
 | 2026-05-02 | Feat | Redesenho auth+sync: Google login obrigatório no arranque, banner offline âmbar, toast "✓ Guardado" verde, PIN re-pedido após 5min background |
 | 2026-05-02 | Teste | Sync validado: local-first confirmado (localStorage ganha sobre Drive em conflito), ficheiro `medicheck_v2.enc` existente (appDataFolder, 29KB); 2 riscos residuais documentados |
 | 2026-05-02 | Feat | Painel de Confirma: pares consultáveis após decisão, navegação em todos os pares, fecho só quando todos decididos, decisões alteráveis |
