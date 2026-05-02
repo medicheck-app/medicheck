@@ -93,7 +93,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
 - Reconciliação: tolerâncias ±3 dias (1:1 automático; 1:N → Painel de Confirma)
 - Reconciliação: Phase 3 fuzzy nome + janela 30 dias (Painel de Confirma, threshold simNp ≥ 75%)
-- **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP; NP e Nome amber em ambas colunas); botões neutros por defeito, "Confirmar Pago" fica verde com delay 250ms ao clicar; contador N/M removido do header (só "par N de M" no nav); auto-close de candidatos do mesmo grupo ao confirmar; commit a550f29
+- **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP; NP e Nome amber em ambas colunas); "Confirmar Pago" fica verde ao confirmar; "Ignorar" fica destacado (borda amber) ao ignorar; pares auto-fechados mostram label "Fechado automaticamente"; decisões alteráveis (voltar a um par decidido e mudar); painel fecha só quando todos os pares têm uma decisão; navegação ◀ ▶ percorre todos os pares (decididos + pendentes), contador absoluto "par N de M"; commit 642a9e5
 - Reconciliação: confirmação de nome BD vs CUF no preview — alerta amber se similaridade Jaccard < 50%
 - Reconciliação: auditoria `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
 - Parser PDF: extrai `procedimento` (nome do Acto Médico, coluna direita) para cada `cufLine` — threshold dinâmico 52% da largura da página, janela Y ±18px (ou ±35px se vazio); campo disponível em `_pendingCUF.cufLines[n].procedimento` (commit db740fd)
@@ -167,16 +167,18 @@ Nome no UI: **"Confirma"** (internamente continua "desempate"). Resolve matches 
 **Badge:** só em modo tolerância (`⏱ Tolerância ±3d`); fuzzy não tem badge
 **Barras de similaridade:** só em modo fuzzy — Nome % + Nº Processo %
 **NP threshold:** pares fuzzy com simNp < 75% são excluídos da fila (NPs sem relação não entram no painel)
-**Navegação:** fila linear sequencial, contador "N / M" fixo por grupo (nunca muda durante a sessão) com setas ◀ ▶; casos decididos desaparecem da navegação (só pendentes são visitáveis)
+**Navegação:** fila linear sequencial, setas ◀ ▶ percorrem **todos** os pares (decididos e pendentes); contador "par N de M" absoluto (N = posição absoluta na fila, M = total de pares)
 **Texto dos campos:** faz wrap — sem corte a uma linha (Doente e Acto podem ser longos)
 **Botão de abertura:** "Desempatar (N) →" no tab Cruzar
 **Botão principal:** "Confirmar Pago" (verde)
 **Botão secundário:** "Ignorar" (neutro, menor)
 **Após o último caso:** fecha directamente para o tab Cruzar (sem ecrã de resumo intermédio); contador de em falta aparece a vermelho
 
-**Comportamento Confirmar:** fecha o par definitivamente; registo não volta ao painel; linhas CUF consumidas ficam indisponíveis para outros matches
-**Comportamento Ignorar:** preserva estado anterior; par pode reaparecer em reconciliações futuras; se todos os candidatos ignorados, registo volta ao estado anterior
-**Saída (← Cruzar dados):** segura — pares já confirmados ficam `pago`; não revistos ficam no estado anterior (equivalente a Ignorar todos)
+**Comportamento Confirmar:** par fica visível com botão verde; decisão alterável; ao confirmar um candidato, irmãos do mesmo grupo ficam "auto-fechados" (label cinza, alteráveis); painel não fecha sozinho — só fecha quando todos os pares têm decisão
+**Comportamento Ignorar:** par fica visível com botão Ignorar destacado; se era o par confirmado do grupo, os irmãos auto-fechados voltam a pending; decisão alterável
+**Auto-fechado:** candidato fechado porque um irmão foi confirmado; visível e alterável; ao confirmar um auto-fechado, o irmão confirmado passa a auto-fechado
+**Fecho do painel:** automático quando `_confirmaQueue.every(p => p.status !== 'pending')` — confirmed + ignored + auto-closed contam como decididos
+**Saída (← Cruzar dados):** segura — pares já confirmados ficam `pago`; não revistos ficam no estado anterior
 **Re-cruzamento com mesma fatura:** idempotente — registos `pago` são saltados; pares anteriormente ignorados reaparecem para revisão
 
 ---

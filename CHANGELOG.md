@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-02 | Feat | Painel de Confirma: pares consultáveis após decisão, navegação em todos os pares, fecho só quando todos decididos, decisões alteráveis |
 | 2026-05-02 | Fix | Session persistence: visibilitychange flush, save 5min, token refresh silencioso, PIN offline via mc2_verify (resolve Android background + casos perdidos iPhone >1h) |
 | 2026-05-02 | Fix | 8 correcções UI/UX: tab Reclamados, texto botão abaixo, botões Confirma neutros, demo Hélder sem duplicado, fuzzy amber em NP+Nome, contador N/M removido, lista dívida só em_falta, textarea só lista doentes |
 | 2026-05-01 | Fix | Ecrã de resumo do Painel de Confirma eliminado — fecha directamente para o tab Cruzar com contador em falta a vermelho |
