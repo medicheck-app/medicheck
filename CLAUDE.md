@@ -110,7 +110,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Desktop: calendário e lista de actos do dia lado a lado
 - Teclado PIN sem delay de 300ms em mobile (`touch-action: manipulation`)
 - Save para Drive com fiabilidade reforçada: `await` no sync pós-login, `response.ok` em PATCH/POST, `beforeunload` guard durante save activo, toast de erro em qualquer falha (commit 79e473e)
-- Session persistence (commit aa634cb): `visibilitychange` flush imediato ao background; `setInterval` save periódico de 5min; token Google renovado silenciosamente 2min antes de expirar (`silentRefreshToken()`); `mc2_verify` (blob AES) permite PIN offline sem Google → ao reabrir a app sem sessão Google activa (ex: Android após Chrome matar o tab), mostra PIN directamente
+- Session persistence + auth redesenhado (commit c494b21): `visibilitychange` flush ao background; `setInterval` save periódico 5min; token Google renovado silenciosamente (`silentRefreshToken()`); arranque online exige sempre Google login (sem salto directo para PIN); arranque offline com dados locais → banner âmbar + PIN via `mc2_verify`; background 5+ min → re-pede PIN (modo 'resume') ou Google login se token expirado; save com sucesso mostra toast "✓ Guardado" (verde, 2s); falha de sync mostra banner âmbar persistente com botão "Login"; sync retomado automaticamente quando ligação regressa
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
@@ -150,6 +150,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | ~~3~~ | ~~Demo mode — caso de ambiguidade + Painel de Desempate (Confirma)~~ | ~~Alta~~ — ✅ feito (25e4f7f) |
 | ~~4~~ | ~~Painel de Desempate — implementar UI (design aprovado 2026-04-28)~~ | ~~Alta~~ — ✅ feito (25e4f7f) |
 | 1 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
+| 2 | Validação de integridade no merge localStorage↔Drive — dado corrompido em local propaga para Drive sem aviso (confirmado em teste 2026-05-02) | Médio |
+| 3 | Export/backup manual do `medicheck_v2.enc` — ficheiro em `appDataFolder` invisível na UI Drive; recuperação sem API impossível para o utilizador | Baixo |
 
 ---
 

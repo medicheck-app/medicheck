@@ -6,6 +6,8 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-02 | Feat | Redesenho auth+sync: Google login obrigatório no arranque, banner offline âmbar, toast "✓ Guardado" verde, PIN re-pedido após 5min background |
+| 2026-05-02 | Teste | Sync validado: local-first confirmado (localStorage ganha sobre Drive em conflito), ficheiro `medicheck_v2.enc` existente (appDataFolder, 29KB); 2 riscos residuais documentados |
 | 2026-05-02 | Feat | Painel de Confirma: pares consultáveis após decisão, navegação em todos os pares, fecho só quando todos decididos, decisões alteráveis |
 | 2026-05-02 | Fix | Session persistence: visibilitychange flush, save 5min, token refresh silencioso, PIN offline via mc2_verify (resolve Android background + casos perdidos iPhone >1h) |
 | 2026-05-02 | Fix | 8 correcções UI/UX: tab Reclamados, texto botão abaixo, botões Confirma neutros, demo Hélder sem duplicado, fuzzy amber em NP+Nome, contador N/M removido, lista dívida só em_falta, textarea só lista doentes |
