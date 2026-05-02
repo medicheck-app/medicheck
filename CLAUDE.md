@@ -21,7 +21,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - `dev.html` é cópia local para testes — nunca é publicada directamente
 - **OCR:** Gemini Flash via Cloudflare Worker (chave API segura, não exposta no cliente)
 - **Auth:** Google Sign-in → PIN → encriptação AES-256-GCM com chave derivada via PBKDF2
-- **Storage:** Google Drive (appDataFolder) para dados encriptados; localStorage como cache (sincronização entre dispositivos não confirmada — risco activo)
+- **Storage:** Google Drive (appDataFolder) para dados encriptados; localStorage como cache (`mc2` = JSON simples, `mc2_verify` = blob AES cifrado para verificação do PIN offline)
 - **Importação:** XLSX.js para mapas CUF + paste de PDF/texto
 - **Deploy:** editar `dev.html` → copiar para `index.html` → `git push` → GitHub Pages
 - **Notas:** `CLAUDE.md` editável no Obsidian (vault = pasta `Medicheck`). Editar entre sessões para manter contexto actualizado.
@@ -110,6 +110,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Desktop: calendário e lista de actos do dia lado a lado
 - Teclado PIN sem delay de 300ms em mobile (`touch-action: manipulation`)
 - Save para Drive com fiabilidade reforçada: `await` no sync pós-login, `response.ok` em PATCH/POST, `beforeunload` guard durante save activo, toast de erro em qualquer falha (commit 79e473e)
+- Session persistence (commit aa634cb): `visibilitychange` flush imediato ao background; `setInterval` save periódico de 5min; token Google renovado silenciosamente 2min antes de expirar (`silentRefreshToken()`); `mc2_verify` (blob AES) permite PIN offline sem Google → ao reabrir a app sem sessão Google activa (ex: Android após Chrome matar o tab), mostra PIN directamente
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
