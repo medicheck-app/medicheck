@@ -535,6 +535,10 @@
     .cfm-btn-ok { background:transparent; color:var(--ink); border:1.5px solid var(--border); font-size:1rem; font-weight:600; padding:15px; border-radius:var(--radius); cursor:pointer; width:100%; min-height:52px; transition:background 0.15s,color 0.15s,border-color 0.15s; }
     .cfm-btn-ok.cfm-selected { background:var(--green); color:#000; border-color:var(--green); }
     .cfm-btn-ok:active { opacity:0.8; }
+    .cfm-btn-ign { background:transparent; color:var(--ink); border:1.5px solid var(--border); font-size:1rem; font-weight:600; padding:15px; border-radius:var(--radius); cursor:pointer; width:100%; min-height:52px; transition:background 0.15s,color 0.15s,border-color 0.15s; }
+    .cfm-btn-ign.cfm-selected { background:var(--bg3); color:var(--ink2); border-color:var(--accent); }
+    .cfm-btn-ign:active { opacity:0.8; }
+    .cfm-auto-lbl { font-size:0.78rem; color:var(--ink3); text-align:center; padding:4px 0; font-style:italic; }
   </style>
 </head>
 <body>
@@ -923,7 +927,8 @@
       </div>
       <div class="cfm-actions">
         <button class="cfm-btn-ok" onclick="confirmaPago()">✓ Confirmar Pago</button>
-        <button class="btn-s" onclick="confirmaIgnorar()">Ignorar</button>
+        <button class="cfm-btn-ign" onclick="confirmaIgnorar()">Ignorar</button>
+        <div id="cfm-auto-lbl" class="cfm-auto-lbl" style="display:none">Fechado automaticamente</div>
       </div>
     </div>
   </div>
@@ -2550,23 +2555,13 @@ function openConfirmaPanel() {
   renderConfirma();
 }
 
-function _cfmVisible() {
-  return _confirmaQueue.filter(p => p.status !== 'auto-closed');
-}
-
 function renderConfirma() {
   document.querySelectorAll('.cfm-btn-ok').forEach(b => b.classList.remove('cfm-selected'));
+  document.querySelectorAll('.cfm-btn-ign').forEach(b => b.classList.remove('cfm-selected'));
   const q = _confirmaQueue;
-  while (_confirmaIdx < q.length && q[_confirmaIdx].status === 'auto-closed') _confirmaIdx++;
-  const allKeys    = [...new Set(q.map(p => p.groupKey))];
-  const currentKey = q[_confirmaIdx]?.groupKey;
-  const pos        = allKeys.indexOf(currentKey) + 1;
-  const total      = _confirmaGroupCount;
-  document.getElementById('cfm-nav-lbl').textContent  = 'par ' + pos + ' de ' + total;
-  const hasPrev = q.slice(0, _confirmaIdx).some(p => p.status === 'pending');
-  const hasNext = q.slice(_confirmaIdx + 1).some(p => p.status === 'pending');
-  document.getElementById('cfm-prev').disabled = !hasPrev;
-  document.getElementById('cfm-next').disabled = !hasNext;
+  document.getElementById('cfm-nav-lbl').textContent = 'par ' + (_confirmaIdx + 1) + ' de ' + q.length;
+  document.getElementById('cfm-prev').disabled = _confirmaIdx <= 0;
+  document.getElementById('cfm-next').disabled = _confirmaIdx >= q.length - 1;
 
   const pair = q[_confirmaIdx];
   if (!pair) return;
@@ -2592,6 +2587,19 @@ function renderConfirma() {
   } else {
     simWrap.style.display = 'none';
   }
+
+  const autoLbl = document.getElementById('cfm-auto-lbl');
+  if (pair.status === 'confirmed') {
+    document.querySelector('.cfm-btn-ok').classList.add('cfm-selected');
+    if (autoLbl) autoLbl.style.display = 'none';
+  } else if (pair.status === 'ignored') {
+    document.querySelector('.cfm-btn-ign').classList.add('cfm-selected');
+    if (autoLbl) autoLbl.style.display = 'none';
+  } else if (pair.status === 'auto-closed') {
+    if (autoLbl) autoLbl.style.display = '';
+  } else {
+    if (autoLbl) autoLbl.style.display = 'none';
+  }
 }
 
 function _cfmSet(id, text, amber, last) {
@@ -2609,15 +2617,14 @@ function _cfmBar(barId, pctId, pct) {
 }
 
 function confirmaNavigate(dir) {
-  let idx = _confirmaIdx + dir;
-  while (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status !== 'pending') idx += dir;
-  if (idx >= 0 && idx < _confirmaQueue.length && _confirmaQueue[idx].status === 'pending') { _confirmaIdx = idx; renderConfirma(); }
+  const idx = _confirmaIdx + dir;
+  if (idx >= 0 && idx < _confirmaQueue.length) { _confirmaIdx = idx; renderConfirma(); }
 }
 
 function confirmaPago() {
   if (!window._pendingCUF) return;
   const pair = _confirmaQueue[_confirmaIdx];
-  if (!pair) return;
+  if (!pair || pair.status === 'confirmed') return;
   const btn = document.querySelector('.cfm-btn-ok');
   if (btn) btn.classList.add('cfm-selected');
   setTimeout(() => {
@@ -2629,22 +2636,30 @@ function confirmaPago() {
     }
     pair.status = 'confirmed';
     _confirmaQueue.forEach((p, i) => {
-      if (p.type === type && p.groupIdx === groupIdx && i !== _confirmaIdx) p.status = 'auto-closed';
+      if (p.type === type && p.groupIdx === groupIdx && i !== _confirmaIdx) {
+        if (p.status === 'pending' || p.status === 'confirmed') p.status = 'auto-closed';
+      }
     });
-    _cfmAvancar();
+    if (_confirmaQueue.every(p => p.status !== 'pending')) finalizarConfirma();
+    else renderConfirma();
   }, 250);
 }
 
 function confirmaIgnorar() {
   const pair = _confirmaQueue[_confirmaIdx];
-  if (pair) pair.status = 'ignored';
-  _cfmAvancar();
-}
-
-function _cfmAvancar() {
-  _confirmaIdx++;
-  while (_confirmaIdx < _confirmaQueue.length && _confirmaQueue[_confirmaIdx].status === 'auto-closed') _confirmaIdx++;
-  if (_confirmaIdx >= _confirmaQueue.length) finalizarConfirma(); else renderConfirma();
+  if (!pair || pair.status === 'ignored') return;
+  if (pair.status === 'confirmed') {
+    const { type, groupIdx } = pair;
+    if (type === 'tolerance') delete window._pendingCUF.resolvedTolerance[groupIdx];
+    else delete window._pendingCUF.resolvedFuzzy[groupIdx];
+    _confirmaQueue.forEach((p, i) => {
+      if (p.type === type && p.groupIdx === groupIdx && i !== _confirmaIdx && p.status === 'auto-closed')
+        p.status = 'pending';
+    });
+  }
+  pair.status = 'ignored';
+  if (_confirmaQueue.every(p => p.status !== 'pending')) finalizarConfirma();
+  else renderConfirma();
 }
 
 function finalizarConfirma() {
