@@ -1017,7 +1017,16 @@ async function findDriveFile() {
 }
 
 let _saveInFlight = false;
+let _tokenExpiresAt = 0;
+let _tokenRefreshT;
+let _silentRefresh = false;
 window.addEventListener('beforeunload', e => { if (_saveInFlight) { e.preventDefault(); e.returnValue = ''; } });
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && encKey && !isDemoMode && !_saveInFlight) { clearTimeout(_saveT); saveToDrive(); }
+});
+
+setInterval(() => { if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive(); }, 5 * 60 * 1000);
 
 async function saveToDrive() {
   if (!googleToken || !encKey) { saveLocal(); return; }
@@ -1048,6 +1057,7 @@ async function saveToDrive() {
       driveFileId = created.id;
     }
     saveLocal();
+    saveLocalVerify();
     setSyncing(false, '');
   } catch {
     saveLocal();
@@ -1109,6 +1119,24 @@ function loadLocal() {
 let _saveT;
 function autoSave() { if (isDemoMode) return; clearTimeout(_saveT); _saveT = setTimeout(saveToDrive, 1500); }
 
+async function saveLocalVerify() {
+  if (!encKey) return;
+  try {
+    const blob = await encryptData({ ok: 1 }, encKey);
+    localStorage.setItem('mc2_verify', blob);
+  } catch {}
+}
+
+async function verifyPinLocal(pin) {
+  const blob = localStorage.getItem('mc2_verify');
+  if (!blob) return { ok: false, reason: 'network' };
+  const key = await deriveKey(pin);
+  const d = await decryptData(blob, key);
+  if (!d?.ok) return { ok: false, reason: 'pin' };
+  encKey = key;
+  return { ok: true };
+}
+
 // ═══════════════════════════════════════════════════
 // GOOGLE SIGN-IN
 // ═══════════════════════════════════════════════════
@@ -1124,6 +1152,10 @@ initGIS();
 
 
 
+function silentRefreshToken() {
+  if (!isDemoMode && tokenClient && encKey) { _silentRefresh = true; tokenClient.requestAccessToken({ prompt: '' }); }
+}
+
 function requestGoogleLogin() {
   if (isDemoMode) return;
   if (location.protocol === 'file:') {
@@ -1136,11 +1168,28 @@ function requestGoogleLogin() {
 }
 
 async function onToken(resp) {
+  const silent = _silentRefresh;
+  _silentRefresh = false;
+
+  if (!resp.error) {
+    googleToken = resp.access_token;
+    _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 120) * 1000;
+    clearTimeout(_tokenRefreshT);
+    _tokenRefreshT = setTimeout(silentRefreshToken, Math.max(0, _tokenExpiresAt - Date.now()));
+  }
+
+  if (silent) {
+    if (!resp.error && encKey) {
+      const df = await findDriveFile();
+      if (df.id) { driveFileId = df.id; saveToDrive(); }
+    }
+    return;
+  }
+
   const btn = document.getElementById('btn-google');
   btn.disabled = false; btn.textContent = 'Entrar com Google';
   if (resp.error) { setLoginStatus('Erro: ' + resp.error); return; }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  googleToken = resp.access_token;
   setSyncing(true, 'A verificar conta…');
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + googleToken } });
@@ -1205,11 +1254,32 @@ function updatePinDots() {
 async function handlePin() {
   if (pinMode === 'enter') {
     setSyncing(true, 'A desencriptar…');
-    const result = await loadFromDrive(pinBuf);
+    let result = { ok: false, reason: 'network' };
+
+    if (googleToken && driveFileId) {
+      result = await loadFromDrive(pinBuf);
+    }
+
+    if (!result.ok && result.reason === 'network' && localStorage.getItem('mc2_verify')) {
+      const localResult = await verifyPinLocal(pinBuf);
+      if (localResult.ok) {
+        loadLocal();
+        result = { ok: true, offline: true };
+      } else if (localResult.reason === 'pin') {
+        result = localResult;
+      }
+    }
+
     setSyncing(false, '');
     if (result.ok) {
+      await saveLocalVerify();
       checkEmFaltaByTime();
-      toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
+      if (result.offline) {
+        toast('Offline — a sincronizar quando houver ligação.');
+        silentRefreshToken();
+      } else {
+        toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
+      }
       renderDashboard(); showScreen('screen-dashboard');
     } else {
       document.getElementById('pin-error').textContent = result.reason === 'network'
@@ -3251,6 +3321,8 @@ document.addEventListener('pointerdown', e => {
 if (new URLSearchParams(location.search).has('dev')) {
   document.documentElement.classList.remove('is-dev-loading');
   activateDemo();
+} else if (localStorage.getItem('mc2') && localStorage.getItem('mc2_verify')) {
+  showPinScreen('enter');
 }
 </script>
 </body>
