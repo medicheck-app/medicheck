@@ -1332,6 +1332,7 @@ async function handlePin() {
         silentRefreshToken();
       } else {
         toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
+        saveToDrive(); // sincroniza dados locais (offline) de volta ao Drive após login
       }
       renderDashboard(); showScreen('screen-dashboard');
     } else {
