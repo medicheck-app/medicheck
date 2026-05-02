@@ -18,12 +18,12 @@
 
 ## Estado do projecto (Abril 2026)
 
-- **4 separadores:** Registar · Cruzar dados · Pagamentos · Relatório
+- **4 separadores:** Registar · Cruzar dados · Reclamados · Relatório
 - **5 estados internos:** `registado` → `em_falta` → `reclamado` → `pago` | `rejeitado`
 - **Todos os gaps MVP concluídos** — ver [[REFACTOR-ESTADOS]] para detalhes
 - **Parser PDF validado** com 3 listagens reais da CUF (sessão 2026-04-25, fix crítico: 0→270 matches). _Matching_ propriamente dito ainda por validar (PDFs históricos têm NPs antigos, BD tem NPs novos — convergem em Jun/Jul)
 - **Risco activo:** matching BD↔fatura por testar com dados reais (esperado Jun/Jul 2026); 4 melhorias implementadas (0c45a15): nome BD vs CUF, tolerância ±3d, fuzzy Phase 3, auditoria matchMethod
-- **Painel de Confirma:** implementado (25e4f7f, 1 Mai 2026) — fila linear tolerância+fuzzy, auto-close, resumo final; demo exercita ambos os cenários
+- **Painel de Confirma:** estável (a550f29, 2 Mai 2026) — botões neutros por defeito (verde só ao confirmar), NP+Nome amber em fuzzy, contador N/M removido do header; demo 3 casos 1:1 (Fernando tolerância, Hélder tolerância, Beatriz fuzzy)
 - **Save Drive:** fiabilidade reforçada (commit 79e473e, Abril 2026)
 - **Calendário:** swipe lateral com animação (commit 9f478a1, Abril 2026)
 
