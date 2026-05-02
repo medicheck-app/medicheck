@@ -85,7 +85,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Cruzar dados"
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
 - UI de 3 categorias visuais: "Registado" (registado), "Em dívida" (em_falta+reclamado), "Recebido" (pago); rejeitados visíveis com estilo cinza
-- Navegação: Registar · Cruzar dados · Pagamentos · Relatório (4 separadores)
+- Navegação: Registar · Cruzar dados · Reclamados · Relatório (4 separadores)
 - Separador "Relatório": cartões de faturação (em dívida, em reclamação, total recuperado) + casuística por mês/tipo/especialidade + exportar Excel
 - Fluxo de reclamação integrado no separador "Cruzar dados": bloco "Actos em dívida" aparece só após cruzamento; checkbox para incluir actos já reclamados no email; botão confirmar só activo após copiar
 - Dados separados por utilizador
@@ -93,14 +93,15 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
 - Reconciliação: tolerâncias ±3 dias (1:1 automático; 1:N → Painel de Confirma)
 - Reconciliação: Phase 3 fuzzy nome + janela 30 dias (Painel de Confirma, threshold simNp ≥ 75%)
-- **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP); auto-close de candidatos do mesmo grupo ao confirmar; resumo final (pagos/em falta/ignorados/sem registo); commit 25e4f7f
+- **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP; NP e Nome amber em ambas colunas); botões neutros por defeito, "Confirmar Pago" fica verde com delay 250ms ao clicar; contador N/M removido do header (só "par N de M" no nav); auto-close de candidatos do mesmo grupo ao confirmar; commit a550f29
 - Reconciliação: confirmação de nome BD vs CUF no preview — alerta amber se similaridade Jaccard < 50%
 - Reconciliação: auditoria `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
 - Parser PDF: extrai `procedimento` (nome do Acto Médico, coluna direita) para cada `cufLine` — threshold dinâmico 52% da largura da página, janela Y ±18px (ou ±35px se vazio); campo disponível em `_pendingCUF.cufLines[n].procedimento` (commit db740fd)
 - Reconciliação: após aplicar, mostra "X doentes em falta" a vermelho se houver em_falta não resolvidos
 - Reconciliação: `totalRecuperado` conta só `reclamado→pago` (não registado→pago)
-- Pagamentos: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)
-- Demo mode: exercita tolerância (FERNANDO SANTOS PEREIRA, 1:1 auto) + Painel de Confirma (HÉLDER RODRIGUES BAPTISTA tolerância 1:N diff=1d; BEATRIZ MARTA SOUSA fuzzy NP off-by-one simNp=86%); linha de consulta na fatura simulada; todos os registos com `valor` preenchido
+- Reclamados: mostra só `reclamado` pendentes (pagos removidos da lista após confirmação)
+- Cruzar dados: lista em dívida mostra só `em_falta` (reclamados não aparecem aqui — já estão no tab Reclamados); textarea de reclamação contém só lista de doentes (sem saudação/despedida — utilizador escreve livremente)
+- Demo mode: 3 casos no Painel de Confirma — FERNANDO SANTOS PEREIRA (tolerância 1:1), HÉLDER RODRIGUES BAPTISTA (tolerância 1:1 diff=1d), BEATRIZ MARTA SOUSA (fuzzy NP off-by-one simNp=86%); linha de consulta na fatura simulada; todos os registos com `valor` preenchido; campo `procedimento` extraído das linhas CUF pelo fallback de código de especialidade
 - Calendário com espaçamentos corrigidos
 - Swipe lateral no calendário: dedo segue com `translateX` durante drag; no `touchend` mês actual anima para fora e novo mês entra do lado oposto (`transition: transform 300ms`); `touch-action: pan-y` evita conflito com scroll vertical
 - Google login funciona à primeira tentativa (botão desabilitado até SDK carregar)
@@ -156,7 +157,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 Nome no UI: **"Confirma"** (internamente continua "desempate"). Resolve matches por tolerância (±3d) e fuzzy (nome). Matches exactos por NP = automáticos, nunca entram no painel.
 
 **Cenários que entram no painel:**
-1. Tolerância ±3d, 1:N — um registo BD casa com vários candidatos CUF dentro de ±3 dias
+1. Tolerância ±3d (1:1 ou 1:N) — qualquer match por proximidade de data requer confirmação manual; nunca é automático
 2. Fuzzy — nome similar + janela 30 dias, NP não exacto (só aparece se simNp ≥ 75%)
 
 **Layout:** Grid 3 colunas — Label | O que registei | Fatura CUF
@@ -165,9 +166,12 @@ Nome no UI: **"Confirma"** (internamente continua "desempate"). Resolve matches 
 **Badge:** só em modo tolerância (`⏱ Tolerância ±3d`); fuzzy não tem badge
 **Barras de similaridade:** só em modo fuzzy — Nome % + Nº Processo %
 **NP threshold:** pares fuzzy com simNp < 75% são excluídos da fila (NPs sem relação não entram no painel)
-**Navegação:** fila linear sequencial, contador "N / M" com setas ◀ ▶
+**Navegação:** fila linear sequencial, contador "N / M" fixo por grupo (nunca muda durante a sessão) com setas ◀ ▶; casos decididos desaparecem da navegação (só pendentes são visitáveis)
+**Texto dos campos:** faz wrap — sem corte a uma linha (Doente e Acto podem ser longos)
+**Botão de abertura:** "Desempatar (N) →" no tab Cruzar
 **Botão principal:** "Confirmar Pago" (verde)
 **Botão secundário:** "Ignorar" (neutro, menor)
+**Após o último caso:** fecha directamente para o tab Cruzar (sem ecrã de resumo intermédio); contador de em falta aparece a vermelho
 
 **Comportamento Confirmar:** fecha o par definitivamente; registo não volta ao painel; linhas CUF consumidas ficam indisponíveis para outros matches
 **Comportamento Ignorar:** preserva estado anterior; par pode reaparecer em reconciliações futuras; se todos os candidatos ignorados, registo volta ao estado anterior
@@ -211,6 +215,6 @@ A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
 
 Melhorias implementadas (sessão 2026-04-25, commit 0c45a15):
 1. ✅ Confirmação de nome: preview mostra BD vs CUF com alerta amber se Jaccard < 50%
-2. ✅ Tolerância ±3 dias: 1:1 automático; 1:N → UI manual `toleranceAmbiguous` (não bloqueia Aplicar)
+2. ✅ Tolerância ±3 dias: toda a tolerância (1:1 e 1:N) → Painel de Confirma (nunca automático)
 3. ✅ Phase 3 fuzzy nome + janela 30 dias: sempre manual, com barra de confiança visual
 4. ✅ Auditoria: `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento

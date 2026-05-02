@@ -6,6 +6,10 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-02 | Fix | 8 correcções UI/UX: tab Reclamados, texto botão abaixo, botões Confirma neutros, demo Hélder sem duplicado, fuzzy amber em NP+Nome, contador N/M removido, lista dívida só em_falta, textarea só lista doentes |
+| 2026-05-01 | Fix | Ecrã de resumo do Painel de Confirma eliminado — fecha directamente para o tab Cruzar com contador em falta a vermelho |
+| 2026-05-01 | Fix | UX Painel de Confirma: texto de Doente e Acto faz wrap; casos decididos desaparecem da navegação ◀ ▶ |
+| 2026-05-01 | Fix | 6 correcções ao Painel de Confirma: tolerância 1:1 passa ao painel, botão "Desempatar (N)→", procedimento extraído no demo, reset demo limpa cruzamento, contador fixo por grupo, lista em falta volta após desempate |
 | 2026-05-01 | Feature | Painel de Confirma (desempate) implementado: fila linear tolerância+fuzzy, auto-close, resumo final; demo com Hélder (1:N ±1d) + Beatriz (fuzzy NP 86%) |
 | 2026-04-28 | Design | Painel de Desempate: layout 3 colunas + comportamento Confirmar/Ignorar/fila linear definidos; implementação pendente |
 | 2026-04-28 | Feature | Parser PDF extrai campo `procedimento` (Acto Médico) via coordenadas X/Y; threshold 52% largura página, janela ±18/35px; campo adicionado a cada `cufLine` sem tocar em matching |
