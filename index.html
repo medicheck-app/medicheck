@@ -1089,15 +1089,17 @@ async function loadFromDrive(pin) {
     const driveActs = d.procedimentos || [];
     const localData = JSON.parse(localStorage.getItem('mc2') || 'null');
     const localActs = localData?.procedimentos || [];
-    const driveIds  = new Set(driveActs.map(p => p.id));
-    const extra     = localActs.filter(p => !driveIds.has(p.id));
-    procedimentos   = [...driveActs, ...extra];
+    const localIds   = new Set(localActs.map(p => p.id));
+    const driveIds   = new Set(driveActs.map(p => p.id));
+    const driveExtra = driveActs.filter(p => !localIds.has(p.id));  // no Drive mas não em local
+    const localExtra = localActs.filter(p => !driveIds.has(p.id));  // em local mas não no Drive
+    procedimentos    = [...localActs, ...driveExtra];                // local tem prioridade
     if (d.userProfile) {
       if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
       if (!userProfile.email) userProfile.email = d.userProfile.email || '';
     }
     saveLocal();
-    if (extra.length) await saveToDrive();   // sincroniza actos locais que faltavam no Drive
+    if (localExtra.length) await saveToDrive();  // sincroniza actos locais que faltavam no Drive
     return { ok: true };
   } catch { return { ok: false, reason: 'network' }; }
 }
