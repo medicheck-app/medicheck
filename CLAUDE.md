@@ -40,14 +40,15 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 ## WORKFLOW CONVENTIONS
 
 - **Após qualquer tarefa concluída**, executar automaticamente sem esperar instrução:
-  1. Preview para verificar (se aplicável)
-  2. `git add index.html && git commit` com mensagem convencional em português
-  3. `git push`
-  4. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades/stack
-  5. Actualizar [[REFACTOR-ESTADOS]] se lógica de estados mudou
-  6. Actualizar `_HOME.md` (secção "Estado do projecto") se o estado geral mudou
-  7. Acrescentar linha ao `CHANGELOG.md` (data + tipo + resumo 1 linha)
-  8. Gerar handoff prompt pronto a colar na próxima sessão
+  1. **Verificar integridade do ficheiro:** `tail -3 index.html` deve terminar em `</script>`, `</body>`, `</html>`. Se não terminar, o ficheiro foi truncado — restaurar antes de commitar.
+  2. Preview para verificar (se aplicável)
+  3. `git add index.html && git commit` com mensagem convencional em português
+  4. `git push`
+  5. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades/stack
+  6. Actualizar [[REFACTOR-ESTADOS]] se lógica de estados mudou
+  7. Actualizar `_HOME.md` (secção "Estado do projecto") se o estado geral mudou
+  8. Acrescentar linha ao `CHANGELOG.md` (data + tipo + resumo 1 linha)
+  9. Gerar handoff prompt pronto a colar na próxima sessão
 - Excepção: se o utilizador disser "só rascunho" ou "draft only", não commitar.
 - Em sessões apenas de documentação (sem alterações ao `index.html`): saltar passos 1-3, executar 4-7.
 

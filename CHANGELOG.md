@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-07 | Fix crítico | Restaurar fim do `index.html` truncado pelo commit a84b28e — faltavam handler `online`, feedback táctil PIN e `</script></body></html>`; Google login preso em "A carregar..." corrigido |
 | 2026-05-07 | UI | Toast topo discreto com spinner: "Registado" ao gravar acto, "Sincronizado" ao guardar no Drive (commit a84b28e) |
 | 2026-05-07 | Fix | npSimilarity: guard para NPs Glintt (≤6d) vs SAP (≥7d) evita falsos positivos no Painel de Confirma; tolerância de data uniformizada para ±7 dias |
 | 2026-05-02 | Fix | Sync automático ao Drive após login com dados registados offline (loadFromDrive merge → saveToDrive imediato) |

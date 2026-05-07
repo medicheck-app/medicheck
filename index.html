@@ -925,7 +925,7 @@
     <div class="cfm-wrap" id="cfm-main-wrap">
       <div class="cfm-body">
         <div id="cfm-badge-wrap" style="display:none">
-          <span class="cfm-badge-tol">⏱ Tolerância ±7d</span>
+          <span class="cfm-badge-tol">⏱ Tolerância ±3d</span>
         </div>
         <div class="cfm-card">
           <div class="cfm-grid">
@@ -2340,7 +2340,7 @@ function processCUFText(text, status, out, rawItems = []) {
         if (matchedRecords.has(p)) continue;
         if (normProc(p.processo) !== line.proc) continue;
         const daysDiff = Math.round(Math.abs(new Date(p.data) - lineDate) / 86400000);
-        if (daysDiff > 0 && daysDiff <= 7) candidates.push({ record: p, daysDiff });
+        if (daysDiff > 0 && daysDiff <= 3) candidates.push({ record: p, daysDiff });
       }
       if (candidates.length >= 1) {
         toleranceAmbiguous.push({ line, candidates });
@@ -2605,7 +2605,6 @@ function npSimilarity(a, b) {
   const da = String(a || '').replace(/\D/g, '');
   const db = String(b || '').replace(/\D/g, '');
   if (!da || !db) return 0;
-  if (Math.min(da.length, db.length) <= 6 && Math.max(da.length, db.length) >= 7) return 0;
   let max = 0;
   for (let i = 0; i < da.length; i++) {
     for (let j = 0; j < db.length; j++) {
@@ -3418,4 +3417,33 @@ function simulateDemoPDF() {
   setTimeout(() => processCUFText(fakeText, status, out), 600);
 }
 
-// Feedback táctil PIN — pointerdown/up para iOS Saf
+// Feedback táctil PIN — pointerdown/up para iOS Safari (fiável com transform)
+document.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('.pk');
+  if (btn) btn.classList.add('pressed');
+});
+['pointerup', 'pointercancel'].forEach(ev =>
+  document.addEventListener(ev, () =>
+    document.querySelectorAll('.pk.pressed').forEach(b => b.classList.remove('pressed'))
+  )
+);
+
+if (new URLSearchParams(location.search).has('dev')) {
+  document.documentElement.classList.remove('is-dev-loading');
+  activateDemo();
+} else if (!navigator.onLine) {
+  // Offline no arranque: mostra banner e vai para PIN se houver dados locais
+  showOfflineBanner('no_internet');
+  if (localStorage.getItem('mc2_verify')) {
+    showPinScreen('enter');
+  }
+  window.addEventListener('online', () => hideOfflineBanner(), { once: true });
+}
+// Online: screen-login é o ecrã por defeito; Google login é obrigatório
+
+window.addEventListener('online', () => {
+  if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive();
+});
+</script>
+</body>
+</html>
