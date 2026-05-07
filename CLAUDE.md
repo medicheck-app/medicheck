@@ -91,7 +91,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
 - Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
-- Reconciliação: tolerâncias ±3 dias (1:1 automático; 1:N → Painel de Confirma)
+- Reconciliação: tolerâncias ±7 dias (1:1 ou 1:N → Painel de Confirma)
 - Reconciliação: Phase 3 fuzzy nome + janela 30 dias (Painel de Confirma, threshold simNp ≥ 75%)
 - **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP; NP e Nome amber em ambas colunas); "Confirmar Pago" fica verde ao confirmar; "Ignorar" fica destacado (borda amber) ao ignorar; pares auto-fechados mostram label "Fechado automaticamente"; decisões alteráveis (voltar a um par decidido e mudar); painel fecha só quando todos os pares têm uma decisão; navegação ◀ ▶ percorre todos os pares (decididos + pendentes), contador absoluto "par N de M"; commit 642a9e5
 - Reconciliação: confirmação de nome BD vs CUF no preview — alerta amber se similaridade Jaccard < 50%
@@ -146,7 +146,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 | # | Melhoria | Prioridade |
 |---|----------|------------|
 | ~~1~~ | ~~Demo mode redesenhado com dados realistas~~ | ~~Alta~~ — ✅ feito (6d38dc0) |
-| ~~2~~ | ~~Demo mode — tolerância ±3 dias e regra de consultas ignoradas~~ | ~~Média~~ — ✅ feito |
+| ~~2~~ | ~~Demo mode — tolerância ±7 dias e regra de consultas ignoradas~~ | ~~Média~~ — ✅ feito |
 | ~~3~~ | ~~Demo mode — caso de ambiguidade + Painel de Desempate (Confirma)~~ | ~~Alta~~ — ✅ feito (25e4f7f) |
 | ~~4~~ | ~~Painel de Desempate — implementar UI (design aprovado 2026-04-28)~~ | ~~Alta~~ — ✅ feito (25e4f7f) |
 | 1 | IP local `192.168.1.186:8000` como authorized origin no GCP para testes iPhone | Baixa |
@@ -157,16 +157,16 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 
 ## PAINEL DE DESEMPATE — DESIGN E IMPLEMENTAÇÃO (commit 25e4f7f, 2026-05-01)
 
-Nome no UI: **"Confirma"** (internamente continua "desempate"). Resolve matches por tolerância (±3d) e fuzzy (nome). Matches exactos por NP = automáticos, nunca entram no painel.
+Nome no UI: **"Confirma"** (internamente continua "desempate"). Resolve matches por tolerância (±7d) e fuzzy (nome). Matches exactos por NP = automáticos, nunca entram no painel.
 
 **Cenários que entram no painel:**
-1. Tolerância ±3d (1:1 ou 1:N) — qualquer match por proximidade de data requer confirmação manual; nunca é automático
+1. Tolerância ±7d (1:1 ou 1:N) — qualquer match por proximidade de data requer confirmação manual; nunca é automático
 2. Fuzzy — nome similar + janela 30 dias, NP não exacto (só aparece se simNp ≥ 75%)
 
 **Layout:** Grid 3 colunas — Label | O que registei | Fatura CUF
 **Campos:** Doente · NP · Data · Acto
 **Divergência:** campo divergente marcado a amber (Doente e Data); campo Acto **nunca** destacado (escrita livre, comparação sem significado)
-**Badge:** só em modo tolerância (`⏱ Tolerância ±3d`); fuzzy não tem badge
+**Badge:** só em modo tolerância (`⏱ Tolerância ±7d`); fuzzy não tem badge
 **Barras de similaridade:** só em modo fuzzy — Nome % + Nº Processo %
 **NP threshold:** pares fuzzy com simNp < 75% são excluídos da fila (NPs sem relação não entram no painel)
 **Navegação:** fila linear sequencial, setas ◀ ▶ percorrem **todos** os pares (decididos e pendentes); contador "par N de M" absoluto (N = posição absoluta na fila, M = total de pares)
@@ -220,6 +220,6 @@ A chave Gemini não é exposta no cliente. O Worker faz a chamada à API.
 
 Melhorias implementadas (sessão 2026-04-25, commit 0c45a15):
 1. ✅ Confirmação de nome: preview mostra BD vs CUF com alerta amber se Jaccard < 50%
-2. ✅ Tolerância ±3 dias: toda a tolerância (1:1 e 1:N) → Painel de Confirma (nunca automático)
+2. ✅ Tolerância ±7 dias: toda a tolerância (1:1 e 1:N) → Painel de Confirma (nunca automático)
 3. ✅ Phase 3 fuzzy nome + janela 30 dias: sempre manual, com barra de confiança visual
 4. ✅ Auditoria: `matchMethod` (`exact`/`tolerance`/`fuzzy_name`) + `matchDaysDiff`/`matchSimilarity` gravados em cada procedimento
