@@ -457,6 +457,22 @@
     #toast.on { opacity: 1; }
     #toast.saved { background: #0f2e1a; border-color: #1e5e35; color: #6ee7b7; }
 
+    /* ── Toast topo (Registado / Sincronizado) ── */
+    #toast-top {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-8px);
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg3); color: var(--ink2); font-size: 0.82rem; letter-spacing: 0.03em;
+      padding: 7px 16px 7px 12px; border-radius: 100px; border: 1px solid var(--border);
+      opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none;
+      white-space: nowrap; z-index: 1000;
+    }
+    #toast-top.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast-top .tt-spin {
+      width: 13px; height: 13px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.75s linear infinite; flex-shrink: 0;
+    }
+
     /* ── Mobile: scroll na lista de doentes ── */
     .dash-body-split { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
     .cal-left { flex-shrink: 0; width: 100%; overflow: hidden; position: relative; }
@@ -952,6 +968,7 @@
   </div>
 
   <div id="toast"></div>
+  <div id="toast-top"><div class="tt-spin"></div><span id="toast-top-msg"></span></div>
 </div>
 
 <!-- Google Identity Services -->
@@ -1405,6 +1422,15 @@ function toast(msg) {
   clearTimeout(_toastT); _toastT = setTimeout(() => el.classList.remove('on'), 2500);
 }
 
+let _toastTopT;
+function toastTop(msg) {
+  const el = document.getElementById('toast-top');
+  document.getElementById('toast-top-msg').textContent = msg;
+  el.classList.add('on');
+  clearTimeout(_toastTopT);
+  _toastTopT = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
 function handleLogout() {
   localStorage.removeItem('medicheck_auth');
   const url = new URL(window.location);
@@ -1420,11 +1446,7 @@ function setSyncing(on, msg) {
 }
 
 function toastSaved() {
-  const el = document.getElementById('toast');
-  el.textContent = '✓ Guardado';
-  el.classList.add('on', 'saved');
-  clearTimeout(_toastT);
-  _toastT = setTimeout(() => el.classList.remove('on', 'saved'), 2000);
+  toastTop('Sincronizado');
 }
 
 function showOfflineBanner(type) {
@@ -1941,7 +1963,7 @@ function saveAct() {
     document.querySelector('#screen-new-act .hdr-back').setAttribute('onclick', "showScreen('screen-dashboard')");
     document.querySelector('#screen-new-act .btn-p').textContent = 'Guardar acto';
     saveLocal(); autoSave(); renderDashboard();
-    toast('Acto actualizado'); showDetail(id);
+    toastTop('Registado'); showDetail(id);
   } else {
     procedimentos.push({
       id:           crypto.randomUUID(),
@@ -1960,7 +1982,7 @@ function saveAct() {
       pagoEm:       null,
     });
     saveLocal(); autoSave(); renderDashboard();
-    toast('Acto guardado'); showScreen('screen-dashboard');
+    toastTop('Registado'); showScreen('screen-dashboard');
   }
 }
 
@@ -3395,33 +3417,4 @@ function simulateDemoPDF() {
   setTimeout(() => processCUFText(fakeText, status, out), 600);
 }
 
-// Feedback táctil PIN — pointerdown/up para iOS Safari (fiável com transform)
-document.addEventListener('pointerdown', e => {
-  const btn = e.target.closest('.pk');
-  if (btn) btn.classList.add('pressed');
-});
-['pointerup', 'pointercancel'].forEach(ev =>
-  document.addEventListener(ev, () =>
-    document.querySelectorAll('.pk.pressed').forEach(b => b.classList.remove('pressed'))
-  )
-);
-
-if (new URLSearchParams(location.search).has('dev')) {
-  document.documentElement.classList.remove('is-dev-loading');
-  activateDemo();
-} else if (!navigator.onLine) {
-  // Offline no arranque: mostra banner e vai para PIN se houver dados locais
-  showOfflineBanner('no_internet');
-  if (localStorage.getItem('mc2_verify')) {
-    showPinScreen('enter');
-  }
-  window.addEventListener('online', () => hideOfflineBanner(), { once: true });
-}
-// Online: screen-login é o ecrã por defeito; Google login é obrigatório
-
-window.addEventListener('online', () => {
-  if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive();
-});
-</script>
-</body>
-</html>
+// Feedback táctil PIN — pointerdown/up para iOS Saf
