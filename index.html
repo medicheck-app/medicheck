@@ -3417,4 +3417,33 @@ function simulateDemoPDF() {
   setTimeout(() => processCUFText(fakeText, status, out), 600);
 }
 
-// Feedback táctil PIN — pointerdown/up para iOS Saf
+// Feedback táctil PIN — pointerdown/up para iOS Safari (fiável com transform)
+document.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('.pk');
+  if (btn) btn.classList.add('pressed');
+});
+['pointerup', 'pointercancel'].forEach(ev =>
+  document.addEventListener(ev, () =>
+    document.querySelectorAll('.pk.pressed').forEach(b => b.classList.remove('pressed'))
+  )
+);
+
+if (new URLSearchParams(location.search).has('dev')) {
+  document.documentElement.classList.remove('is-dev-loading');
+  activateDemo();
+} else if (!navigator.onLine) {
+  // Offline no arranque: mostra banner e vai para PIN se houver dados locais
+  showOfflineBanner('no_internet');
+  if (localStorage.getItem('mc2_verify')) {
+    showPinScreen('enter');
+  }
+  window.addEventListener('online', () => hideOfflineBanner(), { once: true });
+}
+// Online: screen-login é o ecrã por defeito; Google login é obrigatório
+
+window.addEventListener('online', () => {
+  if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive();
+});
+</script>
+</body>
+</html>
