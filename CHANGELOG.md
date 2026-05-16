@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-16 | Fix crítico | Re-aplicar regressões do commit 90eaca2: tolerância ±7d (era 3), guard npSimilarity sistemas Glintt/SAP, badge corrigido (commit 1a340d5) |
 | 2026-05-07 | Fix crítico | Restaurar fim do `index.html` truncado pelo commit a84b28e — faltavam handler `online`, feedback táctil PIN e `</script></body></html>`; Google login preso em "A carregar..." corrigido |
 | 2026-05-07 | UI | Toast topo discreto com spinner: "Registado" ao gravar acto, "Sincronizado" ao guardar no Drive (commit a84b28e) |
 | 2026-05-07 | Fix | npSimilarity: guard para NPs Glintt (≤6d) vs SAP (≥7d) evita falsos positivos no Painel de Confirma; tolerância de data uniformizada para ±7 dias |
