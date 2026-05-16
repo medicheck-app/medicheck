@@ -6,6 +6,9 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-16 | UI | Toast topo reposicionado à esquerda abaixo do header MediCheck; container visual (fundo/borda) removido — mantém spinner + texto (commit 25c64e8) |
+| 2026-05-16 | Feat | Select fixo de procedimento para gastroenterologia: Endoscopia / Colonoscopia / Endoscopia + Colonoscopia; aparece ao seleccionar tipo Gastro (commit c651c1c) |
+| 2026-05-16 | Feat | Postectomia adicionada às sugestões de Urologia (commit e9a974b) |
 | 2026-05-16 | Fix crítico | Re-aplicar regressões do commit 90eaca2: tolerância ±7d (era 3), guard npSimilarity sistemas Glintt/SAP, badge corrigido (commit 1a340d5) |
 | 2026-05-07 | Fix crítico | Restaurar fim do `index.html` truncado pelo commit a84b28e — faltavam handler `online`, feedback táctil PIN e `</script></body></html>`; Google login preso em "A carregar..." corrigido |
 | 2026-05-07 | UI | Toast topo discreto com spinner: "Registado" ao gravar acto, "Sincronizado" ao guardar no Drive (commit a84b28e) |
