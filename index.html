@@ -770,6 +770,14 @@
             <div id="proc-sugg-list" class="proc-sugg-list"></div>
           </div>
         </div>
+        <div class="field" id="field-proc-gastro" style="display:none">
+          <label>Procedimento</label>
+          <select id="f-proc-gastro" onchange="document.getElementById('f-procedimento').value=this.value">
+            <option value="Endoscopia">Endoscopia</option>
+            <option value="Colonoscopia">Colonoscopia</option>
+            <option value="Endoscopia + Colonoscopia">Endoscopia + Colonoscopia</option>
+          </select>
+        </div>
       </div>
       <div class="field">
         <label>Notas <span style="font-weight:400;color:var(--ink3);font-size:0.8rem">(opcional)</span></label>
@@ -1833,6 +1841,9 @@ function setTipo(tipo) {
   document.getElementById('seg-gastro').classList.toggle('active', tipo === 'gastro');
   document.getElementById('field-especialidade').style.display = tipo === 'cirurgica' ? '' : 'none';
   document.getElementById('field-procedimento').style.display  = tipo === 'cirurgica' ? '' : 'none';
+  document.getElementById('field-proc-gastro').style.display   = tipo === 'gastro' ? '' : 'none';
+  if (tipo === 'gastro')
+    document.getElementById('f-procedimento').value = document.getElementById('f-proc-gastro').value;
 }
 
 const PROC_SUGESTOES = {
