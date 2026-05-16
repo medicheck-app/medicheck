@@ -111,7 +111,9 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Desktop: calendário e lista de actos do dia lado a lado
 - Teclado PIN sem delay de 300ms em mobile (`touch-action: manipulation`)
 - Save para Drive com fiabilidade reforçada: `await` no sync pós-login, `response.ok` em PATCH/POST, `beforeunload` guard durante save activo, toast de erro em qualquer falha (commit 79e473e)
-- Toast topo discreto com spinner (`#toast-top`): aparece ao registar acto ("Registado") e ao guardar no Drive ("Sincronizado"); desliza do topo, desaparece ao fim de 2.2s (commit a84b28e)
+- Toast topo com spinner (`#toast-top`): aparece ao registar ("Registado") e ao guardar no Drive ("Sincronizado"); posição fixa topo-esquerda abaixo do header (`top: calc(var(--st) + 56px); left: 20px`), sem container visual (sem fundo/borda); desliza do topo, desaparece ao fim de 2.2s (commit a84b28e + 25c64e8)
+- Gastroenterologia: ao seleccionar tipo "Gastro", aparece `<select>` com 3 opções fixas — Endoscopia, Colonoscopia, Endoscopia + Colonoscopia; valor sincronizado para `f-procedimento` na mudança (commit c651c1c)
+- Sugestões de Urologia incluem Postectomia (commit e9a974b)
 - Session persistence + auth redesenhado (commit c494b21): `visibilitychange` flush ao background; `setInterval` save periódico 5min; token Google renovado silenciosamente (`silentRefreshToken()`); arranque online exige sempre Google login (sem salto directo para PIN); arranque offline com dados locais → banner âmbar + PIN via `mc2_verify`; background 5+ min → re-pede PIN (modo 'resume') ou Google login se token expirado; save com sucesso mostra toast "✓ Guardado" (verde, 2s); falha de sync mostra banner âmbar persistente com botão "Login"; sync retomado automaticamente quando ligação regressa
 
 ### Não funciona / falta
