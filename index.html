@@ -459,14 +459,13 @@
 
     /* ── Toast topo (Registado / Sincronizado) ── */
     #toast-top {
-      position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-8px);
+      position: fixed; top: calc(var(--st) + 56px); left: 20px; transform: translateY(-8px);
       display: flex; align-items: center; gap: 8px;
-      background: var(--bg3); color: var(--ink2); font-size: 0.82rem; letter-spacing: 0.03em;
-      padding: 7px 16px 7px 12px; border-radius: 100px; border: 1px solid var(--border);
+      color: var(--ink2); font-size: 0.82rem; letter-spacing: 0.03em;
       opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none;
       white-space: nowrap; z-index: 1000;
     }
-    #toast-top.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast-top.on { opacity: 1; transform: translateY(0); }
     #toast-top .tt-spin {
       width: 13px; height: 13px; border: 2px solid var(--border);
       border-top-color: var(--accent); border-radius: 50%;
