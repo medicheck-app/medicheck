@@ -1089,10 +1089,13 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-setInterval(() => { if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive(); }, 5 * 60 * 1000);
+const _saveIntervalId = setInterval(() => { if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive(); }, 5 * 60 * 1000);
 
 async function saveToDrive() {
   if (!googleToken || !encKey) { saveLocal(); return; }
+  if (!Array.isArray(procedimentos) || procedimentos.some(p => !p.id || !p.status)) {
+    toast('⚠️ Dados inválidos — sync cancelado'); return;
+  }
   _saveInFlight = true;
   try {
     const payload = { procedimentos, userProfile, v: 2, savedAt: new Date().toISOString() };
@@ -2167,11 +2170,19 @@ function normProc(s) {
 
 function nameSimilarity(a, b) {
   if (!a || !b) return 0;
-  const wa = new Set(a.toUpperCase().split(/\s+/).filter(w => w.length > 1));
-  const wb = new Set(b.toUpperCase().split(/\s+/).filter(w => w.length > 1));
-  const inter = [...wa].filter(w => wb.has(w)).length;
-  const union = new Set([...wa, ...wb]).size;
-  return union ? inter / union : 0;
+  const wa = a.toUpperCase().split(/\s+/).filter(w => w.length > 1);
+  const wb = b.toUpperCase().split(/\s+/).filter(w => w.length > 1);
+  if (!wa.length || !wb.length) return 0;
+  const setA = new Set(wa), setB = new Set(wb);
+  const inter = [...setA].filter(w => setB.has(w)).length;
+  const union = new Set([...setA, ...setB]).size;
+  const jaccard = union ? inter / union : 0;
+  // bonus para palavras na mesma posição — penaliza nomes com ordem trocada
+  const minLen = Math.min(wa.length, wb.length);
+  let posMatch = 0;
+  for (let i = 0; i < minLen; i++) if (wa[i] === wb[i]) posMatch++;
+  const posScore = minLen ? posMatch / minLen : 0;
+  return (jaccard + posScore) / 2;
 }
 
 async function processPDFFile(file) {
