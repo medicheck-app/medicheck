@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-05-17 | Fix | 3 bugs corrigidos: `_saveIntervalId` guarda ID do setInterval; `nameSimilarity()` usa score combinado Jaccard+posicional (reduz falsos positivos no Painel de Confirma); `saveToDrive()` valida integridade antes de sincronizar; `proto-desempate.html` apagado (commit 5502de1) |
 | 2026-05-16 | UI | Toast topo reposicionado à esquerda abaixo do header MediCheck; container visual (fundo/borda) removido — mantém spinner + texto (commit 25c64e8) |
 | 2026-05-16 | Feat | Select fixo de procedimento para gastroenterologia: Endoscopia / Colonoscopia / Endoscopia + Colonoscopia; aparece ao seleccionar tipo Gastro (commit c651c1c) |
 | 2026-05-16 | Feat | Postectomia adicionada às sugestões de Urologia (commit e9a974b) |
