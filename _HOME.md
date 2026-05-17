@@ -25,6 +25,7 @@
 - **Risco activo:** matching BD↔fatura por testar com dados reais (esperado Jun/Jul 2026); 4 melhorias implementadas (0c45a15): nome BD vs CUF, tolerância ±7d, fuzzy Phase 3, auditoria matchMethod
 - **Painel de Confirma:** estável — guard npSimilarity para NPs Glintt vs SAP, tolerância uniformizada ±7d (4d12cd7); toast topo discreto ao registar/sincronizar (a84b28e); login fix: fim do ficheiro restaurado (7 Mai 2026)
 - **Registo de actos:** select fixo para gastroenterologia (Endoscopia/Colonoscopia/Endoscopia+Colonoscopia); Postectomia nas sugestões de Urologia (16 Mai 2026)
+- **Bug fixes (17 Mai 2026):** `nameSimilarity()` com peso posicional; `saveToDrive()` valida integridade antes de sync; `_saveIntervalId` guarda ID do intervalo (commit 5502de1)
 - **Save Drive:** fiabilidade reforçada (commit 79e473e, Abril 2026)
 - **Calendário:** swipe lateral com animação (commit 9f478a1, Abril 2026)
 
