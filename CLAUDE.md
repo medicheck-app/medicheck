@@ -24,8 +24,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - **Storage:** Google Drive (appDataFolder) para dados encriptados; localStorage como cache (`mc2` = JSON simples, `mc2_verify` = blob AES cifrado para verificação do PIN offline)
 - **Importação:** XLSX.js para mapas CUF + paste de PDF/texto
 - **Deploy:** editar `dev.html` → copiar para `index.html` → `git push` → GitHub Pages
-- **Notas:** `CLAUDE.md` editável no Obsidian (vault = pasta `Medicheck`). Editar entre sessões para manter contexto actualizado.
-- **Docs no vault:** `CLAUDE.md` (contexto sessão), `REFACTOR-ESTADOS.md` (estado da máquina de estados), `ESTADOS.md` (design original), `_HOME.md` (painel de navegação Obsidian)
+- **Vault:** `C:\Users\treta\OneDrive\Vault\` — agente actualiza directamente após cada sessão. `CLAUDE.md` continua editável no Obsidian como antes.
+- **Docs no vault:** `Projetos/MediCheck/Dashboard.md` (estado projecto), `Projetos/MediCheck/REFACTOR-ESTADOS.md` (máquina de estados), `Projetos/MediCheck/ESTADOS.md` (design original), `Home.md` (vault home global)
 
 ---
 
@@ -45,8 +45,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
   3. `git add index.html && git commit` com mensagem convencional em português
   4. `git push`
   5. Actualizar `CLAUDE.md` se algo mudou no estado/funcionalidades/stack
-  6. Actualizar [[REFACTOR-ESTADOS]] se lógica de estados mudou
-  7. Actualizar `_HOME.md` (secção "Estado do projecto") se o estado geral mudou
+  6. Actualizar vault `Projetos/MediCheck/REFACTOR-ESTADOS.md` se lógica de estados mudou
+  7. Actualizar vault `Projetos/MediCheck/Dashboard.md` (estado MediCheck) e `Home.md` (projectos activos) se estado geral mudou
   8. Acrescentar linha ao `CHANGELOG.md` (data + tipo + resumo 1 linha)
   9. Gerar handoff prompt pronto a colar na próxima sessão
 - Excepção: se o utilizador disser "só rascunho" ou "draft only", não commitar.
