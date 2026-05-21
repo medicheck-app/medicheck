@@ -1077,7 +1077,7 @@ document.addEventListener('visibilitychange', () => {
     if (encKey && !isDemoMode && !_saveInFlight) { clearTimeout(_saveT); saveToDrive(); }
   } else {
     const awayMs = Date.now() - _backgroundAt;
-    if (encKey && !isDemoMode && _backgroundAt > 0 && awayMs >= 5 * 60 * 1000) {
+    if (encKey && !isDemoMode && _backgroundAt > 0 && awayMs >= 60 * 60 * 1000) {
       const activeEl = document.querySelector('.screen.active');
       _lastActiveScreen = activeEl ? activeEl.id : 'screen-dashboard';
       if (_tokenExpiresAt > Date.now()) {
