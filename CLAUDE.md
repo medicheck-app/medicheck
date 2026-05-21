@@ -116,7 +116,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Sugestões de Urologia incluem Postectomia (commit e9a974b)
 - `nameSimilarity()` usa score combinado Jaccard+posicional — penaliza nomes com ordem trocada, reduz falsos positivos no Painel de Confirma (commit 5502de1)
 - `saveToDrive()` valida integridade de `procedimentos` antes de sincronizar — aborta com toast se array inválido ou item sem `id`/`status` (commit 5502de1)
-- Session persistence + auth redesenhado (commit c494b21): `visibilitychange` flush ao background; `setInterval` save periódico 5min; token Google renovado silenciosamente (`silentRefreshToken()`); arranque online exige sempre Google login (sem salto directo para PIN); arranque offline com dados locais → banner âmbar + PIN via `mc2_verify`; background 5+ min → re-pede PIN (modo 'resume') ou Google login se token expirado; save com sucesso mostra toast "✓ Guardado" (verde, 2s); falha de sync mostra banner âmbar persistente com botão "Login"; sync retomado automaticamente quando ligação regressa
+- Session persistence + auth redesenhado (commit c494b21): `visibilitychange` flush ao background; `setInterval` save periódico 5min; token Google renovado silenciosamente (`silentRefreshToken()`); arranque online exige sempre Google login (sem salto directo para PIN); arranque offline com dados locais → banner âmbar + PIN via `mc2_verify`; background 60+ min → re-pede PIN (modo 'resume') ou Google login se token expirado; save com sucesso mostra toast "✓ Guardado" (verde, 2s); falha de sync mostra banner âmbar persistente com botão "Login"; sync retomado automaticamente quando ligação regressa
 
 ### Não funciona / falta
 - **Auth real** — falta whitelist/controlo de acesso e publicação OAuth
