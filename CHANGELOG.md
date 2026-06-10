@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-06-10 | Fix | Parser fatura CUF corrigido: data ISO YYYY-MM-DD, NP entre `[ ]`, word boundary no npItem (commit 2301549) |
 | 2026-05-21 | Fix | Threshold de background resume alterado de 5 min para 60 min — app só pede reauth após 1h de ausência (commit 48a8980) |
 | 2026-05-21 | Chore | Vault Obsidian migrado para `OneDrive/Vault/` separado; CLAUDE.md actualizado com caminhos vault; recovery codes movidos para `OneDrive/Credenciais/` (commit 271708b) |
 | 2026-05-17 | Fix | 3 bugs corrigidos: `_saveIntervalId` guarda ID do setInterval; `nameSimilarity()` usa score combinado Jaccard+posicional (reduz falsos positivos no Painel de Confirma); `saveToDrive()` valida integridade antes de sincronizar; `proto-desempate.html` apagado (commit 5502de1) |

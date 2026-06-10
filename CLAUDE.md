@@ -80,8 +80,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Registo de actos
 - OCR via foto (anestesia) — extrai nº processo (só dígitos) e seguradora
 - Reconciliação com listagem CUF (upload/paste PDF ou texto) — inclui 3ª via: actos `registado` que aparecem na fatura passam directamente a `pago` (fix Gap 1, commit f7f975d)
-- Parser PDF suporta formato real CUF: datas `DD-MM-YY` (traços + ano 2 dígitos), estornos negativos ignorados (não marcam actos como pagos), nomes extraídos só de palavras em CAPS, tolerância Y±5px para células com texto wrappado (commit ee63a7a)
-- Parser PDF: data e NP procurados independentemente (ordem real CUF é `DATA NP NOME`, não `NP ... DATA` como estava); NP aceita 5-10 dígitos (cobre transição CUF). Validado contra 3 PDFs reais (270 actos extraídos correctamente, 0 antes do fix) — sessão 2026-04-25
+- Parser PDF suporta formato real CUF actual: data ISO `YYYY-MM-DD`, NP entre `[ ]` (qualquer comprimento 6-9 dígitos), estornos negativos ignorados, nomes extraídos só de palavras em CAPS (commit 2301549, 2026-06-10)
+- Parser PDF: fallback para formato legado `DD-MM-YY` + NP livre (faturas antigas). Validado contra 3 PDFs reais históricos (270 actos) — sessão 2026-04-25; formato actual validado em Jun 2026
 - Status flow: Registado → Em Falta → Reclamado → Pago
 - Regra dos 3 meses para marcar "Em Falta" — clock temporal autónomo (`checkEmFaltaByTime()`) corre ao entrar com PIN e ao abrir separador "Cruzar dados"
 - Estado `rejeitado` — actos reclamados recusados pela CUF, com motivo, reversíveis
