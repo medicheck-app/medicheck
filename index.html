@@ -2202,6 +2202,11 @@ async function processPDFFile(file) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const tc   = await page.getTextContent();
+      // === LOG DIAG 1 (pág 1 apenas) ===
+      if (i === 1) {
+        console.log('[CUF-DIAG] LOG1 total items pdf.js:', tc.items.length);
+        console.log('[CUF-DIAG] LOG1 primeiros 5 items:', JSON.stringify(tc.items.slice(0,5).map(it => ({x: it.transform[4], y: it.transform[5], str: it.str}))));
+      }
       const pageWidth = page.view[2];
       const rows = {};
       for (const item of tc.items) {
@@ -2217,6 +2222,9 @@ async function processPDFFile(file) {
       }
       lines.push('');
     }
+    // === LOG DIAG 2 ===
+    console.log('[CUF-DIAG] LOG2 total linhas agrupadas:', lines.length);
+    console.log('[CUF-DIAG] LOG2 primeiras 10 linhas:', JSON.stringify(lines.slice(0,10)));
     processCUFText(lines.join('\n'), status, out, rawItems);
   } catch (err) {
     status.innerHTML =
@@ -2232,28 +2240,39 @@ function processCUFText(text, status, out, rawItems = []) {
   const pageWidth = rawItems.length ? Math.max(...rawItems.map(i => i.x + 10)) : 600;
   const procColX  = pageWidth * 0.52;
 
-  // Extrair por linha: NP (5–10 dígitos) + data (DD-MM-YY ou DD/MM/YYYY), em qualquer ordem.
-  // Formato real CUF observado nos PDFs de honorários: "DD-MM-YY NP NOME ... VALOR".
-  // Suporta também NP→data (formato legado) sem alteração de comportamento.
-  // NP aceita 5–10 dígitos para cobrir transição CUF (6 antigos, 7–9 novos).
-  const dateRe = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4}|\d{2})\b/;
+  // Extrair por linha: data + NP entre [ ].
+  // Formato CUF actual: "YYYY-MM-DD [ NP ] NOME ... VALOR".
+  // Formato legado também suportado: "DD-MM-YY NP NOME ... VALOR".
+  const dateReISO    = /\b(\d{4})-(\d{2})-(\d{2})\b/;
+  const dateReLegacy = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4}|\d{2})\b/;
+  const npRe         = /\[\s*(\d+)\s*\]/;
   const cufLines = [];
   let consultasIgnoradas = 0;
+  let _diagN = 0;
   for (const raw of text.split('\n')) {
-    if (/\bconsulta\b/i.test(raw)) { consultasIgnoradas++; continue; }
-    const dm = dateRe.exec(raw);
-    if (!dm) continue;
-    const dateStart = dm.index;
-    const dateEnd   = dm.index + dm[0].length;
-    // Primeiro número de 5–10 dígitos fora do span da data → NP
-    let procMatch = null;
-    for (const m of raw.matchAll(/\b(\d{5,10})\b/g)) {
-      if (m.index < dateStart || m.index >= dateEnd) { procMatch = m; break; }
+    // === LOG DIAG 3 (primeiras 10 linhas não vazias) ===
+    if (_diagN < 10 && raw.trim()) {
+      const _dmI = dateReISO.exec(raw);
+      const _dmL = dateReLegacy.exec(raw);
+      const _npm = npRe.exec(raw);
+      console.log('[CUF-DIAG] LOG3 linha:', JSON.stringify(raw), '| temDataISO:', !!_dmI, '| temDataLeg:', !!_dmL, '| temNP:', !!_npm);
+      _diagN++;
     }
+    if (/\bconsulta\b/i.test(raw)) { consultasIgnoradas++; continue; }
+    let dm = dateReISO.exec(raw);
+    let isISO = true;
+    if (!dm) { dm = dateReLegacy.exec(raw); isISO = false; }
+    if (!dm) continue;
+    const procMatch = npRe.exec(raw);
     if (!procMatch) continue;
     const proc = procMatch[1];
-    const yyyy = dm[3].length === 2 ? '20' + dm[3] : dm[3];
-    const date = `${yyyy}-${dm[2]}-${dm[1]}`;
+    let date;
+    if (isISO) {
+      date = `${dm[1]}-${dm[2]}-${dm[3]}`;
+    } else {
+      const yyyy = dm[3].length === 2 ? '20' + dm[3] : dm[3];
+      date = `${yyyy}-${dm[2]}-${dm[1]}`;
+    }
     // Último número decimal da linha = valor (captura sinal negativo)
     const allNums = [...raw.matchAll(/([-]?\d+[.,]\d{2})/g)];
     let value = null;
@@ -2263,9 +2282,10 @@ function processCUFText(text, status, out, rawItems = []) {
     }
     // Ignorar estornos (valor negativo) — não devem marcar actos como pagos
     if (value !== null && value < 0) continue;
-    // Nome: palavras em maiúsculas após o NP, sem datas/números/especialidades
-    const afterProc = raw.slice(procMatch.index + proc.length);
+    // Nome: palavras em maiúsculas após o [ NP ], sem datas/números/especialidades
+    const afterProc = raw.slice(procMatch.index + procMatch[0].length);
     const name = afterProc
+      .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
       .replace(/\b\d{2}[\/\-]\d{2}[\/\-](\d{4}|\d{2})\b/g, '')
       .replace(/[-]?\d+[.,]\d{2}/g, '')
       .replace(/\b\d+\b/g, '')
@@ -2274,7 +2294,9 @@ function processCUFText(text, status, out, rawItems = []) {
       .join(' ')
       .trim() || null;
     // Extrair procedimento da coluna "Acto Médico" (metade direita da página)
-    const npItem = rawItems.find(i => i.str === proc || i.str.startsWith(proc + ' '));
+    const npItem = rawItems.find(i =>
+      i.str === proc || new RegExp('(?<![\\d])' + proc + '(?![\\d])').test(i.str)
+    );
     const lineY  = npItem ? npItem.y : null;
     let procedimento = null;
     if (lineY !== null) {
