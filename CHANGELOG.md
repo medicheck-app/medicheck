@@ -6,6 +6,9 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-06-11 | Feature | Adiciona especialidade Cirurgia Plástica ao dropdown + 10 procedimentos sugeridos (commit 8ff8742) |
+| 2026-06-11 | Feature | Upload fatura CUF: 3 mensagens de erro distintas (ficheiro inválido / 0 actos extraídos / 0 correspondências) + botão "Ver listagem" com tabela Data·NP·Linha·Valor no Caso 3 (commit 7f02cb5) |
+| 2026-06-11 | Fix | Reconciliação: filtra serviço Anestesiologia (ex: TELECONSULTA) antes de qualquer matching; opção "Ignorar (duplicado CUF)" na UI inline de ambiguidade n:m (commit b7f22f3) |
 | 2026-06-10 | Fix | Parser fatura CUF corrigido: data ISO YYYY-MM-DD, NP entre `[ ]`, word boundary no npItem (commit 2301549) |
 | 2026-05-21 | Fix | Threshold de background resume alterado de 5 min para 60 min — app só pede reauth após 1h de ausência (commit 48a8980) |
 | 2026-05-21 | Chore | Vault Obsidian migrado para `OneDrive/Vault/` separado; CLAUDE.md actualizado com caminhos vault; recovery codes movidos para `OneDrive/Credenciais/` (commit 271708b) |
