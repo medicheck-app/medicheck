@@ -91,7 +91,8 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Fluxo de reclamação integrado no separador "Cruzar dados": bloco "Actos em dívida" aparece só após cruzamento; checkbox para incluir actos já reclamados no email; botão confirmar só activo após copiar
 - Dados separados por utilizador
 - Botão "Sair da aplicação" (ecrã de logout + limpeza `?dev`)
-- Reconciliação: ignora linhas "consulta" da fatura (não aplicável a actos operatórios)
+- Reconciliação: exclui linhas CUF cujo serviço é "Anestesiologia" (inclui TELECONSULTA ANESTESIOLOGIA) antes de qualquer matching — filtro `/\banestesiologia\b/i`; mantém "Equipa Cirurgica" e "Facturação"; também exclui PLAFOND (99999999) e acerto manual (commit b7f22f3)
+- Reconciliação: UI inline de ambiguidade n:m tem opção "Ignorar (duplicado CUF)" por linha — linha ignorada conta como slot resolvido, não gera pagamento; `resolved[key] = { ignored: true, line }` (commit b7f22f3)
 - Reconciliação: tolerâncias ±7 dias (1:1 ou 1:N → Painel de Confirma)
 - Reconciliação: Phase 3 fuzzy nome + janela 30 dias (Painel de Confirma, threshold simNp ≥ 75%)
 - **Painel de Confirma** (`screen-confirma`): fila linear de pares a confirmar — tolerância (badge ⏱, data amber) + fuzzy (barras Nome/NP; NP e Nome amber em ambas colunas); "Confirmar Pago" fica verde ao confirmar; "Ignorar" fica destacado (borda amber) ao ignorar; pares auto-fechados mostram label "Fechado automaticamente"; decisões alteráveis (voltar a um par decidido e mudar); painel fecha só quando todos os pares têm uma decisão; navegação ◀ ▶ percorre todos os pares (decididos + pendentes), contador absoluto "par N de M"; commit 642a9e5
@@ -114,6 +115,7 @@ PWA mobile-first para médicos registarem actos operatórios e reconciliarem com
 - Toast topo com spinner (`#toast-top`): aparece ao registar ("Registado") e ao guardar no Drive ("Sincronizado"); posição fixa topo-esquerda abaixo do header (`top: calc(var(--st) + 56px); left: 20px`), sem container visual (sem fundo/borda); desliza do topo, desaparece ao fim de 2.2s (commit a84b28e + 25c64e8)
 - Gastroenterologia: ao seleccionar tipo "Gastro", aparece `<select>` com 3 opções fixas — Endoscopia, Colonoscopia, Endoscopia + Colonoscopia; valor sincronizado para `f-procedimento` na mudança (commit c651c1c)
 - Sugestões de Urologia incluem Postectomia (commit e9a974b)
+- Especialidade Cirurgia Plástica adicionada ao dropdown + 10 procedimentos sugeridos: Abdominoplastia, Mamoplastia de aumento, Mamoplastia de redução, Mastopexia, Rinoplastia, Blefaroplastia, Ritidoplastia, Lipoaspiração, Reconstrução mamária, Otoplastia (commit 8ff8742)
 - `nameSimilarity()` usa score combinado Jaccard+posicional — penaliza nomes com ordem trocada, reduz falsos positivos no Painel de Confirma (commit 5502de1)
 - `saveToDrive()` valida integridade de `procedimentos` antes de sincronizar — aborta com toast se array inválido ou item sem `id`/`status` (commit 5502de1)
 - Session persistence + auth redesenhado (commit c494b21): `visibilitychange` flush ao background; `setInterval` save periódico 5min; token Google renovado silenciosamente (`silentRefreshToken()`); arranque online exige sempre Google login (sem salto directo para PIN); arranque offline com dados locais → banner âmbar + PIN via `mc2_verify`; background 60+ min → re-pede PIN (modo 'resume') ou Google login se token expirado; save com sucesso mostra toast "✓ Guardado" (verde, 2s); falha de sync mostra banner âmbar persistente com botão "Login"; sync retomado automaticamente quando ligação regressa
