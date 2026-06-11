@@ -2202,11 +2202,6 @@ async function processPDFFile(file) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const tc   = await page.getTextContent();
-      // === LOG DIAG 1 (pág 1 apenas) ===
-      if (i === 1) {
-        console.log('[CUF-DIAG] LOG1 total items pdf.js:', tc.items.length);
-        console.log('[CUF-DIAG] LOG1 primeiros 5 items:', JSON.stringify(tc.items.slice(0,5).map(it => ({x: it.transform[4], y: it.transform[5], str: it.str}))));
-      }
       const pageWidth = page.view[2];
       const rows = {};
       for (const item of tc.items) {
@@ -2222,9 +2217,6 @@ async function processPDFFile(file) {
       }
       lines.push('');
     }
-    // === LOG DIAG 2 ===
-    console.log('[CUF-DIAG] LOG2 total linhas agrupadas:', lines.length);
-    console.log('[CUF-DIAG] LOG2 primeiras 10 linhas:', JSON.stringify(lines.slice(0,10)));
     processCUFText(lines.join('\n'), status, out, rawItems);
   } catch (err) {
     status.innerHTML =
@@ -2247,18 +2239,14 @@ function processCUFText(text, status, out, rawItems = []) {
   const dateReLegacy = /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4}|\d{2})\b/;
   const npRe         = /\[\s*(\d+)\s*\]/;
   const cufLines = [];
+  // Linhas a excluir da reconciliação antes de qualquer matching.
+  // Critério: serviço "Anestesiologia" (coluna CUF — nunca aparece em descrições de actos);
+  // PLAFOND (NP 99999999); acerto manual.
+  // NÃO usar "consulta" — palavra presente em descrições de procedimentos válidos.
+  const EXCLUIR_LINHA_RE = /\banestesiologia\b|\bplafond\b|\b99999999\b|\bacerto\s+manual\b/i;
   let consultasIgnoradas = 0;
-  let _diagN = 0;
   for (const raw of text.split('\n')) {
-    // === LOG DIAG 3 (primeiras 10 linhas não vazias) ===
-    if (_diagN < 10 && raw.trim()) {
-      const _dmI = dateReISO.exec(raw);
-      const _dmL = dateReLegacy.exec(raw);
-      const _npm = npRe.exec(raw);
-      console.log('[CUF-DIAG] LOG3 linha:', JSON.stringify(raw), '| temDataISO:', !!_dmI, '| temDataLeg:', !!_dmL, '| temNP:', !!_npm);
-      _diagN++;
-    }
-    if (/\bconsulta\b/i.test(raw)) { consultasIgnoradas++; continue; }
+    if (EXCLUIR_LINHA_RE.test(raw)) { consultasIgnoradas++; continue; }
     let dm = dateReISO.exec(raw);
     let isISO = true;
     if (!dm) { dm = dateReLegacy.exec(raw); isISO = false; }
@@ -2517,7 +2505,7 @@ function renderAmbiguityUI() {
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">`;
       group.records.forEach((rec, ri) => {
-        const isSelected = resolved[selKey]?.record.id === rec.id;
+        const isSelected = resolved[selKey]?.record?.id === rec.id;
         html += `<button class="btn-s"
           style="text-align:left;padding:8px 12px;font-size:0.8rem;width:auto;${isSelected ? 'border-color:var(--green);color:var(--green);' : ''}"
           onclick="resolveAmbiguity(${gi},${li},${ri})">
@@ -2525,6 +2513,12 @@ function renderAmbiguityUI() {
           <span style="color:var(--ink3);font-size:0.74rem"> · ${esc(rec.status)}</span>
         </button>`;
       });
+      const isIgnored = !!resolved[selKey]?.ignored;
+      html += `<button class="btn-s"
+        style="text-align:left;padding:8px 12px;font-size:0.8rem;width:auto;${isIgnored ? 'border-color:var(--accent);color:var(--accent);' : 'color:var(--ink3);'}"
+        onclick="ignoreAmbiguityLine(${gi},${li})">
+        ${isIgnored ? '✓ ' : ''}Ignorar (duplicado CUF)
+      </button>`;
       html += `</div></div>`;
     });
     html += `</div>`;
@@ -2540,6 +2534,21 @@ function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
   const line   = group.lines[lineIdx];
   const record = group.records[recordIdx];
   resolved[`${group.key}|${lineIdx}`] = { record, line };
+  renderAmbiguityUI();
+  const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
+  const resolvedCount = Object.keys(resolved).length;
+  if (resolvedCount >= totalSlots) {
+    const btn = document.getElementById('btn-apply-cuf');
+    if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
+  }
+}
+
+function ignoreAmbiguityLine(groupIdx, lineIdx) {
+  if (!window._pendingCUF) return;
+  const { ambiguousGroups, resolved } = window._pendingCUF;
+  const group = ambiguousGroups[groupIdx];
+  const line  = group.lines[lineIdx];
+  resolved[`${group.key}|${lineIdx}`] = { ignored: true, line };
   renderAmbiguityUI();
   const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
   const resolvedCount = Object.keys(resolved).length;
@@ -2850,7 +2859,9 @@ function applyCUF() {
 
   // Ambiguidades exactas resolvidas (M4: matchMethod='exact')
   for (const selKey of Object.keys(resolved)) {
-    const { record: p, line } = resolved[selKey];
+    const entry = resolved[selKey];
+    if (entry.ignored) continue; // linha CUF marcada como duplicado — não gera pagamento
+    const { record: p, line } = entry;
     if (p.status === 'pago' && p.pagoViaReconciliacao) continue;
     const wasReclamado = p.status === 'reclamado';
     p.status = 'pago'; p.pagoEm = now;
