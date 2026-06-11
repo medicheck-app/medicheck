@@ -2220,7 +2220,11 @@ async function processPDFFile(file) {
     processCUFText(lines.join('\n'), status, out, rawItems);
   } catch (err) {
     status.innerHTML =
-      `<div class="info-box" style="color:var(--red)">Erro ao ler PDF: ${esc(err.message)}</div>`;
+      `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
+        <strong style="color:var(--red)">Tipo de ficheiro não reconhecido.</strong><br>
+        <span style="font-size:0.85rem;color:var(--ink3)">Carrega o PDF da fatura da CUF (descarrega-o fresco do portal/email).</span>
+      </div>`;
+    out.innerHTML = '';
   }
 }
 
@@ -2315,6 +2319,15 @@ function processCUFText(text, status, out, rawItems = []) {
       }
     }
     cufLines.push({ proc, date, name, value, procedimento });
+  }
+
+  if (!cufLines.length) {
+    status.innerHTML = '';
+    out.innerHTML = `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
+      <strong style="color:var(--red)">Não foi possível identificar actos neste PDF.</strong><br>
+      <span style="font-size:0.85rem;color:var(--ink3)">Pode ser um formato diferente do esperado — avisa o autor se o problema persistir.</span>
+    </div>`;
+    return;
   }
 
   // Set de processos para sweep de cutoff (fallback se PDF sem datas)
@@ -2425,6 +2438,62 @@ function processCUFText(text, status, out, rawItems = []) {
       <span style="color:var(--ink3)"> · ${fmtDate(p.data)}${line.value != null ? ' · <strong style="color:var(--green)">' + line.value.toFixed(2) + ' €</strong>' : ''}</span>
     </div>`;
   }).join('');
+
+  const noMatches = !clearMatches.length && !ambiguousGroups.length &&
+                    !toleranceAmbiguous.length && !fuzzyMatches.length;
+  if (noMatches) {
+    const listagemRows = cufLines.map(l =>
+      `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px;white-space:nowrap;color:var(--ink2)">${esc(l.date)}</td>
+        <td style="padding:5px 8px;white-space:nowrap;color:var(--ink2)">${esc(l.proc)}</td>
+        <td style="padding:5px 8px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink3)" title="${esc(l.name || '')}">${esc(l.name || '—')}</td>
+        <td style="padding:5px 8px;text-align:right;white-space:nowrap;color:var(--ink)">${l.value != null ? l.value.toFixed(2) + ' €' : '—'}</td>
+      </tr>`
+    ).join('');
+    status.innerHTML = '';
+    out.innerHTML = `
+      <div class="info-box">
+        <span style="color:var(--ink2)">${cufLines.length} linha${cufLines.length !== 1 ? 's' : ''} lidas da listagem, nenhuma por validar (provavelmente já pago).</span>
+        <div style="margin-top:10px">
+          <button class="btn-s" onclick="var el=document.getElementById('cuf-listagem-expand');var vis=el.style.display==='block';el.style.display=vis?'none':'block';this.textContent=vis?'Ver listagem ▼':'Ocultar listagem ▲'">Ver listagem ▼</button>
+        </div>
+        <div id="cuf-listagem-expand" style="display:none;margin-top:10px;overflow-x:auto">
+          <table style="width:100%;font-size:0.8rem;border-collapse:collapse">
+            <thead><tr style="color:var(--ink3);border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:5px 8px;font-weight:500">Data</th>
+              <th style="text-align:left;padding:5px 8px;font-weight:500">NP</th>
+              <th style="text-align:left;padding:5px 8px;font-weight:500">Linha</th>
+              <th style="text-align:right;padding:5px 8px;font-weight:500">Valor</th>
+            </tr></thead>
+            <tbody>${listagemRows}</tbody>
+          </table>
+        </div>
+      </div>
+      ${futureFalta.length ? `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
+        <span style="color:var(--red)">✗ ${futureFalta.length} acto${futureFalta.length !== 1 ? 's' : ''} com +3 meses para marcar como <strong>em falta</strong></span>
+      </div>` : ''}
+      <div id="ambiguity-ui"></div>
+      <div id="tolerance-ambiguous-ui"></div>
+      <div id="fuzzy-match-ui"></div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn-p" id="btn-apply-cuf" onclick="applyCUF()">Aplicar</button>
+        <button class="btn-s" onclick="cancelCUF()">Cancelar</button>
+      </div>`;
+    window._pendingCUF = {
+      cufLines, cufProcs,
+      clearMatches, ambiguousGroups,
+      resolved: {},
+      cutoff,
+      toleranceAmbiguous,
+      resolvedTolerance: {},
+      fuzzyMatches,
+      resolvedFuzzy: {},
+      linhasSemMatch,
+      consultasIgnoradas,
+    };
+    window._confirmaLinhasSemMatch = linhasSemMatch;
+    return;
+  }
 
   status.innerHTML = '';
   out.innerHTML = `
