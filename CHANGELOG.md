@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-08-19 | Fix crítico | **Causa real do sync parado**: `encryptData` usava `btoa(String.fromCharCode(...out))` — o spread passa um argumento por byte e rebenta a stack (RangeError) acima de ~100 KB de dados encriptados. Substituído por `bytesToBase64()` em blocos de 32 KB. Formato inalterado, dados antigos continuam a abrir |
 | 2026-08-19 | Fix crítico | Sync Drive: token Google validado antes de cada pedido (`ensureToken`), wrapper `driveFetch` com retry em 401/403, renovação silenciosa como Promise com timeout de 15s, flag `_silentRefresh` deixa de ficar presa, PATCH 404 recria o ficheiro, banner mostra o código do erro |
 | 2026-06-11 | Fix | Uniformiza terminologia: label de estado "Recebido" → "Pago" no UI (commit d26f2a6) |
 | 2026-06-11 | Feature | Adiciona especialidade Cirurgia Plástica ao dropdown + 10 procedimentos sugeridos (commit 8ff8742) |

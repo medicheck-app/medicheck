@@ -1030,13 +1030,27 @@ async function deriveKey(pin) {
   );
 }
 
+// Converte bytes para base64 por blocos.
+// NÃO usar `String.fromCharCode(...bytes)`: o spread passa um argumento por
+// byte e rebenta a stack (RangeError: Maximum call stack size exceeded) assim
+// que os dados encriptados passam ~64-125 KB — foi o que travou o sync com o
+// Drive quando o volume de actos cresceu.
+function bytesToBase64(bytes) {
+  const CHUNK = 0x8000;  // 32 KB por bloco, bem abaixo do limite de argumentos
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
 async function encryptData(data, key) {
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(data)));
   const out = new Uint8Array(12 + ct.byteLength);
   out.set(iv, 0); out.set(new Uint8Array(ct), 12);
-  return btoa(String.fromCharCode(...out));
+  return bytesToBase64(out);
 }
 
 async function decryptData(b64, key) {
