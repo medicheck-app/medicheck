@@ -2686,7 +2686,7 @@ function processCUFText(text, status, out, rawItems = [], cufRows = []) {
     <div id="fuzzy-match-ui"></div>
     <div style="display:flex;gap:10px;margin-top:4px">
       ${(toleranceAmbiguous.length || fuzzyMatches.length)
-        ? `<button class="btn-p" onclick="openConfirmaPanel()"
+        ? `<button class="btn-p" id="btn-open-confirma" onclick="openConfirmaPanel()"
             ${ambiguousGroups.length ? 'disabled style="opacity:0.4"' : ''}>
             Desempatar (${toleranceAmbiguous.length + fuzzyMatches.length}) →
            </button>`
@@ -2768,6 +2768,21 @@ function renderAmbiguityUI() {
   container.innerHTML = html;
 }
 
+// Reactiva o botão de avanço do preview quando todas as ambiguidades ficam
+// resolvidas. O botão é "Aplicar" (btn-apply-cuf) ou "Desempatar"
+// (btn-open-confirma) conforme haja ou não casos para o Painel de Confirma —
+// são ramos alternativos, só um existe no DOM de cada vez.
+function enableCUFAdvance() {
+  if (!window._pendingCUF) return;
+  const { ambiguousGroups, resolved } = window._pendingCUF;
+  const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
+  const resolvedCount = Object.keys(resolved).length;
+  if (resolvedCount < totalSlots) return;
+  const btn = document.getElementById('btn-apply-cuf') ||
+              document.getElementById('btn-open-confirma');
+  if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
+}
+
 function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
   if (!window._pendingCUF) return;
   const { ambiguousGroups, resolved } = window._pendingCUF;
@@ -2776,12 +2791,7 @@ function resolveAmbiguity(groupIdx, lineIdx, recordIdx) {
   const record = group.records[recordIdx];
   resolved[`${group.key}|${lineIdx}`] = { record, line };
   renderAmbiguityUI();
-  const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
-  const resolvedCount = Object.keys(resolved).length;
-  if (resolvedCount >= totalSlots) {
-    const btn = document.getElementById('btn-apply-cuf');
-    if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
-  }
+  enableCUFAdvance();
 }
 
 function ignoreAmbiguityLine(groupIdx, lineIdx) {
@@ -2791,12 +2801,7 @@ function ignoreAmbiguityLine(groupIdx, lineIdx) {
   const line  = group.lines[lineIdx];
   resolved[`${group.key}|${lineIdx}`] = { ignored: true, line };
   renderAmbiguityUI();
-  const totalSlots    = ambiguousGroups.reduce((s, g) => s + g.lines.length, 0);
-  const resolvedCount = Object.keys(resolved).length;
-  if (resolvedCount >= totalSlots) {
-    const btn = document.getElementById('btn-apply-cuf');
-    if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
-  }
+  enableCUFAdvance();
 }
 
 function renderToleranceAmbiguousUI() {
