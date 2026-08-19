@@ -636,7 +636,7 @@
     <!-- Banner offline / sync fail -->
     <div id="offline-banner">
       <span id="offline-banner-msg">Guardado localmente — sem sync com Drive</span>
-      <button id="offline-banner-btn" onclick="requestGoogleLogin()">Login</button>
+      <button id="offline-banner-btn" onclick="reauthSync()">Login</button>
     </div>
     <!-- Nav tabs -->
     <div class="main-tabs">
@@ -1051,25 +1051,51 @@ async function decryptData(b64, key) {
 // ═══════════════════════════════════════════════════
 // GOOGLE DRIVE
 // ═══════════════════════════════════════════════════
+let _saveInFlight = false;
+let _tokenExpiresAt = 0;
+let _tokenRefreshT;
+let _silentRefresh = false;
+let _refreshResolve = null;
+let _refreshPromise = null;
+let _backgroundAt = 0;
+let _lastActiveScreen = 'screen-dashboard';
+let _lastSyncError = '';
+
+// Garante um token válido antes de qualquer chamada ao Drive.
+// O token do Google dura 1h; o setTimeout de renovação é estrangulado
+// em background (mobile/PWA) e muitas vezes nunca dispara — por isso
+// validamos sempre a validade aqui, no momento do pedido.
+async function ensureToken() {
+  if (googleToken && Date.now() < _tokenExpiresAt) return true;
+  if (!tokenClient) return false;
+  return await silentRefreshToken();
+}
+
+// Wrapper de fetch para o Drive: injecta o token, renova-o se expirou
+// e repete o pedido uma vez em caso de 401/403 (token expirado/revogado).
+async function driveFetch(url, opts = {}, _retried = false) {
+  await ensureToken();
+  if (!googleToken) throw new Error('sem token');
+  const headers = Object.assign({}, opts.headers || {}, { Authorization: 'Bearer ' + googleToken });
+  const r = await fetch(url, Object.assign({}, opts, { headers }));
+  if ((r.status === 401 || r.status === 403) && !_retried) {
+    _tokenExpiresAt = 0;
+    if (await silentRefreshToken()) return driveFetch(url, opts, true);
+  }
+  return r;
+}
+
 async function findDriveFile() {
   try {
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE}%27&fields=files(id)`,
-      { headers: { Authorization: 'Bearer ' + googleToken } }
+    const r = await driveFetch(
+      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE}%27&fields=files(id)`
     );
-    if (!r.ok) return { id: null, error: 'network' };
+    if (!r.ok) return { id: null, error: (r.status === 401 || r.status === 403) ? 'auth' : 'network' };
     const d = await r.json();
     const id = d.files?.length > 0 ? d.files[0].id : null;
     return { id, error: null };
   } catch { return { id: null, error: 'network' }; }
 }
-
-let _saveInFlight = false;
-let _tokenExpiresAt = 0;
-let _tokenRefreshT;
-let _silentRefresh = false;
-let _backgroundAt = 0;
-let _lastActiveScreen = 'screen-dashboard';
 window.addEventListener('beforeunload', e => { if (_saveInFlight) { e.preventDefault(); e.returnValue = ''; } });
 
 document.addEventListener('visibilitychange', () => {
@@ -1086,6 +1112,10 @@ document.addEventListener('visibilitychange', () => {
       } else {
         showScreen('screen-login');
       }
+    } else if (encKey && !isDemoMode && googleToken && Date.now() >= _tokenExpiresAt) {
+      // Ausência curta (< 1h) mas token já expirado: renovar em silêncio,
+      // senão o próximo save falha com 401 e aparece o banner de sync.
+      silentRefreshToken();
     }
   }
 });
@@ -1103,32 +1133,37 @@ async function saveToDrive() {
     const enc = await encryptData(payload, encKey);
     const blob = new Blob([enc], { type: 'text/plain' });
     if (driveFileId) {
-      const patchResp = await fetch(
+      const patchResp = await driveFetch(
         `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
-        { method: 'PATCH', headers: { Authorization: 'Bearer ' + googleToken, 'Content-Type': 'text/plain' }, body: blob }
+        { method: 'PATCH', headers: { 'Content-Type': 'text/plain' }, body: blob }
       );
-      if (!patchResp.ok) throw new Error('Drive update failed: ' + patchResp.status);
-    } else {
+      // 404: ficheiro apagado no Drive — recriar em vez de falhar para sempre
+      if (patchResp.status === 404) { driveFileId = null; }
+      else if (!patchResp.ok) throw new Error('Drive update ' + patchResp.status);
+    }
+    if (!driveFileId) {
       const meta = JSON.stringify({ name: DRIVE_FILE, parents: ['appDataFolder'] });
       const form = new FormData();
       form.append('metadata', new Blob([meta], { type: 'application/json' }));
       form.append('file', blob);
-      const resp = await fetch(
+      const resp = await driveFetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-        { method: 'POST', headers: { Authorization: 'Bearer ' + googleToken }, body: form }
+        { method: 'POST', body: form }
       );
-      if (!resp.ok) throw new Error('Drive create failed: ' + resp.status);
+      if (!resp.ok) throw new Error('Drive create ' + resp.status);
       const created = await resp.json();
-      if (!created.id) throw new Error('Drive create: no ID returned');
+      if (!created.id) throw new Error('Drive create: sem ID');
       driveFileId = created.id;
     }
     saveLocal();
     saveLocalVerify();
     toastSaved();
+    _lastSyncError = '';
     hideOfflineBanner();
-  } catch {
+  } catch (e) {
     saveLocal();
-    showOfflineBanner('sync_fail');
+    _lastSyncError = (e && e.message) || 'erro';
+    showOfflineBanner('sync_fail', _lastSyncError);
   } finally {
     _saveInFlight = false;
   }
@@ -1137,10 +1172,7 @@ async function saveToDrive() {
 async function loadFromDrive(pin) {
   if (!googleToken || !driveFileId) return { ok: false, reason: 'network' };
   try {
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
-      { headers: { Authorization: 'Bearer ' + googleToken } }
-    );
+    const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
     if (!r.ok) return { ok: false, reason: 'network' };
     const enc = await r.text();
     const key = await deriveKey(pin);
@@ -1220,8 +1252,34 @@ initGIS();
 
 
 
+// Renovação silenciosa do token. Devolve uma Promise<bool> para que
+// ensureToken()/driveFetch() possam esperar pelo resultado. Tem timeout:
+// se o callback do Google nunca chegar (popup bloqueado, sem sessão),
+// resolve a false em vez de deixar _silentRefresh preso a true — que era
+// o que bloqueava todos os logins seguintes.
 function silentRefreshToken() {
-  if (!isDemoMode && tokenClient && encKey) { _silentRefresh = true; tokenClient.requestAccessToken({ prompt: '' }); }
+  if (isDemoMode || !tokenClient) return Promise.resolve(false);
+  if (_refreshPromise) return _refreshPromise;
+  let done, settled = false, guardT;
+  const p = new Promise(resolve => {
+    done = ok => {
+      if (settled) return;              // cada ciclo resolve uma só vez…
+      settled = true;
+      clearTimeout(guardT);
+      // …e só limpa o estado partilhado se ainda for o ciclo em curso
+      // (senão um timeout atrasado matava a renovação seguinte)
+      if (_refreshResolve === done) { _refreshResolve = null; _silentRefresh = false; }
+      if (_refreshPromise === p) _refreshPromise = null;
+      resolve(ok);
+    };
+    _refreshResolve = done;
+    _silentRefresh = true;
+  });
+  _refreshPromise = p;
+  guardT = setTimeout(() => done(false), 15000);
+  try { tokenClient.requestAccessToken({ prompt: '' }); }
+  catch { done(false); }
+  return p;
 }
 
 function requestGoogleLogin() {
@@ -1230,9 +1288,22 @@ function requestGoogleLogin() {
     setLoginStatus('Abre a app via servidor web — o Google não aceita login em ficheiros locais.');
     return;
   }
+  if (!tokenClient) { setLoginStatus('Google ainda a carregar — tenta daqui a instantes.'); return; }
+  _silentRefresh = false; _refreshResolve = null; _refreshPromise = null;
   const btn = document.getElementById('btn-google');
   btn.disabled = true; btn.textContent = 'A ligar…';
   tokenClient.requestAccessToken({ prompt: 'select_account' });
+}
+
+// Botão "Login" do banner de sync: tenta primeiro renovar em silêncio
+// (aqui há gesto do utilizador, por isso o popup não é bloqueado) e só
+// pede consentimento completo se isso falhar.
+async function reauthSync() {
+  const btn = document.getElementById('offline-banner-btn');
+  btn.disabled = true; btn.textContent = 'A ligar…';
+  const ok = await silentRefreshToken();
+  btn.disabled = false; btn.textContent = 'Login';
+  if (!ok) requestGoogleLogin();
 }
 
 async function onToken(resp) {
@@ -1241,15 +1312,19 @@ async function onToken(resp) {
 
   if (!resp.error) {
     googleToken = resp.access_token;
-    _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 120) * 1000;
+    // margem de 5 min: ensureToken() renova antes de expirar de facto
+    _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
     clearTimeout(_tokenRefreshT);
     _tokenRefreshT = setTimeout(silentRefreshToken, Math.max(0, _tokenExpiresAt - Date.now()));
   }
 
+  // desbloqueia quem esteja à espera em ensureToken()/driveFetch()
+  if (_refreshResolve) _refreshResolve(!resp.error);
+
   if (silent) {
-    if (!resp.error && encKey) {
-      const df = await findDriveFile();
-      if (df.id) { driveFileId = df.id; saveToDrive(); }
+    if (!resp.error && encKey && !_saveInFlight) {
+      if (!driveFileId) { const df = await findDriveFile(); if (df.id) driveFileId = df.id; }
+      saveToDrive();
     }
     return;
   }
@@ -1460,14 +1535,14 @@ function toastSaved() {
   toastTop('Sincronizado');
 }
 
-function showOfflineBanner(type) {
+function showOfflineBanner(type, detail) {
   if (isDemoMode) return;
   const banner = document.getElementById('offline-banner');
   const btn    = document.getElementById('offline-banner-btn');
   document.getElementById('offline-banner-msg').textContent =
     type === 'no_internet'
       ? 'Sem ligação — dados guardados localmente'
-      : 'Guardado localmente — sem sync com Drive';
+      : 'Guardado localmente — sem sync com Drive' + (detail ? ' (' + detail + ')' : '');
   btn.style.display = type === 'sync_fail' ? '' : 'none';
   banner.classList.add('on');
 }

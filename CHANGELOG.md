@@ -6,6 +6,8 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-08-19 | Fix crítico | Sync Drive: token Google validado antes de cada pedido (`ensureToken`), wrapper `driveFetch` com retry em 401/403, renovação silenciosa como Promise com timeout de 15s, flag `_silentRefresh` deixa de ficar presa, PATCH 404 recria o ficheiro, banner mostra o código do erro |
+| 2026-06-11 | Fix | Uniformiza terminologia: label de estado "Recebido" → "Pago" no UI (commit d26f2a6) |
 | 2026-06-11 | Feature | Adiciona especialidade Cirurgia Plástica ao dropdown + 10 procedimentos sugeridos (commit 8ff8742) |
 | 2026-06-11 | Feature | Upload fatura CUF: 3 mensagens de erro distintas (ficheiro inválido / 0 actos extraídos / 0 correspondências) + botão "Ver listagem" com tabela Data·NP·Linha·Valor no Caso 3 (commit 7f02cb5) |
 | 2026-06-11 | Fix | Reconciliação: filtra serviço Anestesiologia (ex: TELECONSULTA) antes de qualquer matching; opção "Ignorar (duplicado CUF)" na UI inline de ambiguidade n:m (commit b7f22f3) |
