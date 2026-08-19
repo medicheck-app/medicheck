@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-08-19 | Fix crítico | **Parser CUF lia o nome e o acto errados**: nos extractos actuais o nome do doente vem em Title Case e o filtro `w === w.toUpperCase()` extraía a seguradora (`HTVD ADSE VF`); o `procedimento` apanhava as colunas EFR/VALOR por o threshold `pageWidth*0.52` assumir retrato. Novo ramo de leitura por colunas (`cufRowsFromItems` + `parseCUFColunas`), com o parser de texto mantido para formato legado e demo. Validado contra os extractos reais de Maio/Junho 2026 — 121/121 e 111/111 linhas, valores iguais ao quadro RESUMO da CUF ao cêntimo. Desbloqueia a Fase 3 (fuzzy), que devolvia 0 candidatos em vez de 3 (€577,53 em 2 meses) |
 | 2026-08-19 | Fix crítico | **Causa real do sync parado**: `encryptData` usava `btoa(String.fromCharCode(...out))` — o spread passa um argumento por byte e rebenta a stack (RangeError) acima de ~100 KB de dados encriptados. Substituído por `bytesToBase64()` em blocos de 32 KB. Formato inalterado, dados antigos continuam a abrir |
 | 2026-08-19 | Fix crítico | Sync Drive: token Google validado antes de cada pedido (`ensureToken`), wrapper `driveFetch` com retry em 401/403, renovação silenciosa como Promise com timeout de 15s, flag `_silentRefresh` deixa de ficar presa, PATCH 404 recria o ficheiro, banner mostra o código do erro |
 | 2026-06-11 | Fix | Uniformiza terminologia: label de estado "Recebido" → "Pago" no UI (commit d26f2a6) |

@@ -2276,6 +2276,79 @@ function nameSimilarity(a, b) {
   return (jaccard + posScore) / 2;
 }
 
+// ── Leitura por colunas do extracto CUF ────────────────────────────
+// O extracto actual CENTRA o texto dentro de cada coluna, por isso não dá
+// para separar campos por posições de x fixas. Mas o pdf.js emite itens de
+// espaço em branco entre colunas — partir a linha nesses separadores devolve
+// as células na ordem:
+//   DATA | PACIENTE | SERVIÇO | ACTO MÉDICO | UNIDADE | EFR | REGRA | VALOR [| OBS]
+// O nº de processo e o nome do doente vêm na mesma célula: "[ 12345678 ] Maria Exemplo".
+function cufRowsFromItems(items) {
+  const byY = [];
+  for (const it of items) {
+    const y = it.transform[5];
+    let row = byY.find(r => Math.abs(r.y - y) < 4);
+    if (!row) { row = { y, items: [] }; byY.push(row); }
+    row.items.push({ x: it.transform[4], str: it.str || '' });
+  }
+  byY.sort((a, b) => b.y - a.y);
+  const rows = [];
+  for (const r of byY) {
+    r.items.sort((a, b) => a.x - b.x);
+    const cells = [];
+    let cur = null;
+    for (const it of r.items) {
+      if (!it.str.trim()) { if (cur !== null) { cells.push(cur); cur = null; } continue; }
+      cur = cur === null ? it.str.trim() : cur + ' ' + it.str.trim();
+    }
+    if (cur !== null) cells.push(cur);
+    if (cells.length) rows.push(cells);
+  }
+  return rows;
+}
+
+// Constrói cufLines a partir das células. Devolve false se as linhas não
+// baterem certo com o formato actual — nesse caso quem chama usa o parser
+// de texto de sempre (formato legado e demo mode).
+function parseCUFColunas(cufRows, cufLines, onIgnored) {
+  if (!cufRows || !cufRows.length) return false;
+  const dataRe = /^\d{4}-\d{2}-\d{2}$/;
+  const npRe   = /\[\s*(\d+)\s*\]/;
+  const validas = cufRows.filter(c =>
+    c.length >= 6 && dataRe.test(c[0]) && npRe.test(c[1] || ''));
+  if (validas.length < 5) return false;
+
+  for (const c of validas) {
+    const servico = (c[2] || '').trim();
+    // Exclusões — agora por coluna SERVIÇO, não por procura na linha inteira
+    if (/\banestesiologia\b/i.test(servico)) { onIgnored(); continue; }
+    const proc = npRe.exec(c[1])[1];
+    if (proc === '99999999') { onIgnored(); continue; }
+    if (/\bplafond\b|\bacerto\s+manual\b/i.test(c.join(' '))) { onIgnored(); continue; }
+
+    let vi = -1;
+    for (let i = c.length - 1; i >= 0; i--) if (/€/.test(c[i])) { vi = i; break; }
+    let value = null;
+    if (vi >= 0) {
+      const m = /(-?[\d.,]+)\s*€/.exec(c[vi]);
+      if (m) {
+        const parsed = parseFloat(m[1].replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
+        if (!isNaN(parsed) && Math.abs(parsed) < 100000) value = parsed;
+      }
+    }
+    // Ignorar estornos (valor negativo) — não devem marcar actos como pagos
+    if (value !== null && value < 0) continue;
+
+    const name = c[1].replace(npRe, '').replace(/\s+/g, ' ').trim() || null;
+    let procedimento = (c[3] || '').replace(/\s+/g, ' ').trim();
+    procedimento = procedimento.replace(/^[A-Z0-9]{6,8}\s*-\s*/, '').trim();
+    if (procedimento.length > 60) procedimento = procedimento.slice(0, 57) + '...';
+
+    cufLines.push({ proc, date: c[0], name, value, procedimento: procedimento || null });
+  }
+  return true;
+}
+
 async function processPDFFile(file) {
   if (!file) return;
   const status = document.getElementById('cruzar-status');
@@ -2290,6 +2363,7 @@ async function processPDFFile(file) {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
     const lines = [];
     const rawItems = [];
+    const cufRows = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const tc   = await page.getTextContent();
@@ -2307,8 +2381,9 @@ async function processPDFFile(file) {
         if (rowStr) lines.push(rowStr);
       }
       lines.push('');
+      cufRows.push(...cufRowsFromItems(tc.items));
     }
-    processCUFText(lines.join('\n'), status, out, rawItems);
+    processCUFText(lines.join('\n'), status, out, rawItems, cufRows);
   } catch (err) {
     status.innerHTML =
       `<div class="info-box" style="border-color:rgba(239,68,68,0.3)">
@@ -2319,7 +2394,7 @@ async function processPDFFile(file) {
   }
 }
 
-function processCUFText(text, status, out, rawItems = []) {
+function processCUFText(text, status, out, rawItems = [], cufRows = []) {
   const ELIGIBLE = new Set(['registado', 'em_falta', 'reclamado']);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 3);
@@ -2340,7 +2415,13 @@ function processCUFText(text, status, out, rawItems = []) {
   // NÃO usar "consulta" — palavra presente em descrições de procedimentos válidos.
   const EXCLUIR_LINHA_RE = /\banestesiologia\b|\bplafond\b|\b99999999\b|\bacerto\s+manual\b/i;
   let consultasIgnoradas = 0;
-  for (const raw of text.split('\n')) {
+
+  // Formato CUF actual: ler pelas colunas do PDF (nome do doente e acto médico
+  // fiáveis). Se não bater certo, cai no parser de texto abaixo — que continua
+  // a servir o formato legado e o demo mode.
+  const lidoPorColunas = parseCUFColunas(cufRows, cufLines, () => { consultasIgnoradas++; });
+
+  for (const raw of lidoPorColunas ? [] : text.split('\n')) {
     if (EXCLUIR_LINHA_RE.test(raw)) { consultasIgnoradas++; continue; }
     let dm = dateReISO.exec(raw);
     let isISO = true;
