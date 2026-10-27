@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-10-27 | Perf | Entrada na app após o PIN quase instantânea: dados e chave do Drive pré-carregados em paralelo enquanto se escreve o PIN; removido upload duplicado que bloqueava a entrada (~1,6 s → ~20 ms com 400 ms/pedido) (commit 85b7c30) |
 | 2026-10-27 | Feature | **Recuperação do PIN via conta Google**: chave de dados aleatória no Drive (`medicheck_key.json`), PIN passa a cadeado de acesso. "Esqueci o PIN" → confirmar a mesma conta Google → PIN novo sem perder dados. Migração automática do formato antigo no primeiro PIN correcto; mudar o PIN deixa de recifrar os dados (commit 999937f) |
 | 2026-10-27 | Fix | Actos **Gastro** gravam o procedimento escolhido (Endoscopia / Colonoscopia / Endoscopia + Colonoscopia) em vez de "Anestesia Gastro"; ao editar, o selector repõe o valor (commit f819395) |
 | 2026-10-27 | Feature | Perfil **Anestesista / Cirurgião** (pergunta única após o PIN, alterável nas Definições, `userProfile.perfil`). Cirurgião: campo **Função** (Principal/Ajudante) obrigatório em actos cirúrgicos e tipo Gastro escondido; anestesista sem alterações. Função no detalhe, no Excel e na casuística (commit 500d981) |
