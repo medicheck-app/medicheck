@@ -2101,6 +2101,10 @@ function editAct(id) {
   const _fEsp = document.getElementById('f-especialidade');
   _fEsp.value = p.especialidade || ''; _fEsp._prevValue = p.especialidade || '';
   document.getElementById('f-procedimento').value = p.tipo === 'cirurgica' ? (p.procedimento || '') : '';
+  // Gastro: repõe o procedimento guardado; actos antigos ('Anestesia Gastro') ficam em Endoscopia até o utilizador escolher
+  const _fGastro = document.getElementById('f-proc-gastro');
+  _fGastro.value = p.tipo === 'gastro' ? p.procedimento : '';
+  if (!_fGastro.value) _fGastro.selectedIndex = 0;
   setFuncao(p.funcao || '');
   setTipo(p.tipo || 'cirurgica');
   document.querySelector('#screen-new-act h1').textContent = 'Editar acto';
@@ -2136,7 +2140,7 @@ function saveAct() {
       p.data          = document.getElementById('f-data').value;
       p.tipo          = tipo;
       p.especialidade = tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '';
-      p.procedimento  = tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro';
+      p.procedimento  = tipo === 'cirurgica' ? procedimento : document.getElementById('f-proc-gastro').value;
       if (pedeFuncao) p.funcao = funcao;  // anestesista não toca na função de actos existentes
       p.seguradora    = document.getElementById('f-seg').value.trim() || null;
       p.notas         = document.getElementById('f-notas').value.trim() || null;
@@ -2157,7 +2161,7 @@ function saveAct() {
       data:         document.getElementById('f-data').value,
       tipo,
       especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
-      procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
+      procedimento:  tipo === 'cirurgica' ? procedimento : document.getElementById('f-proc-gastro').value,
       ...(funcao ? { funcao } : {}),
       seguradora:   document.getElementById('f-seg').value.trim() || null,
       notas:        document.getElementById('f-notas').value.trim() || null,
