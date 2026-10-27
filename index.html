@@ -97,6 +97,11 @@
       padding: clamp(8px, 3svh, 28px) 32px;
       gap: clamp(8px, 2svh, 16px);
     }
+    #screen-perfil {
+      justify-content: center; align-items: stretch;
+      padding: 40px 32px; gap: 14px; max-width: 420px; margin: 0 auto; width: 100%;
+    }
+    #screen-perfil .pin-title { margin-bottom: 12px; }
     .pin-title { text-align: center; }
     .pin-title h2 { font-size: 1.1rem; font-weight: 600; }
     .pin-title p { color: var(--ink2); margin-top: 4px; font-size: 0.82rem; }
@@ -619,6 +624,16 @@
     </div>
   </div>
 
+  <!-- ══════════════ PERFIL (pergunta única após o PIN) ══════════════ -->
+  <div id="screen-perfil" class="screen">
+    <div class="pin-title">
+      <h2>Qual é a tua actividade?</h2>
+      <p>Podes alterar mais tarde nas Definições</p>
+    </div>
+    <button class="btn-s" onclick="choosePerfil('anestesista')">Anestesista</button>
+    <button class="btn-s" onclick="choosePerfil('cirurgiao')">Cirurgião</button>
+  </div>
+
   <!-- ══════════════ DASHBOARD ══════════════ -->
   <div id="screen-dashboard" class="screen">
     <div class="dash-hdr">
@@ -739,13 +754,21 @@
           <label>Data do acto</label>
           <input type="date" id="f-data">
         </div>
-        <div class="field">
+        <div class="field" id="field-tipo">
           <label>Tipo de acto</label>
           <div class="seg-ctrl">
             <button class="seg-btn active" id="seg-cirurgica" onclick="setTipo('cirurgica')">Cirúrgica</button>
             <button class="seg-btn" id="seg-gastro" onclick="setTipo('gastro')">Gastro</button>
           </div>
           <input type="hidden" id="f-tipo" value="cirurgica">
+        </div>
+        <div class="field" id="field-funcao" style="display:none">
+          <label>Função</label>
+          <div class="seg-ctrl">
+            <button class="seg-btn" id="seg-principal" onclick="setFuncao('principal')">Principal</button>
+            <button class="seg-btn" id="seg-ajudante" onclick="setFuncao('ajudante')">Ajudante</button>
+          </div>
+          <input type="hidden" id="f-funcao" value="">
         </div>
         <div class="field" id="field-especialidade">
           <label>Especialidade (opcional)</label>
@@ -814,6 +837,11 @@
       <div class="settings-section">
         <h3>Conta</h3>
         <div style="font-size:0.9rem;color:var(--ink2);margin-bottom:14px" id="s-user"></div>
+        <div style="font-size:0.82rem;color:var(--ink2);margin-bottom:6px">Perfil</div>
+        <div class="seg-ctrl" style="margin-bottom:14px">
+          <button class="seg-btn" id="s-perfil-anestesista" onclick="setPerfil('anestesista')">Anestesista</button>
+          <button class="seg-btn" id="s-perfil-cirurgiao" onclick="setPerfil('cirurgiao')">Cirurgião</button>
+        </div>
         <button class="btn-s" style="margin-bottom:10px" onclick="changePIN()">🔒 Alterar PIN</button>
         <button class="btn-logout" onclick="handleLogout()">Sair da aplicação</button>
       </div>
@@ -1201,8 +1229,9 @@ async function loadFromDrive(pin) {
     const localExtra = localActs.filter(p => !driveIds.has(p.id));  // em local mas não no Drive
     procedimentos    = [...localActs, ...driveExtra];                // local tem prioridade
     if (d.userProfile) {
-      if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
-      if (!userProfile.email) userProfile.email = d.userProfile.email || '';
+      if (!userProfile.name)   userProfile.name   = d.userProfile.name   || '';
+      if (!userProfile.email)  userProfile.email  = d.userProfile.email  || '';
+      if (!userProfile.perfil) userProfile.perfil = d.userProfile.perfil || '';
     }
     saveLocal();
     if (localExtra.length) await saveToDrive();  // sincroniza actos locais que faltavam no Drive
@@ -1222,8 +1251,9 @@ function loadLocal() {
     if (!d) return false;
     procedimentos = d.procedimentos || [];
     if (d.userProfile) {
-      if (!userProfile.name)  userProfile.name  = d.userProfile.name  || '';
-      if (!userProfile.email) userProfile.email = d.userProfile.email || '';
+      if (!userProfile.name)   userProfile.name   = d.userProfile.name   || '';
+      if (!userProfile.email)  userProfile.email  = d.userProfile.email  || '';
+      if (!userProfile.perfil) userProfile.perfil = d.userProfile.perfil || '';
     }
     return true;
   } catch { return false; }
@@ -1450,7 +1480,7 @@ async function handlePin() {
         toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
         saveToDrive(); // sincroniza dados locais (offline) de volta ao Drive após login
       }
-      renderDashboard(); showScreen('screen-dashboard');
+      renderDashboard(); enterAfterPin();
     } else {
       document.getElementById('pin-error').textContent = result.reason === 'network'
         ? 'Erro de ligação. Verifica a internet e tenta novamente.'
@@ -1500,9 +1530,36 @@ async function handlePin() {
       await saveToDrive();
       setSyncing(false, '');
       toast('Conta criada com sucesso!');
-      renderDashboard(); showScreen('screen-dashboard');
+      renderDashboard(); enterAfterPin();
     }
   }
+}
+
+// ═══════════════════════════════════════════════════
+// PERFIL — anestesista | cirurgiao (vazio = ainda não escolhido)
+// ═══════════════════════════════════════════════════
+function isCirurgiao() { return userProfile.perfil === 'cirurgiao'; }
+
+// Quem ainda não tem perfil responde uma vez, logo após o PIN
+function enterAfterPin() {
+  showScreen(userProfile.perfil ? 'screen-dashboard' : 'screen-perfil');
+}
+
+function choosePerfil(perfil) {
+  userProfile.perfil = perfil;
+  saveLocal(); autoSave();
+  renderDashboard(); showScreen('screen-dashboard');
+}
+
+function setPerfil(perfil) {
+  userProfile.perfil = perfil;
+  renderPerfilSettings();
+  saveLocal(); autoSave();
+}
+
+function renderPerfilSettings() {
+  document.getElementById('s-perfil-anestesista').classList.toggle('active', userProfile.perfil === 'anestesista');
+  document.getElementById('s-perfil-cirurgiao').classList.toggle('active', userProfile.perfil === 'cirurgiao');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1935,7 +1992,20 @@ function setTipo(tipo) {
   document.getElementById('field-proc-gastro').style.display   = tipo === 'gastro' ? '' : 'none';
   if (tipo === 'gastro')
     document.getElementById('f-procedimento').value = document.getElementById('f-proc-gastro').value;
+  // Cirurgião: Gastro não se aplica (só a anestesia em gastro) e a Função é obrigatória.
+  // Um acto Gastro antigo continua editável — o tipo só fica escondido quando é Cirúrgica.
+  const cir = isCirurgiao();
+  document.getElementById('field-tipo').style.display   = cir && tipo === 'cirurgica' ? 'none' : '';
+  document.getElementById('field-funcao').style.display = cir && tipo === 'cirurgica' ? '' : 'none';
 }
+
+function setFuncao(funcao) {
+  document.getElementById('f-funcao').value = funcao;
+  document.getElementById('seg-principal').classList.toggle('active', funcao === 'principal');
+  document.getElementById('seg-ajudante').classList.toggle('active', funcao === 'ajudante');
+}
+
+const FUNCAO_LABEL = { principal: 'Principal', ajudante: 'Ajudante' };
 
 const PROC_SUGESTOES = {
   'Cirurgia Geral':          ['Colecistectomia laparoscópica','Apendicectomia','Herniorrafia inguinal','Herniorrafia umbilical','Laparotomia exploradora','Hemorroidectomia','Tiroidectomia','Gastrectomia parcial','Fundoplicatura de Nissen','Mastectomia','Biópsia excisional','Colectomia segmentar'],
@@ -2013,6 +2083,7 @@ function openNewAct(ocr) {
   _fEsp.value = ''; _fEsp._prevValue = '';
   document.getElementById('f-procedimento').value  = '';
   document.getElementById('f-notas').value          = '';
+  setFuncao('');
   setTipo('cirurgica');
   showScreen('screen-new-act');
   initProcSuggestions();
@@ -2030,6 +2101,7 @@ function editAct(id) {
   const _fEsp = document.getElementById('f-especialidade');
   _fEsp.value = p.especialidade || ''; _fEsp._prevValue = p.especialidade || '';
   document.getElementById('f-procedimento').value = p.tipo === 'cirurgica' ? (p.procedimento || '') : '';
+  setFuncao(p.funcao || '');
   setTipo(p.tipo || 'cirurgica');
   document.querySelector('#screen-new-act h1').textContent = 'Editar acto';
   document.querySelector('#screen-new-act .hdr-back').setAttribute('onclick', `cancelEdit('${id}')`);
@@ -2052,6 +2124,9 @@ function saveAct() {
   const procedimento = document.getElementById('f-procedimento').value.trim();
   if (!paciente) { toast('Preenche o nome do paciente'); return; }
   if (tipo === 'cirurgica' && !procedimento) { toast('Preenche o procedimento'); return; }
+  const pedeFuncao = isCirurgiao() && tipo === 'cirurgica';
+  const funcao     = pedeFuncao ? document.getElementById('f-funcao').value : '';
+  if (pedeFuncao && !funcao) { toast('Escolhe a função: Principal ou Ajudante'); return; }
 
   if (editingActId) {
     const p = procedimentos.find(x => x.id === editingActId);
@@ -2062,6 +2137,7 @@ function saveAct() {
       p.tipo          = tipo;
       p.especialidade = tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '';
       p.procedimento  = tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro';
+      if (pedeFuncao) p.funcao = funcao;  // anestesista não toca na função de actos existentes
       p.seguradora    = document.getElementById('f-seg').value.trim() || null;
       p.notas         = document.getElementById('f-notas').value.trim() || null;
       // id · valor · status · criadoEm · reclamadoEm · pagoEm: intactos
@@ -2082,6 +2158,7 @@ function saveAct() {
       tipo,
       especialidade: tipo === 'cirurgica' ? document.getElementById('f-especialidade').value : '',
       procedimento:  tipo === 'cirurgica' ? procedimento : 'Anestesia Gastro',
+      ...(funcao ? { funcao } : {}),
       seguradora:   document.getElementById('f-seg').value.trim() || null,
       notas:        document.getElementById('f-notas').value.trim() || null,
       valor:        null,
@@ -2123,6 +2200,7 @@ function showDetail(id) {
     ${p.seguradora ? `<div class="det-sec"><div class="det-lbl">Seguradora</div><div class="det-val">${esc(p.seguradora)}</div></div>` : ''}
     <div class="det-sec"><div class="det-lbl">Data</div><div class="det-val">${fmtDate(p.data)}</div></div>
     <div class="det-sec"><div class="det-lbl">Tipo</div><div class="det-val">${p.tipo === 'gastro' ? 'Gastro' : 'Cirúrgica'}</div></div>
+    ${p.funcao ? `<div class="det-sec"><div class="det-lbl">Função</div><div class="det-val">${FUNCAO_LABEL[p.funcao] || esc(p.funcao)}</div></div>` : ''}
     ${p.especialidade ? `<div class="det-sec"><div class="det-lbl">Especialidade</div><div class="det-val">${esc(p.especialidade)}</div></div>` : ''}
     <div class="det-sec"><div class="det-lbl">Procedimento</div><div class="det-val">${esc(p.procedimento || p.acto || '—')}</div></div>
     ${p.notas ? `<div class="det-sec"><div class="det-lbl">Notas</div><div class="det-val" style="color:var(--ink2)">${esc(p.notas)}</div></div>` : ''}
@@ -3308,6 +3386,7 @@ const _origShowScreen = showScreen;
 window.showScreen = function(id) {
   _origShowScreen(id);
   if (id === 'screen-settings') {
+    renderPerfilSettings();
     const sUser = document.getElementById('s-user');
     sUser.textContent = userProfile.name
       ? userProfile.name + ' (' + userProfile.email + ')'
@@ -3442,13 +3521,39 @@ function renderCasuistica() {
       </div>
     </div>
 
+    ${funcaoSectionHTML()}
+
     <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
   `;
 }
 
+// Casuística Principal / Ajudante — só aparece quando há actos com função registada
+function funcaoSectionHTML() {
+  const porFuncao = { principal: 0, ajudante: 0 };
+  for (const p of procedimentos) { if (porFuncao[p.funcao] !== undefined) porFuncao[p.funcao]++; }
+  const entries = Object.entries(porFuncao).filter(([,n]) => n > 0);
+  if (!entries.length) return '';
+  const max = Math.max(...entries.map(([,n]) => n));
+  return `<div class="rel-section">
+    <h3>Por função</h3>
+    <div class="rel-box">
+      ${entries.map(([f, n]) => {
+        const pct = Math.round((n / max) * 100);
+        return `<div class="rel-row" style="gap:10px">
+          <span class="rel-row-lbl" style="min-width:120px">${FUNCAO_LABEL[f]}</span>
+          <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+          </div>
+          <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 function exportXLSX() {
   // Export CSV com BOM UTF-8 — abre directamente no Excel com acentos correctos
-  const cols = ['Data','Paciente','Processo','Tipo','Especialidade','Procedimento','Status','Valor (€)','Reclamado em','Pago em'];
+  const cols = ['Data','Paciente','Processo','Tipo','Função','Especialidade','Procedimento','Status','Valor (€)','Reclamado em','Pago em'];
   const statusLabel = { registado:'Registado', em_falta:'Em falta', reclamado:'Reclamado', pago:'Pago' };
   const rows = procedimentos
     .slice()
@@ -3458,6 +3563,7 @@ function exportXLSX() {
       p.paciente || '',
       p.processo || '',
       p.tipo === 'gastro' ? 'Gastroenterologia' : (p.tipo === 'anestesia' ? 'Anestesiologia' : 'Cirurgia'),
+      FUNCAO_LABEL[p.funcao] || '',
       p.especialidade || '',
       p.procedimento || '',
       statusLabel[p.status] || p.status,
@@ -3601,6 +3707,7 @@ function renderRecuperacao() {
           }).join('')}
         </div>
       </div>` : ''}
+      ${funcaoSectionHTML()}
       <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
     </div>`);
 }
