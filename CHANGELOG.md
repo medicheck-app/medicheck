@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-10-27 | Feature | Perfil **Anestesista / Cirurgião** (pergunta única após o PIN, alterável nas Definições, `userProfile.perfil`). Cirurgião: campo **Função** (Principal/Ajudante) obrigatório em actos cirúrgicos e tipo Gastro escondido; anestesista sem alterações. Função no detalhe, no Excel e na casuística (commit 500d981) |
 | 2026-10-27 | UI | Sugestões de Urologia substituídas pela lista de um urologista utilizador: 18 no autocomplete, 10 em destaque com o campo vazio (`PROC_DESTAQUE`) |
 | 2026-08-19 | UI | Lista de actos em dívida sai da página **Cruzar dados** e passa para a tab **Reclamados**, acima dos já reclamados. A página de cruzamento fica só com o resumo do que foi aplicado; a lista aparece onde se actua sobre ela (copiar para a CUF, marcar como reclamado). `renderDebtBlock()` → `buildDebtBlockHTML()`, que devolve HTML em vez de escrever no DOM |
 | 2026-08-19 | Fix | **Botão "Desempatar" ficava preso desactivado**: ao resolver a última ambiguidade n:m o código reactivava `getElementById('btn-apply-cuf')`, mas quando há casos para o Painel de Confirma o botão renderizado é o "Desempatar", que não tinha `id` — o `if (btn)` engolia o `null` em silêncio e o cruzamento ficava bloqueado. Bug latente, só observável com ambiguidade n:m **e** casos fuzzy no mesmo cruzamento, combinação impossível enquanto a Fase 3 devolvia sempre zero. Novo `id="btn-open-confirma"` e função `enableCUFAdvance()` partilhada |
