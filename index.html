@@ -444,6 +444,17 @@
     .rel-card.c-reclamado .rel-card-val { color: var(--accent); }
     .rel-card.c-falta   .rel-card-val { color: var(--red); }
     .rel-card.c-total   .rel-card-val { color: var(--ink); }
+    .rel-card.c-pago { grid-column: 1 / -1; }
+    .rel-card-sub { font-size: 0.72rem; color: var(--ink3); }
+    .rel-card-eur { font-size: 1.05rem; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+    .rel-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .rel-bar-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .rel-bar-row:last-child { border-bottom: none; }
+    .rel-bar-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; font-size: 0.85rem; }
+    .rel-bar-lbl { color: var(--ink2); min-width: 0; overflow-wrap: anywhere; }
+    .rel-bar-val { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .rel-bar { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+    .rel-bar > div { height: 100%; background: var(--accent); border-radius: 3px; }
     .rel-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
     .rel-row:last-child { border-bottom: none; }
     .rel-row-lbl { color: var(--ink2); }
@@ -3645,120 +3656,28 @@ function fmtDate(iso) {
 // ═══════════════════════════════════════════════════
 // RELATÓRIO + EXPORT
 // ═══════════════════════════════════════════════════
-function renderCasuistica() {
-  const body = document.getElementById('casuistica-body');
-  if (!procedimentos.length) {
-    body.innerHTML = '<div class="info-box">Sem dados para apresentar.</div>'; return;
-  }
-
-  // Por tipo de acto (gastro / cirurgia / anestesia)
-  const porTipo = { cirurgica: 0, gastro: 0, anestesia: 0 };
-  for (const p of procedimentos) {
-    if (porTipo[p.tipo] !== undefined) porTipo[p.tipo]++;
-  }
-  const tipoLabels = { cirurgica: 'Cirurgia', gastro: 'Gastroenterologia', anestesia: 'Anestesiologia' };
-  const tipoEntries = Object.entries(porTipo).filter(([,n]) => n > 0);
-  const maxTipo = tipoEntries.length ? Math.max(...tipoEntries.map(([,n]) => n)) : 1;
-
-  // Por especialidade cirúrgica (excluir gastro e anestesia)
-  const porEsp = {};
-  for (const p of procedimentos) {
-    if (p.tipo !== 'cirurgica') continue;
-    const k = p.especialidade || 'Outra';
-    porEsp[k] = (porEsp[k] || 0) + 1;
-  }
-  const espSorted = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
-  const maxEsp = espSorted.length ? Math.max(...espSorted.map(x => x[1])) : 1;
-
-  // Por mês (últimos 12)
-  const porMes = {};
-  for (const p of procedimentos) {
-    const m = (p.data || '').slice(0, 7);
-    if (m) porMes[m] = (porMes[m] || 0) + 1;
-  }
-  const mesSorted = Object.entries(porMes).sort((a,b) => a[0].localeCompare(b[0])).slice(-12);
-  const maxMes = mesSorted.length ? Math.max(...mesSorted.map(x => x[1])) : 1;
-  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-  body.innerHTML = `
-    <div class="rel-section">
-      <h3>Actos por mês</h3>
-      <div class="rel-box">
-        ${mesSorted.map(([mes, n]) => {
-          const [y, m] = mes.split('-');
-          const label = mesesNomes[parseInt(m,10)-1] + ' ' + y;
-          const pct = Math.round((n / maxMes) * 100);
-          return `<div class="rel-row" style="gap:10px">
-            <span class="rel-row-lbl" style="min-width:64px">${label}</span>
-            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-            </div>
-            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-          </div>`;
-        }).join('')}
-      </div>
+// Linha da casuística: nome e número em cima, barra a toda a largura por baixo
+// (nomes longos como "Otorrinolaringologia" nunca apertam a barra no telemóvel)
+function relBarsHTML(titulo, entries) {
+  if (!entries.length) return '';
+  const max = Math.max(...entries.map(([,n]) => n));
+  return `<div class="rel-section">
+    <h3>${titulo}</h3>
+    <div class="rel-box">
+      ${entries.map(([lbl, n]) => `<div class="rel-bar-row">
+        <div class="rel-bar-head"><span class="rel-bar-lbl">${esc(lbl)}</span><span class="rel-bar-val">${n}</span></div>
+        <div class="rel-bar"><div style="width:${Math.max(2, Math.round((n / max) * 100))}%"></div></div>
+      </div>`).join('')}
     </div>
-
-    <div class="rel-section">
-      <h3>Por tipo de acto</h3>
-      <div class="rel-box">
-        ${tipoEntries.map(([tipo, n]) => {
-          const pct = Math.round((n / maxTipo) * 100);
-          return `<div class="rel-row" style="gap:10px">
-            <span class="rel-row-lbl" style="min-width:120px">${tipoLabels[tipo]}</span>
-            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-            </div>
-            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <div class="rel-section">
-      <h3>Por especialidade cirúrgica</h3>
-      <div class="rel-box">
-        ${espSorted.map(([esp, n]) => {
-          const pct = Math.round((n / maxEsp) * 100);
-          return `<div class="rel-row" style="gap:10px">
-            <span class="rel-row-lbl" style="min-width:120px">${esc(esp)}</span>
-            <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-              <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-            </div>
-            <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
-    ${funcaoSectionHTML()}
-
-    <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
-  `;
+  </div>`;
 }
 
 // Casuística Principal / Ajudante — só aparece quando há actos com função registada
 function funcaoSectionHTML() {
   const porFuncao = { principal: 0, ajudante: 0 };
   for (const p of procedimentos) { if (porFuncao[p.funcao] !== undefined) porFuncao[p.funcao]++; }
-  const entries = Object.entries(porFuncao).filter(([,n]) => n > 0);
-  if (!entries.length) return '';
-  const max = Math.max(...entries.map(([,n]) => n));
-  return `<div class="rel-section">
-    <h3>Por função</h3>
-    <div class="rel-box">
-      ${entries.map(([f, n]) => {
-        const pct = Math.round((n / max) * 100);
-        return `<div class="rel-row" style="gap:10px">
-          <span class="rel-row-lbl" style="min-width:120px">${FUNCAO_LABEL[f]}</span>
-          <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-            <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-          </div>
-          <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
+  const entries = Object.entries(porFuncao).filter(([,n]) => n > 0).map(([f, n]) => [FUNCAO_LABEL[f], n]);
+  return relBarsHTML('Por função', entries);
 }
 
 function exportXLSX() {
@@ -3803,52 +3722,56 @@ function exportXLSX() {
 function renderRecuperacao() {
   const body = document.getElementById('recuperacao-body');
 
-  const emFalta   = procedimentos.filter(p => p.status === 'em_falta');
-  const reclamado = procedimentos.filter(p => p.status === 'reclamado');
-  const pago      = procedimentos.filter(p => p.status === 'pago');
-
-  const totalEmFalta   = emFalta.reduce((s, p) => s + (p.valor || 0), 0);
-  const totalReclamado = reclamado.reduce((s, p) => s + (p.valor || 0), 0);
-  const totalPago      = pago.reduce((s, p) => s + (p.valor || 0), 0);
-
-  const ano = new Date().getFullYear().toString();
-  const totalPagoAno = pago
-    .filter(p => (p.pagoEm || p.data || '').startsWith(ano))
-    .reduce((s, p) => s + (p.valor || 0), 0);
+  // Binário: só contamos casos. Euros só nos recuperados (reclamado → pago),
+  // porque é o único momento em que a fatura nos dá o valor.
+  const nEmFalta    = procedimentos.filter(p => p.status === 'em_falta').length;
+  const nReclamados = procedimentos.filter(p => p.status === 'reclamado').length;
+  const recuperados = procedimentos.filter(p => p.status === 'pago' && p.reclamadoEm);
+  const comValor    = recuperados.filter(p => p.valor != null);
+  const totalEur    = comValor.reduce((s, p) => s + p.valor, 0);
+  const semValor    = recuperados.length - comValor.length;
+  const fmtEur = v => v.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const casos  = n => n === 1 ? 'caso' : 'casos';
 
   body.innerHTML = `
     <div class="rel-cards">
       <div class="rel-card c-falta">
-        <div class="rel-card-val">${(totalEmFalta + totalReclamado).toFixed(2)} €</div>
+        <div class="rel-card-val">${nEmFalta}</div>
         <div class="rel-card-lbl">Em falta</div>
+        <div class="rel-card-sub">por reclamar</div>
       </div>
       <div class="rel-card c-reclamado">
-        <div class="rel-card-val">${totalReclamado.toFixed(2)} €</div>
-        <div class="rel-card-lbl">Em reclamação activa</div>
+        <div class="rel-card-val">${nReclamados}</div>
+        <div class="rel-card-lbl">Reclamados</div>
+        <div class="rel-card-sub">à espera de pagamento</div>
       </div>
       <div class="rel-card c-pago">
-        <div class="rel-card-val">${totalPago.toFixed(2)} €</div>
-        <div class="rel-card-lbl">Total recuperado</div>
-        ${totalPagoAno > 0 ? `<div style="font-size:0.72rem;color:var(--ink3)">${totalPagoAno.toFixed(2)} € em ${ano}</div>` : ''}
+        <div class="rel-card-head">
+          <div class="rel-card-val">${recuperados.length} <span style="font-size:0.9rem;font-weight:600">${casos(recuperados.length)}</span></div>
+          ${comValor.length ? `<div class="rel-card-eur">${fmtEur(totalEur)}</div>` : ''}
+        </div>
+        <div class="rel-card-lbl">Recuperados após reclamação</div>
+        ${semValor > 0 ? `<div class="rel-card-sub">${semValor} ${casos(semValor)} sem valor conhecido (confirmado à mão)</div>` : ''}
       </div>
-    </div>
-    ${(() => {
-      const rejeitados = procedimentos.filter(p => p.status === 'rejeitado');
-      if (!rejeitados.length) return '';
-      const totalRej = rejeitados.reduce((s, p) => s + (p.valor || 0), 0);
-      return `<div style="margin-top:16px;font-size:0.8rem;color:var(--ink3)">
-        Rejeitados: ${rejeitados.length} caso${rejeitados.length !== 1 ? 's' : ''}${totalRej > 0 ? ' · ' + totalRej.toFixed(2) + ' €' : ''}
-      </div>`;
-    })()}`;
+    </div>`;
 
   if (!procedimentos.length) return;
 
   // Casuística — por mês, tipo e especialidade
+  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const porMes = {};
+  for (const p of procedimentos) {
+    const m = (p.data || '').slice(0, 7);
+    if (m) porMes[m] = (porMes[m] || 0) + 1;
+  }
+  // Mais recente primeiro, últimos 12 meses
+  const mesEntries = Object.entries(porMes).sort((a,b) => b[0].localeCompare(a[0])).slice(0, 12)
+    .map(([mes, n]) => { const [y, m] = mes.split('-'); return [mesesNomes[parseInt(m,10)-1] + ' ' + y, n]; });
+
+  const tipoLabels = { cirurgica: 'Cirurgia', gastro: 'Gastroenterologia', anestesia: 'Anestesiologia' };
   const porTipo = { cirurgica: 0, gastro: 0, anestesia: 0 };
   for (const p of procedimentos) { if (porTipo[p.tipo] !== undefined) porTipo[p.tipo]++; }
-  const tipoLabels  = { cirurgica: 'Cirurgia', gastro: 'Gastroenterologia', anestesia: 'Anestesiologia' };
-  const tipoEntries = Object.entries(porTipo).filter(([,n]) => n > 0);
-  const maxTipo     = tipoEntries.length ? Math.max(...tipoEntries.map(([,n]) => n)) : 1;
+  const tipoEntries = Object.entries(porTipo).filter(([,n]) => n > 0).map(([t, n]) => [tipoLabels[t], n]);
 
   const porEsp = {};
   for (const p of procedimentos) {
@@ -3856,67 +3779,13 @@ function renderRecuperacao() {
     const k = p.especialidade || 'Outra';
     porEsp[k] = (porEsp[k] || 0) + 1;
   }
-  const espSorted = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
-  const maxEsp    = espSorted.length ? Math.max(...espSorted.map(x => x[1])) : 1;
-
-  const porMes = {};
-  for (const p of procedimentos) {
-    const m = (p.data || '').slice(0, 7);
-    if (m) porMes[m] = (porMes[m] || 0) + 1;
-  }
-  const mesSorted  = Object.entries(porMes).sort((a,b) => a[0].localeCompare(b[0])).slice(-12);
-  const maxMes     = mesSorted.length ? Math.max(...mesSorted.map(x => x[1])) : 1;
-  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const espEntries = Object.entries(porEsp).sort((a,b) => b[1] - a[1]);
 
   body.insertAdjacentHTML('beforeend', `
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-      <div class="rel-section">
-        <h3>Actos por mês</h3>
-        <div class="rel-box">
-          ${mesSorted.map(([mes, n]) => {
-            const [y, m] = mes.split('-');
-            const label = mesesNomes[parseInt(m,10)-1] + ' ' + y;
-            const pct = Math.round((n / maxMes) * 100);
-            return `<div class="rel-row" style="gap:10px">
-              <span class="rel-row-lbl" style="min-width:64px">${label}</span>
-              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-              </div>
-              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-      <div class="rel-section">
-        <h3>Por tipo de acto</h3>
-        <div class="rel-box">
-          ${tipoEntries.map(([tipo, n]) => {
-            const pct = Math.round((n / maxTipo) * 100);
-            return `<div class="rel-row" style="gap:10px">
-              <span class="rel-row-lbl" style="min-width:120px">${tipoLabels[tipo]}</span>
-              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-              </div>
-              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-      ${espSorted.length ? `<div class="rel-section">
-        <h3>Por especialidade cirúrgica</h3>
-        <div class="rel-box">
-          ${espSorted.map(([esp, n]) => {
-            const pct = Math.round((n / maxEsp) * 100);
-            return `<div class="rel-row" style="gap:10px">
-              <span class="rel-row-lbl" style="min-width:120px">${esc(esp)}</span>
-              <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-                <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
-              </div>
-              <span class="rel-row-val" style="min-width:24px;text-align:right">${n}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:20px">
+      ${relBarsHTML('Actos por mês', mesEntries)}
+      ${relBarsHTML('Por tipo de acto', tipoEntries)}
+      ${relBarsHTML('Por especialidade cirúrgica', espEntries)}
       ${funcaoSectionHTML()}
       <button class="btn-export" onclick="exportXLSX()">⬇ Exportar para Excel</button>
     </div>`);
