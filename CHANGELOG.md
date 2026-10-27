@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-10-27 | Fix | Actos **Gastro** gravam o procedimento escolhido (Endoscopia / Colonoscopia / Endoscopia + Colonoscopia) em vez de "Anestesia Gastro"; ao editar, o selector repõe o valor (commit f819395) |
 | 2026-10-27 | Feature | Perfil **Anestesista / Cirurgião** (pergunta única após o PIN, alterável nas Definições, `userProfile.perfil`). Cirurgião: campo **Função** (Principal/Ajudante) obrigatório em actos cirúrgicos e tipo Gastro escondido; anestesista sem alterações. Função no detalhe, no Excel e na casuística (commit 500d981) |
 | 2026-10-27 | UI | Sugestões de Urologia substituídas pela lista de um urologista utilizador: 18 no autocomplete, 10 em destaque com o campo vazio (`PROC_DESTAQUE`) |
 | 2026-08-19 | UI | Lista de actos em dívida sai da página **Cruzar dados** e passa para a tab **Reclamados**, acima dos já reclamados. A página de cruzamento fica só com o resumo do que foi aplicado; a lista aparece onde se actua sobre ela (copiar para a CUF, marcar como reclamado). `renderDebtBlock()` → `buildDebtBlockHTML()`, que devolve HTML em vez de escrever no DOM |
