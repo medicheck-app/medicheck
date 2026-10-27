@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-10-27 | Fix | **Modo demo voltou a reconciliar**: desde Jun (2301549) o parser de texto exigia o NP entre `[ ]`, pelo que a fatura demo e o formato legado não davam nenhuma linha ("Não foi possível identificar actos"). Sem `[ NP ]` volta a usar o 1.º número de 5-10 dígitos fora da data (commit cbb9909) |
 | 2026-10-27 | UI | **Relatório só com números de casos**: em falta (nº), reclamados (nº) e recuperados (nº + €, só reclamado→pago; nota para os confirmados à mão sem valor). Sai a linha de rejeitados. Casuística em linhas empilhadas legíveis no telemóvel (commit d2879df) |
 | 2026-10-27 | Perf | Entrada na app após o PIN quase instantânea: dados e chave do Drive pré-carregados em paralelo enquanto se escreve o PIN; removido upload duplicado que bloqueava a entrada (~1,6 s → ~20 ms com 400 ms/pedido) (commit 85b7c30) |
 | 2026-10-27 | Feature | **Recuperação do PIN via conta Google**: chave de dados aleatória no Drive (`medicheck_key.json`), PIN passa a cadeado de acesso. "Esqueci o PIN" → confirmar a mesma conta Google → PIN novo sem perder dados. Migração automática do formato antigo no primeiro PIN correcto; mudar o PIN deixa de recifrar os dados (commit 999937f) |
