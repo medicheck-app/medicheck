@@ -132,6 +132,11 @@
     .pk.del { font-size: 0.9rem; color: var(--ink2); }
     .pk.empty { visibility: hidden; pointer-events: none; }
     #pin-error { color: var(--red); font-size: 0.82rem; text-align: center; min-height: 18px; }
+    .pin-forgot {
+      background: none; border: none; color: var(--ink2); font-size: 0.82rem;
+      text-decoration: underline; cursor: pointer; padding: 6px 10px; touch-action: manipulation;
+    }
+    .pin-forgot[hidden] { display: none; }
     @keyframes pin-confirm { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
     .pin-dots.confirming .pin-dot { animation: pin-confirm 0.3s ease; background: #fff; border-color: #fff; }
 
@@ -622,6 +627,7 @@
       <button class="pk" onclick="pinKey('0')">0</button>
       <button class="pk del" onclick="pinDel()">⌫</button>
     </div>
+    <button class="pin-forgot" id="pin-forgot" onclick="forgotPin()" hidden>Esqueci o PIN</button>
   </div>
 
   <!-- ══════════════ PERFIL (pergunta única após o PIN) ══════════════ -->
@@ -918,7 +924,9 @@
         <h1>7. Medidas de Segurança</h1>
         <ul>
           <li>Encriptação AES-256-GCM antes de os dados saírem do dispositivo</li>
-          <li>Chave derivada de PIN pessoal via PBKDF2 (100 000 iterações) — o PIN nunca é armazenado</li>
+          <li>Chave de encriptação aleatória, guardada na pasta privada do Google Drive do utilizador — o acesso aos dados depende da conta Google</li>
+          <li>PIN pessoal como cadeado de acesso no dispositivo, verificado via PBKDF2 (100 000 iterações) — o PIN nunca é armazenado</li>
+          <li>Recuperação de um PIN esquecido apenas após nova confirmação da conta Google. Recomenda-se activar a verificação em dois passos na conta Google</li>
           <li>Dados guardados exclusivamente na pasta privada do Google Drive do utilizador</li>
           <li>Comunicações exclusivamente via HTTPS/TLS</li>
           <li>Sem registos de actividade dos utilizadores</li>
@@ -930,7 +938,7 @@
           <li><strong>GitHub, Inc.</strong> — hosting do código estático (não processa dados pessoais)</li>
         </ul>
         <h1>9. Período de Retenção</h1>
-        <p>O responsável não armazena dados em sistemas próprios. Os dados residem no Google Drive do utilizador pelo período que o próprio determinar. Para eliminar: apagar <code>medicheck_v3_data.enc</code> do Google Drive, revogar acesso em myaccount.google.com e limpar o localStorage nas definições do browser.</p>
+        <p>O responsável não armazena dados em sistemas próprios. Os dados residem no Google Drive do utilizador pelo período que o próprio determinar. Para eliminar: apagar <code>medicheck_v2.enc</code> e <code>medicheck_key.json</code> do Google Drive, revogar acesso em myaccount.google.com e limpar o localStorage nas definições do browser.</p>
         <h1>10. Direitos do Titular</h1>
         <p>Nos termos dos Arts. 15.º a 22.º do RGPD: acesso, rectificação, eliminação, limitação, portabilidade, oposição. Pedidos para <a href="mailto:app.medicheck@gmail.com">app.medicheck@gmail.com</a> com resposta em um mês. Reclamações: <strong>CNPD</strong> — Av. D. Carlos I, 134 – 1.º, 1200-651 Lisboa.</p>
         <h1>11. Armazenamento Local</h1>
@@ -1020,6 +1028,7 @@ const WORKER_URL       = 'https://medicheck-proxy.goncalo-paulino-pereira.worker
 const DRIVE_FILE       = 'medicheck_v2.enc';
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const PBKDF2_SALT      = 'medicheck-v2-salt';
+const KEY_FILE         = 'medicheck_key.json';
 
 // ═══════════════════════════════════════════════════
 // STATE
@@ -1027,7 +1036,12 @@ const PBKDF2_SALT      = 'medicheck-v2-salt';
 if (!crypto.randomUUID) crypto.randomUUID = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 let googleToken   = null;
 let driveFileId   = null;
-let encKey        = null;
+let encKey        = null;   // chave que cifra os dados (a chave de dados, ou a do PIN no formato antigo)
+let pinCryptoKey  = null;  // chave derivada do PIN — só verifica o PIN
+let dekB64        = null;   // chave de dados em base64; null = formato antigo
+let keyFileId     = null;
+let _recoverFlow  = false;
+let _recoverDek   = null;
 let tokenClient   = null;
 let userProfile   = { name: '', email: '' };
 let procedimentos = [];
@@ -1089,6 +1103,21 @@ async function decryptData(b64, key) {
   } catch (e) { return null; }
 }
 
+// Chave de dados aleatória: é ela que cifra os actos. Fica guardada no
+// Drive (KEY_FILE) ao lado dos dados, por isso quem confirma a conta Google
+// recupera o acesso mesmo sem o PIN. O PIN é o cadeado de acesso: verifica-se
+// contra o `pinCheck` do KEY_FILE e nunca cifra os dados directamente.
+// Formato antigo (sem KEY_FILE): os dados vinham cifrados com a chave do PIN —
+// migra-se no primeiro desbloqueio, gravando primeiro a chave e só depois os dados.
+function newDataKey() {
+  return bytesToBase64(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+async function importDataKey(b64) {
+  const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
 // ═══════════════════════════════════════════════════
 // GOOGLE DRIVE
 // ═══════════════════════════════════════════════════
@@ -1126,10 +1155,10 @@ async function driveFetch(url, opts = {}, _retried = false) {
   return r;
 }
 
-async function findDriveFile() {
+async function findDriveFile(name = DRIVE_FILE) {
   try {
     const r = await driveFetch(
-      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE}%27&fields=files(id)`
+      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${name}%27&fields=files(id)`
     );
     if (!r.ok) return { id: null, error: (r.status === 401 || r.status === 403) ? 'auth' : 'network' };
     const d = await r.json();
@@ -1137,6 +1166,57 @@ async function findDriveFile() {
     return { id, error: null };
   } catch { return { id: null, error: 'network' }; }
 }
+
+// PATCH se o ficheiro já existir; cria-o (POST) se não existir ou tiver sido apagado (404)
+async function uploadDriveFile(id, name, blob, type) {
+  if (id) {
+    const r = await driveFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,
+      { method: 'PATCH', headers: { 'Content-Type': type }, body: blob }
+    );
+    if (r.ok) return id;
+    if (r.status !== 404) throw new Error('Drive update ' + r.status);
+  }
+  const meta = JSON.stringify({ name, parents: ['appDataFolder'] });
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', blob);
+  const resp = await driveFetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    { method: 'POST', body: form }
+  );
+  if (!resp.ok) throw new Error('Drive create ' + resp.status);
+  const created = await resp.json();
+  if (!created.id) throw new Error('Drive create: sem ID');
+  return created.id;
+}
+
+// Lê o KEY_FILE. { data: null } = conta no formato antigo (ou sem dados)
+async function readKeyFile() {
+  const f = await findDriveFile(KEY_FILE);
+  if (f.error) return { error: f.error };
+  keyFileId = f.id;
+  if (!f.id) return { data: null };
+  try {
+    const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`);
+    if (!r.ok) return { error: 'network' };
+    const data = JSON.parse(await r.text());
+    if (!data?.dek || !data?.pinCheck) return { error: 'corrupt' };
+    return { data };
+  } catch { return { error: 'network' }; }
+}
+
+// Grava a chave de dados + a verificação do PIN. Lança erro se falhar.
+async function writeKeyFile(dek, pk) {
+  if (!keyFileId) {
+    const f = await findDriveFile(KEY_FILE);   // evita criar um segundo KEY_FILE
+    if (f.error) throw new Error('Drive key ' + f.error);
+    keyFileId = f.id;
+  }
+  const body = JSON.stringify({ v: 1, dek, pinCheck: await encryptData({ ok: 1 }, pk), savedAt: new Date().toISOString() });
+  keyFileId = await uploadDriveFile(keyFileId, KEY_FILE, new Blob([body], { type: 'application/json' }), 'application/json');
+}
+
 window.addEventListener('beforeunload', e => { if (_saveInFlight) { e.preventDefault(); e.returnValue = ''; } });
 
 document.addEventListener('visibilitychange', () => {
@@ -1173,29 +1253,7 @@ async function saveToDrive() {
     const payload = { procedimentos, userProfile, v: 2, savedAt: new Date().toISOString() };
     const enc = await encryptData(payload, encKey);
     const blob = new Blob([enc], { type: 'text/plain' });
-    if (driveFileId) {
-      const patchResp = await driveFetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
-        { method: 'PATCH', headers: { 'Content-Type': 'text/plain' }, body: blob }
-      );
-      // 404: ficheiro apagado no Drive — recriar em vez de falhar para sempre
-      if (patchResp.status === 404) { driveFileId = null; }
-      else if (!patchResp.ok) throw new Error('Drive update ' + patchResp.status);
-    }
-    if (!driveFileId) {
-      const meta = JSON.stringify({ name: DRIVE_FILE, parents: ['appDataFolder'] });
-      const form = new FormData();
-      form.append('metadata', new Blob([meta], { type: 'application/json' }));
-      form.append('file', blob);
-      const resp = await driveFetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-        { method: 'POST', body: form }
-      );
-      if (!resp.ok) throw new Error('Drive create ' + resp.status);
-      const created = await resp.json();
-      if (!created.id) throw new Error('Drive create: sem ID');
-      driveFileId = created.id;
-    }
+    driveFileId = await uploadDriveFile(driveFileId, DRIVE_FILE, blob, 'text/plain');
     saveLocal();
     saveLocalVerify();
     toastSaved();
@@ -1216,10 +1274,28 @@ async function loadFromDrive(pin) {
     const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
     if (!r.ok) return { ok: false, reason: 'network' };
     const enc = await r.text();
-    const key = await deriveKey(pin);
-    const d = await decryptData(enc, key);
-    if (!d) return { ok: false, reason: 'pin' };
-    encKey = key;
+    const kf = await readKeyFile();
+    if (kf.error) return { ok: false, reason: kf.error };
+    const pk = await deriveKey(pin);
+    let d, migrate = false;
+    if (kf.data) {
+      if (!(await decryptData(kf.data.pinCheck, pk))?.ok) return { ok: false, reason: 'pin' };
+      d = await decryptData(enc, await importDataKey(kf.data.dek));
+      // migração interrompida: a chave já está no Drive mas os dados ainda vêm cifrados com o PIN
+      if (!d) { d = await decryptData(enc, pk); migrate = !!d; }
+      if (!d) return { ok: false, reason: 'corrupt' };
+      dekB64 = kf.data.dek;
+    } else {
+      d = await decryptData(enc, pk);
+      if (!d) return { ok: false, reason: 'pin' };
+      // formato antigo: gera a chave de dados e grava-a ANTES de recifrar os dados.
+      // Se a gravação falhar, continua no formato antigo e tenta no próximo login.
+      dekB64 = newDataKey();
+      try { await writeKeyFile(dekB64, pk); migrate = true; }
+      catch { dekB64 = null; }
+    }
+    pinCryptoKey = pk;
+    encKey = dekB64 ? await importDataKey(dekB64) : pk;
     const driveActs = d.procedimentos || [];
     const localData = JSON.parse(localStorage.getItem('mc2') || 'null');
     const localActs = localData?.procedimentos || [];
@@ -1234,7 +1310,8 @@ async function loadFromDrive(pin) {
       if (!userProfile.perfil) userProfile.perfil = d.userProfile.perfil || '';
     }
     saveLocal();
-    if (localExtra.length) await saveToDrive();  // sincroniza actos locais que faltavam no Drive
+    // sincroniza actos locais que faltavam no Drive; na migração recifra os dados com a chave de dados
+    if (localExtra.length || migrate) await saveToDrive();
     return { ok: true };
   } catch { return { ok: false, reason: 'network' }; }
 }
@@ -1262,10 +1339,12 @@ function loadLocal() {
 let _saveT;
 function autoSave() { if (isDemoMode) return; clearTimeout(_saveT); _saveT = setTimeout(saveToDrive, 1500); }
 
+// mc2_verify: verificação offline do PIN; leva a chave de dados (cifrada com o PIN)
+// para o desbloqueio offline conseguir cifrar como online
 async function saveLocalVerify() {
-  if (!encKey) return;
+  if (!pinCryptoKey) return;
   try {
-    const blob = await encryptData({ ok: 1 }, encKey);
+    const blob = await encryptData(dekB64 ? { ok: 1, dek: dekB64 } : { ok: 1 }, pinCryptoKey);
     localStorage.setItem('mc2_verify', blob);
   } catch {}
 }
@@ -1276,7 +1355,9 @@ async function verifyPinLocal(pin) {
   const key = await deriveKey(pin);
   const d = await decryptData(blob, key);
   if (!d?.ok) return { ok: false, reason: 'pin' };
-  encKey = key;
+  pinCryptoKey = key;
+  dekB64 = d.dek || null;
+  encKey = dekB64 ? await importDataKey(dekB64) : key;
   return { ok: true };
 }
 
@@ -1349,17 +1430,20 @@ async function reauthSync() {
   if (!ok) requestGoogleLogin();
 }
 
+function adoptToken(resp) {
+  googleToken = resp.access_token;
+  // margem de 5 min: ensureToken() renova antes de expirar de facto
+  _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
+  clearTimeout(_tokenRefreshT);
+  _tokenRefreshT = setTimeout(silentRefreshToken, Math.max(0, _tokenExpiresAt - Date.now()));
+}
+
 async function onToken(resp) {
+  if (_recoverFlow) { _recoverFlow = false; return recoverAfterGoogle(resp); }
   const silent = _silentRefresh;
   _silentRefresh = false;
 
-  if (!resp.error) {
-    googleToken = resp.access_token;
-    // margem de 5 min: ensureToken() renova antes de expirar de facto
-    _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
-    clearTimeout(_tokenRefreshT);
-    _tokenRefreshT = setTimeout(silentRefreshToken, Math.max(0, _tokenExpiresAt - Date.now()));
-  }
+  if (!resp.error) adoptToken(resp);
 
   // desbloqueia quem esteja à espera em ensureToken()/driveFetch()
   if (_refreshResolve) _refreshResolve(!resp.error);
@@ -1391,7 +1475,78 @@ async function onToken(resp) {
     return;
   }
   driveFileId = driveResult.id;
+  keyFileId = null; dekB64 = null; pinCryptoKey = null;
   showPinScreen(driveFileId ? 'enter' : 'create');
+}
+
+// ═══════════════════════════════════════════════════
+// RECUPERAÇÃO DO PIN — confirma a conta Google e escolhe PIN novo
+// ═══════════════════════════════════════════════════
+function forgotPin() {
+  if (isDemoMode) return;
+  const err = document.getElementById('pin-error');
+  if (!navigator.onLine) { err.textContent = 'Precisas de ligação à internet para recuperar o acesso.'; return; }
+  if (!tokenClient) { err.textContent = 'Google ainda a carregar — tenta daqui a instantes.'; return; }
+  if (!confirm('Para escolher um PIN novo, confirma a tua conta Google. Os teus dados ficam intactos.')) return;
+  _recoverFlow = true;
+  _silentRefresh = false; _refreshResolve = null; _refreshPromise = null;
+  tokenClient.requestAccessToken({ prompt: 'consent', login_hint: userProfile.email || undefined });
+}
+
+async function recoverAfterGoogle(resp) {
+  const err = document.getElementById('pin-error');
+  if (resp.error) { err.textContent = 'Confirmação Google cancelada.'; return; }
+  setSyncing(true, 'A verificar conta…');
+  let email = '';
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + resp.access_token } });
+    email = (await r.json()).email || '';
+  } catch {}
+  // outra conta = outro Drive: não adoptar o token, senão os saves iam parar à conta errada
+  if (userProfile.email && email && email !== userProfile.email) {
+    setSyncing(false, '');
+    err.textContent = 'Escolhe a mesma conta Google (' + userProfile.email + ').';
+    return;
+  }
+  adoptToken(resp);
+  if (email) userProfile.email = email;
+  const df = await findDriveFile();
+  const kf = df.error ? { error: df.error } : await readKeyFile();
+  setSyncing(false, '');
+  if (kf.error) { err.textContent = 'Erro de ligação. Verifica a internet e tenta novamente.'; return; }
+  driveFileId = df.id;
+  if (!driveFileId) { showPinScreen('create'); return; }   // conta sem dados no Drive
+  if (!kf.data) { await resetLegacyAccount(email); return; }
+  _recoverDek = kf.data.dek;
+  showPinScreen('reset');
+}
+
+// Conta ainda no formato antigo: a chave só existe no PIN, não há recuperação.
+// Último recurso: apagar os dados do Drive e recomeçar — mantendo os actos
+// que este dispositivo tenha em cache, se forem da mesma conta.
+async function resetLegacyAccount(email) {
+  let local = null;
+  try { local = JSON.parse(localStorage.getItem('mc2') || 'null'); } catch {}
+  const keep = (local?.userProfile?.email === email && local?.procedimentos?.length) ? local.procedimentos.length : 0;
+  const msg = 'Esta conta ainda usa o formato antigo, em que só o PIN abre os dados no Drive — não é possível recuperá-los.\n\n'
+    + (keep ? `Este dispositivo tem ${keep} actos guardados, que serão mantidos.\n\n` : '')
+    + 'Queres APAGAR os dados do Drive e escolher um PIN novo?';
+  if (!confirm(msg) || !confirm('Tens a certeza? Os dados no Drive são apagados de forma permanente.')) return;
+  setSyncing(true, 'A apagar…');
+  try {
+    const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}`, { method: 'DELETE' });
+    if (!r.ok && r.status !== 404) throw new Error('Drive delete ' + r.status);
+  } catch {
+    setSyncing(false, '');
+    document.getElementById('pin-error').textContent = 'Não foi possível apagar. Tenta novamente.';
+    return;
+  }
+  setSyncing(false, '');
+  driveFileId = null;
+  localStorage.removeItem('mc2_verify');
+  procedimentos = keep ? local.procedimentos : [];
+  if (!keep) localStorage.removeItem('mc2');
+  showPinScreen('create');
 }
 
 function setLoginStatus(msg) { document.getElementById('login-status').textContent = msg; }
@@ -1404,7 +1559,10 @@ function showPinScreen(mode) {
   const firstName = userProfile.name?.split(' ')[0] || '';
   if (mode === 'create') {
     document.getElementById('pin-heading').textContent = 'Criar PIN';
-    document.getElementById('pin-sub').textContent = 'Escolhe um PIN de 4 dígitos para proteger os teus dados';
+    document.getElementById('pin-sub').textContent = 'Escolhe um PIN de 4 dígitos. Se o esqueceres, recuperas o acesso com a conta Google';
+  } else if (mode === 'reset') {
+    document.getElementById('pin-heading').textContent = 'Novo PIN';
+    document.getElementById('pin-sub').textContent = 'Conta confirmada. Escolhe um novo PIN de 4 dígitos';
   } else if (mode === 'change') {
     document.getElementById('pin-heading').textContent = 'Novo PIN';
     document.getElementById('pin-sub').textContent = 'Escolhe um novo PIN de 4 dígitos';
@@ -1415,6 +1573,8 @@ function showPinScreen(mode) {
     document.getElementById('pin-heading').textContent = firstName ? 'Olá, ' + firstName : 'Introduz o PIN';
     document.getElementById('pin-sub').textContent = 'Introduz o teu PIN para desbloquear';
   }
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-forgot').hidden = !(mode === 'enter' || mode === 'resume');
   updatePinDots(); showScreen('screen-pin');
 }
 
@@ -1484,54 +1644,77 @@ async function handlePin() {
     } else {
       document.getElementById('pin-error').textContent = result.reason === 'network'
         ? 'Erro de ligação. Verifica a internet e tenta novamente.'
-        : 'PIN incorrecto. Tenta novamente.';
+        : result.reason === 'corrupt'
+          ? 'Não foi possível abrir os dados no Drive. Contacta app.medicheck@gmail.com.'
+          : 'PIN incorrecto. Tenta novamente.';
       pinBuf = ''; updatePinDots();
     }
-  } else if (pinMode === 'change') {
-    if (!pinConfirm) {
-      pinConfirm = pinBuf; pinBuf = '';
-      document.getElementById('pin-heading').textContent = 'Confirmar novo PIN';
-      document.getElementById('pin-sub').textContent = 'Repete o novo PIN para confirmar';
-      updatePinDots();
+    return;
+  }
+
+  // create / change / reset: pedir o PIN duas vezes
+  const isCreate = pinMode === 'create';
+  if (!pinConfirm) {
+    pinConfirm = pinBuf; pinBuf = '';
+    document.getElementById('pin-heading').textContent = isCreate ? 'Confirmar PIN' : 'Confirmar novo PIN';
+    document.getElementById('pin-sub').textContent = isCreate ? 'Repete o PIN para confirmar' : 'Repete o novo PIN para confirmar';
+    updatePinDots();
+    return;
+  }
+  if (pinBuf !== pinConfirm) {
+    document.getElementById('pin-error').textContent = 'Os PINs não coincidem. Tenta de novo.';
+    pinBuf = ''; pinConfirm = '';
+    document.getElementById('pin-heading').textContent = isCreate ? 'Criar PIN' : 'Novo PIN';
+    document.getElementById('pin-sub').textContent = isCreate ? 'Escolhe um PIN de 4 dígitos' : 'Escolhe um novo PIN de 4 dígitos';
+    updatePinDots();
+    return;
+  }
+  const pk = await deriveKey(pinBuf);
+  const failPin = msg => {
+    setSyncing(false, '');
+    document.getElementById('pin-error').textContent = msg;
+    pinBuf = ''; pinConfirm = ''; updatePinDots();
+  };
+
+  if (pinMode === 'change') {
+    setSyncing(true, 'A guardar novo PIN…');
+    if (dekB64) {
+      // só muda a verificação do PIN; os dados não são recifrados
+      try { await writeKeyFile(dekB64, pk); }
+      catch { failPin('Não foi possível mudar o PIN — precisas de ligação à internet.'); return; }
+      pinCryptoKey = pk;
+      await saveLocalVerify();
     } else {
-      if (pinBuf !== pinConfirm) {
-        document.getElementById('pin-error').textContent = 'Os PINs não coincidem. Tenta de novo.';
-        pinBuf = ''; pinConfirm = '';
-        document.getElementById('pin-heading').textContent = 'Novo PIN';
-        document.getElementById('pin-sub').textContent = 'Escolhe um novo PIN de 4 dígitos';
-        updatePinDots();
-        return;
-      }
-      setSyncing(true, 'A guardar novo PIN…');
-      encKey = await deriveKey(pinBuf);
+      // formato antigo (migração ainda não feita): comportamento de sempre
+      pinCryptoKey = encKey = pk;
       await saveToDrive();
-      setSyncing(false, '');
-      toast('PIN alterado com sucesso!');
-      showScreen('screen-dashboard');
     }
+    setSyncing(false, '');
+    toast('PIN alterado com sucesso!');
+    showScreen('screen-dashboard');
+  } else if (pinMode === 'reset') {
+    setSyncing(true, 'A guardar novo PIN…');
+    try { await writeKeyFile(_recoverDek, pk); }
+    catch { failPin('Erro de ligação. Verifica a internet e tenta novamente.'); return; }
+    const result = await loadFromDrive(pinBuf);
+    if (!result.ok) { failPin('Não foi possível abrir os dados no Drive. Tenta novamente.'); return; }
+    _recoverDek = null;
+    await saveLocalVerify();
+    setSyncing(false, '');
+    checkEmFaltaByTime();
+    toast('PIN novo definido!');
+    renderDashboard(); enterAfterPin();
   } else {
-    // create mode
-    if (!pinConfirm) {
-      pinConfirm = pinBuf; pinBuf = '';
-      document.getElementById('pin-heading').textContent = 'Confirmar PIN';
-      document.getElementById('pin-sub').textContent = 'Repete o PIN para confirmar';
-      updatePinDots();
-    } else {
-      if (pinBuf !== pinConfirm) {
-        document.getElementById('pin-error').textContent = 'Os PINs não coincidem. Tenta de novo.';
-        pinBuf = ''; pinConfirm = '';
-        document.getElementById('pin-heading').textContent = 'Criar PIN';
-        document.getElementById('pin-sub').textContent = 'Escolhe um PIN de 4 dígitos';
-        updatePinDots();
-        return;
-      }
-      setSyncing(true, 'A criar conta…');
-      encKey = await deriveKey(pinBuf);
-      await saveToDrive();
-      setSyncing(false, '');
-      toast('Conta criada com sucesso!');
-      renderDashboard(); enterAfterPin();
-    }
+    setSyncing(true, 'A criar conta…');
+    pinCryptoKey = pk;
+    dekB64 = newDataKey();
+    // sem ligação para gravar a chave: fica no formato antigo e migra no próximo login
+    try { await writeKeyFile(dekB64, pk); } catch { dekB64 = null; }
+    encKey = dekB64 ? await importDataKey(dekB64) : pk;
+    await saveToDrive();
+    setSyncing(false, '');
+    toast('Conta criada com sucesso!');
+    renderDashboard(); enterAfterPin();
   }
 }
 
@@ -3419,6 +3602,7 @@ function changePIN() {
 function logout() {
   if (!confirm('Sair da conta? Os dados ficam guardados no Drive.')) return;
   googleToken = null; driveFileId = null; encKey = null;
+  pinCryptoKey = null; dekB64 = null; keyFileId = null; _recoverDek = null;
   userProfile = { name: '', email: '' }; procedimentos = [];
   showScreen('screen-login');
 }
