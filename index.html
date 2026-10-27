@@ -2728,7 +2728,13 @@ function processCUFText(text, status, out, rawItems = [], cufRows = []) {
     let isISO = true;
     if (!dm) { dm = dateReLegacy.exec(raw); isISO = false; }
     if (!dm) continue;
-    const procMatch = npRe.exec(raw);
+    // Sem [ NP ] (formato legado e demo): primeiro número de 5–10 dígitos fora da data
+    let procMatch = npRe.exec(raw);
+    if (!procMatch) {
+      for (const m of raw.matchAll(/\b(\d{5,10})\b/g)) {
+        if (m.index < dm.index || m.index >= dm.index + dm[0].length) { procMatch = m; break; }
+      }
+    }
     if (!procMatch) continue;
     const proc = procMatch[1];
     let date;
