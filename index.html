@@ -1208,6 +1208,7 @@ async function readKeyFile() {
 
 // Grava a chave de dados + a verificação do PIN. Lança erro se falhar.
 async function writeKeyFile(dek, pk) {
+  _drivePrefetch = null;   // o KEY_FILE pré-carregado deixa de valer
   if (!keyFileId) {
     const f = await findDriveFile(KEY_FILE);   // evita criar um segundo KEY_FILE
     if (f.error) throw new Error('Drive key ' + f.error);
@@ -1268,13 +1269,33 @@ async function saveToDrive() {
   }
 }
 
+// Descarrega dados + chave em paralelo. Chamado logo que o ecrã do PIN aparece,
+// para a rede correr enquanto o utilizador escreve — ao introduzir o PIN só falta
+// decifrar. Invalidado (null) quando o KEY_FILE muda ou a sessão termina.
+let _drivePrefetch = null;
+function fetchDriveBundle() {
+  const id = driveFileId;
+  return Promise.all([
+    driveFetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`)
+      .then(r => r.ok ? r.text() : null).catch(() => null),
+    readKeyFile()
+  ]).then(([enc, kf]) => ({ id, enc, kf }));
+}
+function prefetchDrive() {
+  _drivePrefetch = (googleToken && driveFileId) ? fetchDriveBundle() : null;
+}
+
 async function loadFromDrive(pin) {
   if (!googleToken || !driveFileId) return { ok: false, reason: 'network' };
   try {
-    const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
-    if (!r.ok) return { ok: false, reason: 'network' };
-    const enc = await r.text();
-    const kf = await readKeyFile();
+    let b = _drivePrefetch ? await _drivePrefetch : null;
+    // sem prefetch, ou falhou/está desactualizado: buscar agora (em paralelo na mesma)
+    if (!b || b.id !== driveFileId || b.enc == null || b.kf.error) {
+      b = await fetchDriveBundle();
+      _drivePrefetch = Promise.resolve(b);   // um PIN errado não volta a descarregar
+    }
+    const { enc, kf } = b;
+    if (enc == null) return { ok: false, reason: 'network' };
     if (kf.error) return { ok: false, reason: kf.error };
     const pk = await deriveKey(pin);
     let d, migrate = false;
@@ -1300,9 +1321,7 @@ async function loadFromDrive(pin) {
     const localData = JSON.parse(localStorage.getItem('mc2') || 'null');
     const localActs = localData?.procedimentos || [];
     const localIds   = new Set(localActs.map(p => p.id));
-    const driveIds   = new Set(driveActs.map(p => p.id));
     const driveExtra = driveActs.filter(p => !localIds.has(p.id));  // no Drive mas não em local
-    const localExtra = localActs.filter(p => !driveIds.has(p.id));  // em local mas não no Drive
     procedimentos    = [...localActs, ...driveExtra];                // local tem prioridade
     if (d.userProfile) {
       if (!userProfile.name)   userProfile.name   = d.userProfile.name   || '';
@@ -1310,8 +1329,9 @@ async function loadFromDrive(pin) {
       if (!userProfile.perfil) userProfile.perfil = d.userProfile.perfil || '';
     }
     saveLocal();
-    // sincroniza actos locais que faltavam no Drive; na migração recifra os dados com a chave de dados
-    if (localExtra.length || migrate) await saveToDrive();
+    _drivePrefetch = null;
+    // Sem save aqui: quem chama faz saveToDrive() em background depois de entrar
+    // (sincroniza actos locais em falta no Drive e, na migração, recifra com a chave de dados)
     return { ok: true };
   } catch { return { ok: false, reason: 'network' }; }
 }
@@ -1477,6 +1497,7 @@ async function onToken(resp) {
   driveFileId = driveResult.id;
   keyFileId = null; dekB64 = null; pinCryptoKey = null;
   showPinScreen(driveFileId ? 'enter' : 'create');
+  prefetchDrive();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1702,6 +1723,7 @@ async function handlePin() {
     await saveLocalVerify();
     setSyncing(false, '');
     checkEmFaltaByTime();
+    saveToDrive();
     toast('PIN novo definido!');
     renderDashboard(); enterAfterPin();
   } else {
@@ -3602,7 +3624,7 @@ function changePIN() {
 function logout() {
   if (!confirm('Sair da conta? Os dados ficam guardados no Drive.')) return;
   googleToken = null; driveFileId = null; encKey = null;
-  pinCryptoKey = null; dekB64 = null; keyFileId = null; _recoverDek = null;
+  pinCryptoKey = null; dekB64 = null; keyFileId = null; _recoverDek = null; _drivePrefetch = null;
   userProfile = { name: '', email: '' }; procedimentos = [];
   showScreen('screen-login');
 }
