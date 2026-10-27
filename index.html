@@ -1946,7 +1946,12 @@ const PROC_SUGESTOES = {
   'Oftalmologia':            ['Facoemulsificação — catarata','Vitrectomia posterior','Trabeculectomia','Cirurgia de estrabismo','Blefaroplastia','Crosslinking córnea','Dacriocistorrinostomia'],
   'Ortopedia':               ['Artroscopia do joelho','Artroplastia total do joelho','Artroplastia total da anca','Artroscopia do ombro','Meniscectomia parcial','Reconstrução do LCA','Osteossíntese de fractura','Hallux valgus — osteotomia','Artrodese lombar','Artroplastia do ombro','Epicondilite — cirurgia','Síndrome do túnel cárpico'],
   'Otorrinolaringologia':    ['Amigdalectomia','Adenoidectomia','Septoplastia','Turbinoplastia','Timpanoplastia','Dreno transtimpânico','Parotidectomia parcial','Rinoplastia funcional','FESS — cirurgia endoscópica seios'],
-  'Urologia':                ['Nefrectomia radical','Prostatectomia radical','RTUP — ressecção transuretral','Cistoscopia + biópsia','Litotrícia endoscópica (URSS)','Pieloplastia','Orquidopexia','Vasectomia','Uretrorrafia','Postectomia'],
+  'Urologia':                ['RTU-V','Uretrotomia interna','URC','RIRS','Prostatectomia radical','Aquablação','Extracção de stent','Toxina botulínica','Nefrostomia','Hidrocelo','Quisto renal','Quisto do epidídimo','Varicocelo','Condilomas genitais','Corte de freio','Sacrocolpopexia laparoscópica','TOT','Fístula vesico-vaginal'],
+};
+
+// Com o campo vazio mostram-se só estas; ao escrever, o filtro corre sobre a lista completa
+const PROC_DESTAQUE = {
+  'Urologia':                ['RTU-V','Uretrotomia interna','URC','RIRS','Prostatectomia radical','Aquablação','Extracção de stent','Toxina botulínica','Nefrostomia','Hidrocelo'],
 };
 
 let _procSuggInit = false;
@@ -1965,9 +1970,10 @@ function initProcSuggestions() {
   function renderSuggs(filter) {
     const all = getSuggs();
     const q   = (filter || '').toLowerCase().trim();
+    const esp = document.getElementById('f-especialidade').value;
     const filtered = q
       ? all.filter(s => s.toLowerCase().includes(q))
-      : all;
+      : (PROC_DESTAQUE[esp] || all);
     if (!filtered.length) { list.classList.remove('open'); return; }
     list.innerHTML = filtered.map(s => {
       const idx = s.toLowerCase().indexOf(q);
