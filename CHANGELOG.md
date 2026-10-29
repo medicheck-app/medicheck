@@ -6,6 +6,7 @@
 
 | Data | Tipo | Resumo |
 |------|------|--------|
+| 2026-10-29 | Fix | Regresso à app: só PIN (sem ecrã de login), token renovado no toque do PIN, sync por trás; popup Google cancelado já não prende o botão (9511d16) |
 | 2026-10-29 | UI | Urologia: as 18 sugestões do urologista voltam a aparecer todas com o campo vazio, pela ordem da lista dele; sai o destaque de 10 (`PROC_DESTAQUE`) |
 | 2026-10-29 | Segurança | Nomes do demo confirmados fictícios (cruzados com os extractos CUF e CSV locais); o único NP coincidente com uma listagem real (199505) passou a 618342 |
 | 2026-10-29 | Segurança | O `CLAUDE.md` deixou de ser publicado (`.gitignore`) e foi apagado de todo o histórico com `git filter-repo` + force push; exemplo de NP real no `index.html` trocado por fictício |
