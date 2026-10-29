@@ -1134,8 +1134,8 @@ async function importDataKey(b64) {
 // ═══════════════════════════════════════════════════
 let _saveInFlight = false;
 let _tokenExpiresAt = 0;
-let _tokenRefreshT;
 let _silentRefresh = false;
+let _interactiveLogin = false;
 let _refreshResolve = null;
 let _refreshPromise = null;
 let _backgroundAt = 0;
@@ -1147,10 +1147,15 @@ let _lastSyncError = '';
 // em background (mobile/PWA) e muitas vezes nunca dispara — por isso
 // validamos sempre a validade aqui, no momento do pedido.
 async function ensureToken() {
-  if (googleToken && Date.now() < _tokenExpiresAt) return true;
+  if (tokenValid()) return true;
   if (!tokenClient) return false;
+  if (_refreshPromise) return await _refreshPromise;
+  // A renovação abre sempre um popup do Google; sem gesto do utilizador o
+  // browser bloqueia-o. Nesse caso falha já (banner "Login") em vez de esperar.
+  if (navigator.userActivation && !navigator.userActivation.isActive) return false;
   return await silentRefreshToken();
 }
+function tokenValid() { return !!googleToken && Date.now() < _tokenExpiresAt; }
 
 // Wrapper de fetch para o Drive: injecta o token, renova-o se expirou
 // e repete o pedido uma vez em caso de 401/403 (token expirado/revogado).
@@ -1234,26 +1239,29 @@ window.addEventListener('beforeunload', e => { if (_saveInFlight) { e.preventDef
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     _backgroundAt = Date.now();
-    if (encKey && !isDemoMode && !_saveInFlight) { clearTimeout(_saveT); saveToDrive(); }
+    // Só envia se o token ainda servir: renovar aqui abriria um popup sem gesto.
+    // Também é o que acontece quando o popup do Google abre por cima da app —
+    // um save aqui empurrava os dados locais antes do merge do regresso.
+    if (encKey && !isDemoMode && !_saveInFlight) {
+      clearTimeout(_saveT);
+      if (tokenValid()) saveToDrive(); else saveLocal();
+    }
   } else {
     const awayMs = Date.now() - _backgroundAt;
-    if (encKey && !isDemoMode && _backgroundAt > 0 && awayMs >= 60 * 60 * 1000) {
+    const onPin = document.getElementById('screen-pin').classList.contains('active');
+    // Regresso após 1h, ou com o token expirado: pede o PIN. O toque no PIN é o
+    // gesto que deixa renovar o token sem o popup ser bloqueado (ver pinKey).
+    // Já não se volta ao ecrã de login: os dados continuam em memória.
+    if (encKey && !isDemoMode && _backgroundAt > 0 && !onPin && !_refreshPromise
+        && (awayMs >= 60 * 60 * 1000 || !tokenValid())) {
       const activeEl = document.querySelector('.screen.active');
       _lastActiveScreen = activeEl ? activeEl.id : 'screen-dashboard';
-      if (_tokenExpiresAt > Date.now()) {
-        showPinScreen('resume');
-      } else {
-        showScreen('screen-login');
-      }
-    } else if (encKey && !isDemoMode && googleToken && Date.now() >= _tokenExpiresAt) {
-      // Ausência curta (< 1h) mas token já expirado: renovar em silêncio,
-      // senão o próximo save falha com 401 e aparece o banner de sync.
-      silentRefreshToken();
+      showPinScreen('resume');
     }
   }
 });
 
-const _saveIntervalId = setInterval(() => { if (encKey && googleToken && !isDemoMode && !_saveInFlight) saveToDrive(); }, 5 * 60 * 1000);
+const _saveIntervalId = setInterval(() => { if (encKey && tokenValid() && !isDemoMode && !_saveInFlight) saveToDrive(); }, 5 * 60 * 1000);
 
 async function saveToDrive() {
   if (!googleToken || !encKey) { saveLocal(); return; }
@@ -1398,7 +1406,8 @@ async function verifyPinLocal(pin) {
 function initGIS() {
   if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 400); return; }
   tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE, callback: onToken
+    client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE, callback: onToken,
+    error_callback: onTokenError
   });
   const btn = document.getElementById('btn-google');
   if (btn) { btn.disabled = false; btn.childNodes[btn.childNodes.length - 1].textContent = ' Entrar com Google'; }
@@ -1413,7 +1422,7 @@ initGIS();
 // resolve a false em vez de deixar _silentRefresh preso a true — que era
 // o que bloqueava todos os logins seguintes.
 function silentRefreshToken() {
-  if (isDemoMode || !tokenClient) return Promise.resolve(false);
+  if (isDemoMode || !tokenClient || _interactiveLogin) return Promise.resolve(false);
   if (_refreshPromise) return _refreshPromise;
   let done, settled = false, guardT;
   const p = new Promise(resolve => {
@@ -1431,10 +1440,33 @@ function silentRefreshToken() {
     _silentRefresh = true;
   });
   _refreshPromise = p;
-  guardT = setTimeout(() => done(false), 15000);
-  try { tokenClient.requestAccessToken({ prompt: '' }); }
+  // 60s: se o Google pedir para escolher a conta, o utilizador precisa de tempo;
+  // popup fechado/bloqueado resolve logo pelo onTokenError
+  guardT = setTimeout(() => done(false), 60000);
+  try { tokenClient.requestAccessToken({ prompt: '', hint: userProfile.email || undefined }); }
   catch { done(false); }
   return p;
+}
+
+// Popup bloqueado, fechado pelo utilizador ou erro do Google. Sem isto o
+// botão ficava preso em "A ligar…" e quem esperava pelo token só desistia
+// ao fim do timeout — era o "tenho de repetir uma ou duas vezes".
+function onTokenError(err) {
+  const type = err?.type || 'unknown';
+  if (_refreshResolve) _refreshResolve(false);
+  if (_recoverFlow) {
+    _recoverFlow = false;
+    document.getElementById('pin-error').textContent = 'Confirmação Google cancelada.';
+    return;
+  }
+  if (_interactiveLogin) {
+    _interactiveLogin = false;
+    const btn = document.getElementById('btn-google');
+    btn.disabled = false; btn.textContent = 'Entrar com Google';
+    setLoginStatus(type === 'popup_failed_to_open'
+      ? 'O browser bloqueou a janela do Google — tenta novamente.'
+      : 'Login cancelado — tenta novamente.');
+  }
 }
 
 function requestGoogleLogin() {
@@ -1445,47 +1477,52 @@ function requestGoogleLogin() {
   }
   if (!tokenClient) { setLoginStatus('Google ainda a carregar — tenta daqui a instantes.'); return; }
   _silentRefresh = false; _refreshResolve = null; _refreshPromise = null;
+  setLoginStatus('');
   const btn = document.getElementById('btn-google');
   btn.disabled = true; btn.textContent = 'A ligar…';
+  // Marca o login como interactivo: um save disparado quando o popup tapa a app
+  // já não consegue lançar uma renovação "silenciosa" que roubava este token
+  _interactiveLogin = true;
   tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
-// Botão "Login" do banner de sync: tenta primeiro renovar em silêncio
-// (aqui há gesto do utilizador, por isso o popup não é bloqueado) e só
-// pede consentimento completo se isso falhar.
+// Botão "Login" do banner de sync: o toque é o gesto que deixa abrir o popup
 async function reauthSync() {
   const btn = document.getElementById('offline-banner-btn');
   btn.disabled = true; btn.textContent = 'A ligar…';
   const ok = await silentRefreshToken();
   btn.disabled = false; btn.textContent = 'Login';
-  if (!ok) requestGoogleLogin();
+  if (ok) syncAfterRefresh();
+  else showOfflineBanner('sync_fail', 'login Google não concluído');
+}
+
+// Depois de renovar o token: actualiza o ID do ficheiro se faltar e envia
+async function syncAfterRefresh() {
+  if (!encKey || isDemoMode || _saveInFlight) return;
+  if (!driveFileId) { const df = await findDriveFile(); if (df.id) driveFileId = df.id; }
+  saveToDrive();
 }
 
 function adoptToken(resp) {
   googleToken = resp.access_token;
-  // margem de 5 min: ensureToken() renova antes de expirar de facto
+  // margem de 5 min: ensureToken() renova antes de expirar de facto.
+  // Sem timer de renovação: sem gesto do utilizador o popup é bloqueado,
+  // por isso renova-se ao regressar à app (PIN) ou no próximo save.
   _tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
-  clearTimeout(_tokenRefreshT);
-  _tokenRefreshT = setTimeout(silentRefreshToken, Math.max(0, _tokenExpiresAt - Date.now()));
 }
 
 async function onToken(resp) {
   if (_recoverFlow) { _recoverFlow = false; return recoverAfterGoogle(resp); }
-  const silent = _silentRefresh;
-  _silentRefresh = false;
+  const silent = _silentRefresh && !_interactiveLogin;
+  _silentRefresh = false; _interactiveLogin = false;
 
   if (!resp.error) adoptToken(resp);
 
   // desbloqueia quem esteja à espera em ensureToken()/driveFetch()
+  // (quem pediu a renovação é que decide se sincroniza)
   if (_refreshResolve) _refreshResolve(!resp.error);
 
-  if (silent) {
-    if (!resp.error && encKey && !_saveInFlight) {
-      if (!driveFileId) { const df = await findDriveFile(); if (df.id) driveFileId = df.id; }
-      saveToDrive();
-    }
-    return;
-  }
+  if (silent) return;
 
   const btn = document.getElementById('btn-google');
   btn.disabled = false; btn.textContent = 'Entrar com Google';
@@ -1615,6 +1652,9 @@ function pinKey(d) {
   pinBuf += d; updatePinDots();
   document.getElementById('pin-error').textContent = '';
   if (pinBuf.length === 4) {
+    // Regresso com o token expirado: renovar JÁ, dentro do toque — fora do
+    // gesto o browser bloqueia o popup do Google. Corre enquanto o PIN é verificado.
+    if (pinMode === 'resume' && !tokenValid() && navigator.onLine) silentRefreshToken();
     const dots = document.querySelector('.pin-dots');
     dots.classList.add('confirming');
     setTimeout(() => dots.classList.remove('confirming'), 350);
@@ -1634,9 +1674,12 @@ function updatePinDots() {
 
 async function handlePin() {
   if (pinMode === 'resume') {
-    const result = await verifyPinLocal(pinBuf);
+    const pin = pinBuf;
+    const result = await verifyPinLocal(pin);
     if (result.ok) {
+      // volta logo ao ecrã onde estava; a sincronização corre por trás
       showScreen(_lastActiveScreen);
+      resumeSync(pin);
     } else {
       document.getElementById('pin-error').textContent = 'PIN incorrecto. Tenta novamente.';
       pinBuf = ''; updatePinDots();
@@ -1667,7 +1710,7 @@ async function handlePin() {
       checkEmFaltaByTime();
       if (result.offline) {
         toast('Offline — a sincronizar quando houver ligação.');
-        silentRefreshToken();
+        silentRefreshToken().then(ok => { if (ok) syncAfterRefresh(); });
       } else {
         toast('Bem-vindo' + (userProfile.name ? ', ' + userProfile.name.split(' ')[0] : '') + '!');
         saveToDrive(); // sincroniza dados locais (offline) de volta ao Drive após login
@@ -1755,6 +1798,28 @@ async function handlePin() {
 // PERFIL — anestesista | cirurgiao (vazio = ainda não escolhido)
 // ═══════════════════════════════════════════════════
 function isCirurgiao() { return userProfile.perfil === 'cirurgiao'; }
+
+// Regresso à app após o PIN 'resume': espera pelo token (pedido no toque do PIN),
+// junta o que outro dispositivo tenha gravado no Drive — merge, o local tem
+// prioridade, nunca overwrite — e envia. Tudo por trás do ecrã já visível.
+async function resumeSync(pin) {
+  if (isDemoMode || !navigator.onLine) return;
+  if (!tokenValid()) {
+    const ok = _refreshPromise ? await _refreshPromise : false;
+    if (!ok) { showOfflineBanner('sync_fail', 'sessão Google expirada'); return; }
+  }
+  toastTop('A sincronizar…');
+  saveLocal();   // o merge do loadFromDrive parte do mc2
+  if (!driveFileId) { const df = await findDriveFile(); if (df.id) driveFileId = df.id; }
+  if (driveFileId) {
+    const before = procedimentos.length;
+    _drivePrefetch = null;
+    const r = await loadFromDrive(pin);
+    if (!r.ok && r.reason === 'network') { showOfflineBanner('sync_fail', 'erro de ligação'); return; }
+    if (procedimentos.length !== before) renderDashboard();
+  }
+  if (!_saveInFlight) saveToDrive();
+}
 
 // Quem ainda não tem perfil responde uma vez, logo após o PIN
 function enterAfterPin() {
