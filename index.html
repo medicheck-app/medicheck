@@ -1268,9 +1268,25 @@ async function saveToDrive() {
   if (!Array.isArray(procedimentos) || procedimentos.some(p => !p.id || !p.status)) {
     toast('⚠️ Dados inválidos — sync cancelado'); return;
   }
+  if (_saveInFlight) { autoSave(); return; }
   _saveInFlight = true;
+  saveLocal();
   try {
-    const payload = { procedimentos, userProfile, v: 2, savedAt: new Date().toISOString() };
+    // Ler antes de escrever: outro dispositivo pode ter gravado desde a nossa última
+    // leitura, e um upload directo apagava-lhe as alterações (o último a gravar ganhava)
+    if (driveFileId) {
+      const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+      if (r.ok) {
+        const enc = await r.text();
+        const remote = (await decryptData(enc, encKey))
+          || (pinCryptoKey && pinCryptoKey !== encKey ? await decryptData(enc, pinCryptoKey) : null);
+        if (!remote) throw new Error('dados no Drive ilegíveis');
+        stampChanges();   // alterações feitas enquanto o pedido corria
+        if (mergeActsInto(procedimentos, apagados, remote.procedimentos, remote.apagados)) renderDashboard();
+        baselineActs();
+      } else if (r.status !== 404) throw new Error('Drive GET ' + r.status);
+    }
+    const payload = { procedimentos, userProfile, apagados, v: 2, savedAt: new Date().toISOString() };
     const enc = await encryptData(payload, encKey);
     const blob = new Blob([enc], { type: 'text/plain' });
     driveFileId = await uploadDriveFile(driveFileId, DRIVE_FILE, blob, 'text/plain');
@@ -1336,12 +1352,11 @@ async function loadFromDrive(pin) {
     }
     pinCryptoKey = pk;
     encKey = dekB64 ? await importDataKey(dekB64) : pk;
-    const driveActs = d.procedimentos || [];
     const localData = JSON.parse(localStorage.getItem('mc2') || 'null');
-    const localActs = localData?.procedimentos || [];
-    const localIds   = new Set(localActs.map(p => p.id));
-    const driveExtra = driveActs.filter(p => !localIds.has(p.id));  // no Drive mas não em local
-    procedimentos    = [...localActs, ...driveExtra];                // local tem prioridade
+    procedimentos = localData?.procedimentos || [];
+    apagados      = localData?.apagados || {};
+    mergeActsInto(procedimentos, apagados, d.procedimentos, d.apagados);   // ganha a versão mais recente
+    baselineActs();
     if (d.userProfile) {
       if (!userProfile.name)   userProfile.name   = d.userProfile.name   || '';
       if (!userProfile.email)  userProfile.email  = d.userProfile.email  || '';
@@ -1356,16 +1371,76 @@ async function loadFromDrive(pin) {
 }
 
 // ═══════════════════════════════════════════════════
+// VERSÕES POR ACTO (fusão entre dispositivos)
+// ═══════════════════════════════════════════════════
+// Cada acto leva updatedAt; na fusão ganha a versão mais recente, não "local ganha
+// sempre" (um telemóvel desactualizado devolvia ao Drive actos já pagos noutro
+// dispositivo). Actos apagados ficam em `apagados` {id: data} para não renascerem.
+// Em vez de carimbar cada sítio que mexe num acto, compara-se com a fotografia
+// tirada na última carga/fusão: o que mudou desde então recebe a data de agora.
+let apagados = {};
+let _actSnap = null;   // id → JSON do acto (sem updatedAt) na última carga/fusão
+
+function actKey(p) { const { updatedAt, ...r } = p; return JSON.stringify(r); }
+function baselineActs() { _actSnap = new Map(procedimentos.map(p => [p.id, actKey(p)])); }
+function stampChanges() {
+  if (isDemoMode) return;
+  if (!_actSnap) { baselineActs(); return; }
+  const now = new Date().toISOString();
+  for (const p of procedimentos) {
+    const k = actKey(p);
+    if (_actSnap.get(p.id) !== k) { p.updatedAt = now; _actSnap.set(p.id, k); }
+  }
+}
+
+// Funde `remote` em `acts` NO SÍTIO — mantém a identidade dos objectos locais, porque
+// a fila do Confirma e o ecrã de detalhe guardam referências para eles.
+// Actos de antes desta versão não têm updatedAt: entre dois desses ganha o estado mais
+// avançado (o pago feito no PC não volta a "em falta" vindo de um telemóvel antigo).
+// Restantes empates → fica o local. Devolve quantos actos mudaram por causa do remoto.
+const STATUS_ORDEM = { registado: 0, em_falta: 1, reclamado: 2, rejeitado: 3, pago: 4 };
+function remoteGanha(r, cur) {
+  if (r.updatedAt || cur.updatedAt) return (r.updatedAt || '') > (cur.updatedAt || '');
+  return (STATUS_ORDEM[r.status] ?? 0) > (STATUS_ORDEM[cur.status] ?? 0);
+}
+function mergeActsInto(acts, del, remote, remoteDel) {
+  for (const [id, t] of Object.entries(remoteDel || {})) if (!del[id] || t > del[id]) del[id] = t;
+  const byId = new Map(acts.map(p => [p.id, p]));
+  let changed = 0;
+  for (const r of remote || []) {
+    if (!r || !r.id) continue;
+    const cur = byId.get(r.id);
+    if (!cur) { acts.push(r); byId.set(r.id, r); changed++; }
+    else if (remoteGanha(r, cur)) {
+      for (const k of Object.keys(cur)) delete cur[k];
+      Object.assign(cur, r); changed++;
+    }
+  }
+  // apagado noutro dispositivo depois da última alteração → sai; editado depois → fica
+  for (let i = acts.length - 1; i >= 0; i--) {
+    const t = del[acts[i].id];
+    if (t && (acts[i].updatedAt || '') <= t) { acts.splice(i, 1); changed++; }
+  }
+  // registos de apagados com mais de um ano já não têm cópias antigas por aí
+  const limite = new Date(Date.now() - 365 * 864e5).toISOString();
+  for (const id of Object.keys(del)) if (del[id] < limite) delete del[id];
+  return changed;
+}
+
+// ═══════════════════════════════════════════════════
 // LOCAL STORAGE
 // ═══════════════════════════════════════════════════
 function saveLocal() {
-  try { localStorage.setItem('mc2', JSON.stringify({ procedimentos, userProfile })); } catch {}
+  stampChanges();
+  try { localStorage.setItem('mc2', JSON.stringify({ procedimentos, userProfile, apagados })); } catch {}
 }
 function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem('mc2') || 'null');
     if (!d) return false;
     procedimentos = d.procedimentos || [];
+    apagados = d.apagados || {};
+    baselineActs();
     if (d.userProfile) {
       if (!userProfile.name)   userProfile.name   = d.userProfile.name   || '';
       if (!userProfile.email)  userProfile.email  = d.userProfile.email  || '';
@@ -1614,6 +1689,8 @@ async function resetLegacyAccount(email) {
   driveFileId = null;
   localStorage.removeItem('mc2_verify');
   procedimentos = keep ? local.procedimentos : [];
+  apagados = keep ? (local.apagados || {}) : {};
+  _actSnap = null;
   if (!keep) localStorage.removeItem('mc2');
   showPinScreen('create');
 }
@@ -1812,11 +1889,10 @@ async function resumeSync(pin) {
   saveLocal();   // o merge do loadFromDrive parte do mc2
   if (!driveFileId) { const df = await findDriveFile(); if (df.id) driveFileId = df.id; }
   if (driveFileId) {
-    const before = procedimentos.length;
     _drivePrefetch = null;
     const r = await loadFromDrive(pin);
     if (!r.ok && r.reason === 'network') { showOfflineBanner('sync_fail', 'erro de ligação'); return; }
-    if (procedimentos.length !== before) renderDashboard();
+    renderDashboard();   // a fusão também pode mudar estados, não só o nº de actos
   }
   if (!_saveInFlight) saveToDrive();
 }
@@ -2565,6 +2641,7 @@ function changeStatus(id, newStatus, msg, isPago) {
 function deleteAct(id) {
   if (!confirm('Apagar este acto? Não pode ser desfeito.')) return;
   procedimentos = procedimentos.filter(p => p.id !== id);
+  if (!isDemoMode) apagados[id] = new Date().toISOString();
   autoSave(); renderDashboard();
   toast('Acto apagado'); showScreen('screen-dashboard');
 }
@@ -3702,6 +3779,7 @@ function logout() {
   googleToken = null; driveFileId = null; encKey = null;
   pinCryptoKey = null; dekB64 = null; keyFileId = null; _recoverDek = null; _drivePrefetch = null;
   userProfile = { name: '', email: '' }; procedimentos = [];
+  apagados = {}; _actSnap = null;
   showScreen('screen-login');
 }
 
